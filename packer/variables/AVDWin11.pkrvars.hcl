@@ -1,0 +1,12 @@
+use_azure_cli_auth              = true
+location                        = "eastus"
+environment                     = "Dev"
+acg_name                        = "acg_dev_use2"
+acg_resource_group_name         = "rg-imagemanagement-dev-use2"
+acg_image_definition_name       = "id-avd-win11-ms"
+image_offer                     = "Windows-11"
+image_publisher                 = "MicrosoftWindowsDesktop"
+image_sku                       = "win11-22h2-avd"
+vm_size                         = "Standard_D4ads_v5"
+files_download                  = ["LGPO.zip","Edge.zip","PowerShell-Core.zip","VisualC++Redistributables.zip"]
+master_buildscript_variables    = {"pkr_Author":"shawn.meyer"}

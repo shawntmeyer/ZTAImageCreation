@@ -1,0 +1,20 @@
+{
+    "automationAccounts": "aa",
+    "availabilitySets": "as",
+    "desktopApplicationGroups": "dag",
+    "remoteApplicationGroups": "rag",
+    "disks": "disk",
+    "diskEncryptionSets": "des",
+    "hostPools": "hp",
+    "keyVaults": "kv",
+    "logAnalyticsWorkspaces": "law",
+    "netAppAccounts": "naa",
+    "netAppCapacityPools": "nacp",
+    "networkInterfaces": "nic",
+    "recoveryServicesVaults": "rsv",
+    "resourceGroups": "rg",
+    "storageAccounts": "sa",
+    "userAssignedIdentities": "uai",
+    "virtualMachines": "vm",
+    "workspaces": "ws"
+}

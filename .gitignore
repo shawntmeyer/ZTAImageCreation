@@ -1,0 +1,7 @@
+*.exe
+*.cab
+*.msi
+*.zip
+!packer.exe
+temp/**
+*.secrets.pkrvars.hcl
