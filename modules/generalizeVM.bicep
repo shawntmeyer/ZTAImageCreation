@@ -1,39 +1,26 @@
-
-@description('Location for all resources.')
-param location string = resourceGroup().location
-
-@description('Name of the virtual machine.')
-param vmName string
-
-param miName string
-
-@description('Name of the virtual machine.')
-param miResourceGroup string
-
 param cloud string
-
+param location string = resourceGroup().location
 param imageVmName string
-param imageVmRg string
-
+param managementVmName string
+param userAssignedIdentityResourceId string
 
 resource managedIdentity 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-01-31' existing = {
-  scope: resourceGroup(miResourceGroup)
-  name: miName
+  scope: resourceGroup(split(userAssignedIdentityResourceId, '/')[2], split(userAssignedIdentityResourceId, '/')[4])
+  name: last(split(userAssignedIdentityResourceId, '/'))
 }
 
 resource imageVm 'Microsoft.Compute/virtualMachines@2022-03-01' existing = {
-  scope: resourceGroup(imageVmRg)
   name: imageVmName
 }
 
-resource vm 'Microsoft.Compute/virtualMachines@2022-03-01' existing = {
-  name: vmName
+resource managementVm 'Microsoft.Compute/virtualMachines@2022-03-01' existing = {
+  name: managementVmName
 }
 
 resource generalize 'Microsoft.Compute/virtualMachines/runCommands@2023-03-01' = {
   name: 'generalize'
   location: location
-  parent: vm
+  parent: managementVm
   properties: {
     treatFailureAsDeploymentFailure: false
     asyncExecution: false
@@ -48,15 +35,7 @@ resource generalize 'Microsoft.Compute/virtualMachines/runCommands@2023-03-01' =
       }
       {
         name: 'imageVmName'
-        value: imageVm.name
-      }
-      {
-        name: 'managementVmRg'
-        value: split(vm.id, '/')[4]
-      }
-      {
-        name: 'managementVmName'
-        value: vm.name
+        value: imageVmName
       }
       {
         name: 'Environment'
@@ -69,20 +48,19 @@ resource generalize 'Microsoft.Compute/virtualMachines/runCommands@2023-03-01' =
         [string]$miId,
         [string]$imageVmRg,
         [string]$imageVmName,
-        [string]$managementVmRg,
-        [string]$managementVmName,
         [string]$Environment
         )
         # Connect to Azure
         Connect-AzAccount -Identity -AccountId $miId -Environment $Environment # Run on the virtual machine
 
-        Start-Sleep 30
+        Do {
+          Start-Sleep -seconds 5
+        } Until (Get-AzResource -ResourceType 'Microsoft.Compute/VirtualMachines')
         
         # Generalize VM Using PowerShell
         Set-AzVm -ResourceGroupName $imageVmRg -Name $imageVmName -Generalized
 
-        Write-Host "Generalized" 
-
+        Write-Output "Generalized"
       '''
     }
   }

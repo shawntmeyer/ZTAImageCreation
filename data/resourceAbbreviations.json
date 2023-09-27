@@ -1,11 +1,13 @@
 {
     "automationAccounts": "aa",
     "availabilitySets": "as",
+    "computeGallery": "gal",
     "desktopApplicationGroups": "dag",
     "remoteApplicationGroups": "rag",
     "disks": "disk",
     "diskEncryptionSets": "des",
     "hostPools": "hp",
+    "imageDefinitions": "vmid",
     "keyVaults": "kv",
     "logAnalyticsWorkspaces": "law",
     "netAppAccounts": "naa",

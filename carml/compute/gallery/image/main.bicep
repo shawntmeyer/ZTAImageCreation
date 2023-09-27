@@ -12,6 +12,13 @@ param location string = resourceGroup().location
 @minLength(1)
 param galleryName string
 
+@sys.description('Optional. The OS architecture of the image to be created. V1 images do not support Arm64.')
+@allowed([
+  'x64'
+  'Arm64'
+])
+param architecture string = 'x64'
+
 @sys.description('Optional. OS type of the image to be created.')
 @allowed([
   'Windows'
@@ -67,6 +74,7 @@ param hyperVGeneration string = ''
 @allowed([
   'Standard'
   'TrustedLaunch'
+  'TrustedLaunchSupported'
   'ConfidentialVM'
   'ConfidentialVMSupported'
 ])
@@ -85,6 +93,9 @@ param isHibernateSupported string = 'false'
   'false'
 ])
 param isAcceleratedNetworkSupported string = 'false'
+
+@sys.description('Optional. The image supports Higher Storage Performance with NVMe.')
+param isHigherStoragePerformanceSupported bool = false
 
 @sys.description('Optional. The description of this gallery Image Definition resource. This property is updatable.')
 param description string = ''
@@ -116,6 +127,34 @@ param excludedDiskTypes array = []
 @sys.description('Optional. Tags for all resources.')
 param tags object = {}
 
+var diskControllerTypes = isHigherStoragePerformanceSupported ? {
+  DiskControllerTypes: 'SCSI, NVMe'
+} : {}
+
+var features = !empty(securityType) && securityType != 'Standard' ? union([
+  {
+    name: 'SecurityType'
+    value: securityType
+  }
+  {
+    name: 'IsAcceleratedNetworkSupported'
+    value: isAcceleratedNetworkSupported
+  }
+  {
+    name: 'IsHibernateSupported'
+    value: isHibernateSupported
+  }
+], [diskControllerTypes]) : union([
+  {
+    name: 'IsAcceleratedNetworkSupported'
+    value: isAcceleratedNetworkSupported
+  }
+  {
+    name: 'IsHibernateSupported'
+    value: isHibernateSupported
+  }
+], [diskControllerTypes])
+
 resource gallery 'Microsoft.Compute/galleries@2022-03-03' existing = {
   name: galleryName
 }
@@ -126,6 +165,7 @@ resource image 'Microsoft.Compute/galleries/images@2022-03-03' = {
   location: location
   tags: tags
   properties: {
+    architecture: architecture == 'x64' && hyperVGeneration == 'V2' ? architecture : null
     osType: osType
     osState: osState
     identifier: {
@@ -144,29 +184,7 @@ resource image 'Microsoft.Compute/galleries/images@2022-03-03' = {
       }
     }
     hyperVGeneration: !empty(hyperVGeneration) ? hyperVGeneration : (!empty(securityType) ? 'V2' : 'V1')
-    features: !empty(securityType) && securityType != 'Standard' ? [
-      {
-        name: 'SecurityType'
-        value: securityType
-      }
-      {
-        name: 'IsAcceleratedNetworkSupported'
-        value: isAcceleratedNetworkSupported
-      }
-      {
-        name: 'IsHibernateSupported'
-        value: isHibernateSupported
-      }
-    ] : [
-      {
-        name: 'IsAcceleratedNetworkSupported'
-        value: isAcceleratedNetworkSupported
-      }
-      {
-        name: 'IsHibernateSupported'
-        value: isHibernateSupported
-      }
-    ]
+    features: features
     description: description
     eula: eula
     privacyStatementUri: privacyStatementUri

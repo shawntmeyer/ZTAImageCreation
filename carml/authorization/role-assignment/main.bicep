@@ -60,7 +60,6 @@ module roleAssignment_mg 'management-group/main.bicep' = if (empty(subscriptionI
     delegatedManagedIdentityResourceId: !empty(delegatedManagedIdentityResourceId) ? delegatedManagedIdentityResourceId : ''
     conditionVersion: conditionVersion
     condition: !empty(condition) ? condition : ''
-    location: location
   }
 }
 
@@ -76,7 +75,6 @@ module roleAssignment_sub 'subscription/main.bicep' = if (!empty(subscriptionId)
     delegatedManagedIdentityResourceId: !empty(delegatedManagedIdentityResourceId) ? delegatedManagedIdentityResourceId : ''
     conditionVersion: conditionVersion
     condition: !empty(condition) ? condition : ''
-    location: location
   }
 }
 

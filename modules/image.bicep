@@ -24,7 +24,7 @@ param vmName string
   'GovernmentCommunityCloud'
   'GovernmentCommunityCloudHigh'
 ])
-param TenantType string
+param tenantType string
 param userAssignedIdentityObjectId string
 param customizations array
 param vDotInstaller string
@@ -421,8 +421,8 @@ resource teams 'Microsoft.Compute/virtualMachines/runCommands@2022-11-01' = if (
   properties: {
     parameters: [
       {
-        name: 'TenantType'
-        value: TenantType
+        name: 'tenantType'
+        value: tenantType
       }
       {
         name: 'UserAssignedIdentityObjectId'
@@ -456,7 +456,7 @@ resource teams 'Microsoft.Compute/virtualMachines/runCommands@2022-11-01' = if (
     source: {
       script: '''
       param(
-        [string]$TenantType,
+        [string]$tenantType,
         [string]$UserAssignedIdentityObjectId,
         [string]$StorageAccountName,
         [string]$ContainerName,
@@ -465,19 +465,19 @@ resource teams 'Microsoft.Compute/virtualMachines/runCommands@2022-11-01' = if (
         [string]$BlobName2,
         [string]$BlobName3
         )
-      If($TenantType -eq "Commercial")
+      If($tenantType -eq "Commercial")
       {
         $TeamsUrl = "https://teams.microsoft.com/downloads/desktopurl?env=production&plat=windows&arch=x64&managedInstaller=true&download=true"
       }
-      If($TenantType -eq "DepartmentOfDefense")
+      If($tenantType -eq "DepartmentOfDefense")
       {
         $TeamsUrl = "https://dod.teams.microsoft.us/downloads/desktopurl?env=production&plat=windows&arch=x64&managedInstaller=true&download=true"
       }
-      If($TenantType -eq "GovernmentCommunityCloud")
+      If($tenantType -eq "GovernmentCommunityCloud")
       {
         $TeamsUrl = "https://teams.microsoft.com/downloads/desktopurl?env=production&plat=windows&arch=x64&managedInstaller=true&ring=general_gcc&download=true"
       }
-      If($TenantType -eq "GovernmentCommunityCloudHigh")
+      If($tenantType -eq "GovernmentCommunityCloudHigh")
       {
         $TeamsUrl = "https://gov.teams.microsoft.us/downloads/desktopurl?env=production&plat=windows&arch=x64&managedInstaller=true&download=true"
       }
@@ -529,4 +529,4 @@ resource teams 'Microsoft.Compute/virtualMachines/runCommands@2022-11-01' = if (
   ]
 }
 
-output TenantType string = TenantType
+output tenantType string = tenantType

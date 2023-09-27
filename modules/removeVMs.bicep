@@ -1,39 +1,26 @@
-
-@description('Location for all resources.')
-param location string = resourceGroup().location
-
-@description('Name of the virtual machine.')
-param vmName string
-
-param miName string
-
-@description('Name of the virtual machine.')
-param miResourceGroup string
-
 param cloud string
-
+param location string = resourceGroup().location
 param imageVmName string
-param imageVmRg string
-
+param managementVmName string
+param userAssignedIdentityResourceId string
 
 resource managedIdentity 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-01-31' existing = {
-  scope: resourceGroup(miResourceGroup)
-  name: miName
+  scope: resourceGroup(split(userAssignedIdentityResourceId, '/')[2], split(userAssignedIdentityResourceId, '/')[4])
+  name: last(split(userAssignedIdentityResourceId, '/'))
 }
 
 resource imageVm 'Microsoft.Compute/virtualMachines@2022-03-01' existing = {
-  scope: resourceGroup(imageVmRg)
   name: imageVmName
 }
 
-resource vm 'Microsoft.Compute/virtualMachines@2022-03-01' existing = {
-  name: vmName
+resource managementVm 'Microsoft.Compute/virtualMachines@2022-03-01' existing = {
+  name: managementVmName
 }
 
 resource removeVm 'Microsoft.Compute/virtualMachines/runCommands@2023-03-01' = {
   name: 'removeVm'
   location: location
-  parent: vm
+  parent: managementVm
   properties: {
     treatFailureAsDeploymentFailure: false
     asyncExecution: true
@@ -48,15 +35,15 @@ resource removeVm 'Microsoft.Compute/virtualMachines/runCommands@2023-03-01' = {
       }
       {
         name: 'imageVmName'
-        value: imageVm.name
+        value: imageVmName
       }
       {
         name: 'managementVmRg'
-        value: split(vm.id, '/')[4]
+        value: split(managementVm.id, '/')[4]
       }
       {
         name: 'managementVmName'
-        value: vm.name
+        value: managementVmName
       }
       {
         name: 'Environment'

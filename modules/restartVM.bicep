@@ -1,45 +1,32 @@
-
-@description('Location for all resources.')
-param location string = resourceGroup().location
-
-@description('Name of the virtual machine.')
-param vmName string
-
-param miName string
-
-@description('Name of the virtual machine.')
-param miResourceGroup string
-
 param cloud string
-
+param location string = resourceGroup().location
 param imageVmName string
-param imageVmRg string
-
+param managementVmName string
+param userAssignedIdentityResourceId string
 
 resource managedIdentity 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-01-31' existing = {
-  scope: resourceGroup(miResourceGroup)
-  name: miName
+  scope: resourceGroup(split(userAssignedIdentityResourceId, '/')[2], split(userAssignedIdentityResourceId, '/')[4])
+  name: last(split(userAssignedIdentityResourceId, '/'))
 }
 
 resource imageVm 'Microsoft.Compute/virtualMachines@2022-03-01' existing = {
-  scope: resourceGroup(imageVmRg)
   name: imageVmName
 }
 
-resource vm 'Microsoft.Compute/virtualMachines@2022-03-01' existing = {
-  name: vmName
+resource managementVm 'Microsoft.Compute/virtualMachines@2022-03-01' existing = {
+  name: managementVmName
 }
 
 resource restartVm 'Microsoft.Compute/virtualMachines/runCommands@2023-03-01' = {
   name: 'restartVm'
   location: location
-  parent: vm
+  parent: managementVm
   properties: {
     treatFailureAsDeploymentFailure: false
     asyncExecution: false
     parameters: [
       {
-        name: 'miId'
+        name: 'miClientId'
         value: managedIdentity.properties.clientId
       }
       {
@@ -58,7 +45,7 @@ resource restartVm 'Microsoft.Compute/virtualMachines/runCommands@2023-03-01' = 
     source: {
       script: '''
       param(
-        [string]$miId,
+        [string]$miClientId,
         [string]$imageVmRg,
         [string]$imageVmName,
         [string]$Environment

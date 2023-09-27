@@ -39,9 +39,6 @@ param conditionVersion string = '2.0'
 ])
 param principalType string = ''
 
-@sys.description('Optional. Location deployment metadata.')
-param location string = deployment().location
-
 var builtInRoleNames = {
   'Access Review Operator Service Role': '/providers/Microsoft.Authorization/roleDefinitions/76cc9ee4-d5d3-4a45-a930-26add3d73475'
   AcrDelete: '/providers/Microsoft.Authorization/roleDefinitions/c2f4ef07-c644-48eb-af81-4b1b4947fb11'
