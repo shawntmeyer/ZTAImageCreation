@@ -170,7 +170,7 @@ var imageVersionStorageAccountType = 'Standard_LRS'
 var imageVersionEndOfLifeDate = imageVersionExpiresInDays != 0 ? dateTimeAdd(imageVersionCreationTime, 'P${imageVersionExpiresInDays}D') : ''
 
 var targetRegions = [for region in replicationRegions: {
-  excludedFromLatest: imageVersionExcludeFromLatest
+  excludeFromLatest: imageVersionExcludeFromLatest
   name: region
   regionalReplicaCount: replicaCount
   storageAccountType: imageVersionStorageAccountType
