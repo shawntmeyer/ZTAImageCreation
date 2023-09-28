@@ -33,6 +33,8 @@ param teamsInstaller string
 param vcRedistInstaller string
 param msrdcwebrtcsvcInstaller string
 
+var buildDir = 'c:\\BuildDir'
+
 var installAccessVar = '${installAccess}installAccess'
 var installExcelVar = '${installExcel}installWord'
 var installOneDriveForBusinessVar = '${installOneDriveForBusiness}installOneDrive'
@@ -52,6 +54,29 @@ resource vm 'Microsoft.Compute/virtualMachines@2022-11-01' existing = {
   name: vmName
 }
 
+resource createBuildDir 'Microsoft.Compute/virtualMachines/runCommands@2023-03-01' = {
+  name: 'create-BuildDir'
+  location: location
+  parent: vm
+  properties: {
+    treatFailureAsDeploymentFailure: true
+    parameters: [
+      {
+        name: 'BuildDir'
+        value: buildDir
+      }
+    ]
+    source: {
+      script: '''
+      param(
+        [string]$BuildDir
+      )
+      New-Item -Path $BuildDir -ItemType Directory -Force | Out-Null
+      '''
+    }
+  }
+}
+
 @batchSize(1)
 resource applications 'Microsoft.Compute/virtualMachines/runCommands@2023-03-01' = [for installer in installers : {
   name: 'app-${installer.name}'
@@ -60,6 +85,10 @@ resource applications 'Microsoft.Compute/virtualMachines/runCommands@2023-03-01'
   properties: {
     treatFailureAsDeploymentFailure: true
     parameters: [
+      {
+        name: 'BuildDir'
+        value: buildDir
+      }
       {
         name: 'UserAssignedIdentityObjectId'
         value: userAssignedIdentityObjectId
@@ -92,6 +121,7 @@ resource applications 'Microsoft.Compute/virtualMachines/runCommands@2023-03-01'
     source: {
       script: '''
       param(
+        [string]$BuildDir,
         [string]$UserAssignedIdentityObjectId,
         [string]$StorageAccountName,
         [string]$ContainerName,
@@ -99,64 +129,66 @@ resource applications 'Microsoft.Compute/virtualMachines/runCommands@2023-03-01'
         [string]$BlobName,
         [string]$Installer,
         [string]$Arguments
-        )
-        $UserAssignedIdentityObjectId = $UserAssignedIdentityObjectId
-        $StorageAccountName = $StorageAccountName
-        $ContainerName = $ContainerName
-        $BlobName = $BlobName
-        $StorageAccountUrl = $StorageEndpoint
-        $TokenUri = "http://169.254.169.254/metadata/identity/oauth2/token?api-version=2018-02-01&resource=$StorageAccountUrl&object_id=$UserAssignedIdentityObjectId"
-        $AccessToken = ((Invoke-WebRequest -Headers @{Metadata=$true} -Uri $TokenUri -UseBasicParsing).Content | ConvertFrom-Json).access_token
-        New-Item -Path $env:windir\temp -Name $Installer -ItemType "directory" -Force
-        New-Item -Path $env:windir\temp\$Installer -Name 'Files' -ItemType "directory" -Force
-        Invoke-WebRequest -Headers @{"x-ms-version"="2017-11-09"; Authorization ="Bearer $AccessToken"} -Uri "$StorageAccountUrl$ContainerName/$BlobName" -OutFile $env:windir\temp\$Installer\Files\$Blobname
-        Start-Sleep -Seconds 30
-        Set-Location -Path $env:windir\temp\$Installer
-        if($Blobname -like ("*.exe"))
+      )
+      $UserAssignedIdentityObjectId = $UserAssignedIdentityObjectId
+      $StorageAccountName = $StorageAccountName
+      $ContainerName = $ContainerName
+      $BlobName = $BlobName
+      $StorageAccountUrl = $StorageEndpoint
+      $TokenUri = "http://169.254.169.254/metadata/identity/oauth2/token?api-version=2018-02-01&resource=$StorageAccountUrl&object_id=$UserAssignedIdentityObjectId"
+      $AccessToken = ((Invoke-WebRequest -Headers @{Metadata=$true} -Uri $TokenUri -UseBasicParsing).Content | ConvertFrom-Json).access_token
+      New-Item -Path $BuildDir -Name $Installer -ItemType Directory -Force | Out-Null
+      Invoke-WebRequest -Headers @{"x-ms-version"="2017-11-09"; Authorization ="Bearer $AccessToken"} -Uri "$StorageAccountUrl$ContainerName/$BlobName" -OutFile $BuildDir\$Installer\$Blobname
+      Start-Sleep -Seconds 10
+      Set-Location -Path $BuildDir\$Installer
+      if($Blobname -like ("*.exe"))
+      {
+        Start-Process -FilePath $BuildDir\$Installer\$Blobname -ArgumentList $Arguments -NoNewWindow -Wait -PassThru
+        $status = Get-WmiObject -Class Win32_Product | Where-Object Name -like "*$($installer)*"
+        if($status)
         {
-          Start-Process -FilePath $env:windir\temp\$Installer\Files\$Blobname -ArgumentList $Arguments -NoNewWindow -Wait -PassThru
-          $status = Get-WmiObject -Class Win32_Product | Where-Object Name -like "*$($installer)*"
-          if($status)
-          {
-            Write-Host $status.Name "is installed"
-          }
-          else
-          {
-            Write-host $Installer "did not install properly, please check arguments"
-          }
+          Write-Host $status.Name "is installed"
         }
-        if($Blobname -like ("*.msi"))
+        else
         {
-          Set-Location -Path $env:windir\temp\$Installer\Files
-          Start-Process -FilePath msiexec.exe -ArgumentList $Arguments -Wait
-          $status = Get-WmiObject -Class Win32_Product | Where-Object Name -like "*$($installer)*"
-          if($status)
-          {
-            Write-Host $status.Name "is installed"
-          }
-          else
-          {
-            Write-host $Installer "did not install properly, please check arguments"
-          }
+          Write-host $Installer "did not install properly, please check arguments"
         }
-        if($Blobname -like ("*.bat"))
+      }
+      if($Blobname -like ("*.msi"))
+      {
+        If ($Arguments -notcontains $Blobname) {$Arguments = "/i $Blobname $Arguments"}
+        Start-Process -FilePath msiexec.exe -ArgumentList $Arguments -Wait
+        $status = Get-WmiObject -Class Win32_Product | Where-Object Name -like "*$($installer)*"
+        if($status)
         {
-          Start-Process -FilePath cmd.exe -ArgumentList $env:windir\temp\$Installer\Files\$Arguments -Wait
+          Write-Host $status.Name "is installed"
         }
-        if($Blobname -like ("*.ps1"))
+        else
         {
-          Start-Process -FilePath PowerShell.exe -ArgumentList $env:windir\temp\$Installer\Files\$Arguments -Wait
+          Write-host $Installer "did not install properly, please check arguments"
         }
-        if($Blobname -like ("*.zip"))
-        {
-          Set-Location -Path $env:windir\temp\$Installer\Files
-          Expand-Archive -Path $env:windir\temp\$Installer\Files\$Blobname -DestinationPath $env:windir\temp\$Installer\Files -Force
-          Remove-Item -Path .\$Blobname -Force -Recurse 
-        }
+      }
+      if($Blobname -like ("*.bat"))
+      {
+        Start-Process -FilePath cmd.exe -ArgumentList "$BlobName $Arguments" -Wait
+      }
+      if($Blobname -like ("*.ps1"))
+      {
+        & $BlobName $Arguments
+      }
+      if($Blobname -like ("*.zip"))
+      {
+        $destinationPath = "$BuildDir\$Installer\$($Blobname.BaseName)"
+        Expand-Archive -Path $BuildDir\$Installer\$Blobname -DestinationPath $destinationPath -Force
+        $PSScript = ((Get-ChildItem -Path $destinationPath -filter '*.ps1').FullName)[0]
+          & $PSScript $Arguments 
+      }
       '''
     }
   }
-  dependsOn:[]
+  dependsOn:[
+    createBuildDir
+  ]
 }]
 
 resource office 'Microsoft.Compute/virtualMachines/runCommands@2022-11-01' = if (installAccess || installExcel || installOneDriveForBusiness || installOneNote || installOutlook || installPowerPoint || installPublisher || installSkypeForBusiness || installWord || installVisio || installProject) {
@@ -165,6 +197,10 @@ resource office 'Microsoft.Compute/virtualMachines/runCommands@2022-11-01' = if 
   parent: vm
   properties: {
     parameters: [
+      {
+        name: 'BuildDir'
+        value: buildDir
+      }
       {
         name: 'InstallAccess'
         value: installAccessVar
@@ -233,22 +269,23 @@ resource office 'Microsoft.Compute/virtualMachines/runCommands@2022-11-01' = if 
     source: {
       script: '''
       param(
-      [string]$InstallAccess,
-      [string]$InstallExcel,
-      [string]$InstallOneDriveForBusiness,
-      [string]$InstallOutlook,
-      [string]$InstallProject,
-      [string]$InstallPublisher,
-      [string]$InstallSkypeForBusiness,
-      [string]$InstallVisio,
-      [string]$InstallWord,
-      [string]$InstallOneNote,
-      [string]$InstallPowerPoint,
-      [string]$UserAssignedIdentityObjectId,
-      [string]$StorageAccountName,
-      [string]$ContainerName,
-      [string]$StorageEndpoint,
-      [string]$BlobName
+        [string]$BuildDir,
+        [string]$InstallAccess,
+        [string]$InstallExcel,
+        [string]$InstallOneDriveForBusiness,
+        [string]$InstallOutlook,
+        [string]$InstallProject,
+        [string]$InstallPublisher,
+        [string]$InstallSkypeForBusiness,
+        [string]$InstallVisio,
+        [string]$InstallWord,
+        [string]$InstallOneNote,
+        [string]$InstallPowerPoint,
+        [string]$UserAssignedIdentityObjectId,
+        [string]$StorageAccountName,
+        [string]$ContainerName,
+        [string]$StorageEndpoint,
+        [string]$BlobName
       )
       $UserAssignedIdentityObjectId = $UserAssignedIdentityObjectId
       $StorageAccountName = $StorageAccountName
@@ -256,66 +293,70 @@ resource office 'Microsoft.Compute/virtualMachines/runCommands@2022-11-01' = if 
       $BlobName = $BlobName
       $StorageAccountUrl = $StorageEndpoint
       $TokenUri = "http://169.254.169.254/metadata/identity/oauth2/token?api-version=2018-02-01&resource=$StorageAccountUrl&object_id=$UserAssignedIdentityObjectId"
-      $AccessToken = ((Invoke-WebRequest -Headers @{Metadata=$true} -Uri $TokenUri -UseBasicParsing).Content | ConvertFrom-Json).access_token
+      $AccessToken = ((Invoke-WebRequest -Headers @{Metadata = $true } -Uri $TokenUri -UseBasicParsing).Content | ConvertFrom-Json).access_token
       $sku = (Get-ComputerInfo).OsName
-      $o365ConfigHeader = Set-Content "$env:windir\temp\office365x64.xml" '<Configuration><Add OfficeClientEdition="64" Channel="Current">'
-      $o365OfficeHeader = Add-Content "$env:windir\temp\office365x64.xml" '<Product ID="O365ProPlusRetail"><Language ID="en-us" /><ExcludeApp ID="Teams"/>'
-      if($InstallAccess -notlike '*true*'){
-          $excludeAccess = Add-Content "$env:windir\temp\office365x64.xml" '<ExcludeApp ID="Access" />'
+      $appDir = Join-Path -Path $BuildDir -ChildPath 'Office365'
+      New-Item -Path $appDir -ItemType Directory -Force | Out-Null
+      $configFile = Join-Path -Path $appDir -ChildPath 'office365x64.xml'
+      $null =  Set-Content $configFile '<Configuration><Add OfficeClientEdition="64" Channel="Current">'
+      $null = Add-Content $configFile '<Product ID="O365ProPlusRetail"><Language ID="en-us" /><ExcludeApp ID="Teams"/>'
+      if ($InstallAccess -notlike '*true*') {
+          $null = Add-Content $configFile '<ExcludeApp ID="Access" />'
       }
-      if($InstallExcel -notlike '*true*'){
-          $excludeExcel = Add-Content "$env:windir\temp\office365x64.xml" '<ExcludeApp ID="Excel" />'
+      if ($InstallExcel -notlike '*true*') {
+          $null= Add-Content $configFile '<ExcludeApp ID="Excel" />'
       }
-      if($InstallOneDriveForBusiness -notlike '*true*'){
-          $excludeOneDriveForBusiness = Add-Content "$env:windir\temp\office365x64.xml" '<ExcludeApp ID="Groove" />'
+      if ($InstallOneDriveForBusiness -notlike '*true*') {
+          $null = Add-Content $configFile '<ExcludeApp ID="Groove" />'
       }
-      if($InstallOneDriveForBusiness -notlike '*true*'){
-        $excludeOneDriveForBusiness = Add-Content "$env:windir\temp\office365x64.xml" '<ExcludeApp ID="Groove" />'
-    }
-      if($InstallOneNote -notlike '*true*'){
-          $excludeOneNote = Add-Content "$env:windir\temp\office365x64.xml" '<ExcludeApp ID="OneNote" />'
+      if ($InstallOneDriveForBusiness -notlike '*true*') {
+          $null = Add-Content $configFile '<ExcludeApp ID="Groove" />'
       }
-      if($InstallOutlook -notlike '*true*'){
-          $excludeOutlook = Add-Content "$env:windir\temp\office365x64.xml" '<ExcludeApp ID="Outlook" />'
+      if ($InstallOneNote -notlike '*true*') {
+          $null = Add-Content $configFile '<ExcludeApp ID="OneNote" />'
       }
-      if($InstallPowerPoint -notlike '*true*'){
-          $excludePowerPoint = Add-Content "$env:windir\temp\office365x64.xml" '<ExcludeApp ID="PowerPoint" />'
+      if ($InstallOutlook -notlike '*true*') {
+          $null = Add-Content $configFile '<ExcludeApp ID="Outlook" />'
       }
-      if($InstallPublisher -notlike '*true*'){
-          $excludePublisher = Add-Content "$env:windir\temp\office365x64.xml" '<ExcludeApp ID="Publisher" />'
+      if ($InstallPowerPoint -notlike '*true*') {
+          $null = Add-Content $configFile '<ExcludeApp ID="PowerPoint" />'
       }
-      if($InstallSkypeForBusiness -notlike '*true*'){
-          $excludeSkypeForBusiness= Add-Content "$env:windir\temp\office365x64.xml" '<ExcludeApp ID="Lync" />'
+      if ($InstallPublisher -notlike '*true*') {
+          $null = Add-Content $configFile '<ExcludeApp ID="Publisher" />'
       }
-      if($InstallWord -notlike '*true*'){
-          $excludeSkypeForBusiness= Add-Content "$env:windir\temp\office365x64.xml" '<ExcludeApp ID="Word" />'
+      if ($InstallSkypeForBusiness -notlike '*true*') {
+          $null = Add-Content $configFile '<ExcludeApp ID="Lync" />'
       }
-      $addOfficefooter = Add-Content "$env:windir\temp\office365x64.xml" '</Product>'
-      if($InstallProject -like '*true*'){
-        Add-Content "$env:windir\temp\office365x64.xml" '<Product ID="ProjectProRetail"><Language ID="en-us" /></Product>'
+      if ($InstallWord -notlike '*true*') {
+          $null = Add-Content $configFile '<ExcludeApp ID="Word" />'
       }
-      if($InstallVisio -like '*true*'){
-        Add-Content "$env:windir\temp\office365x64.xml" '<Product ID="VisioProRetail"><Language ID="en-us" /></Product>'
+      $null = Add-Content $configFile '</Product>'
+      if ($InstallProject -like '*true*') {
+          $null = Add-Content $configFile '<Product ID="ProjectProRetail"><Language ID="en-us" /></Product>'
       }
-      $o365Settings = Add-Content "$env:windir\temp\office365x64.xml" '</Add><Updates Enabled="FALSE" /><Display Level="None" AcceptEULA="TRUE" /><Property Name="FORCEAPPSHUTDOWN" Value="TRUE"/>'
-      $PerMachineConfiguration = if(($Sku).Contains("multi") -eq "true"){
-          $o365SharedActivation = Add-Content "$env:windir\temp\office365x64.xml" '<Property Name="SharedComputerLicensing" Value="1"/>'
+      if ($InstallVisio -like '*true*') {
+          $null = Add-Content $configFile '<Product ID="VisioProRetail"><Language ID="en-us" /></Product>'
       }
-      $o365Configfooter = Add-Content "$env:windir\temp\office365x64.xml" '</Configuration>'
+      $null = Add-Content $configFile '</Add><Updates Enabled="FALSE" /><Display Level="None" AcceptEULA="TRUE" /><Property Name="FORCEAPPSHUTDOWN" Value="TRUE"/>'
+      if (($Sku).Contains("multi") -eq "true") {
+          $null = Add-Content $configFile '<Property Name="SharedComputerLicensing" Value="1"/>'
+      }
+      $null = Add-Content $configFile '</Configuration>'
       $ErrorActionPreference = "Stop"
-      $Installer = "$env:windir\temp\office.exe"
-      #$DownloadLinks = Invoke-WebRequest -Uri "https://www.microsoft.com/en-us/download/confirmation.aspx?id=49117" -UseBasicParsing
-      #$URL = $DownloadLinks.Links.href | Where-Object {$_ -like "https://download.microsoft.com/download/*officedeploymenttool*"} | Select-Object -First 1
-      #Invoke-WebRequest -Uri $URL -OutFile $Installer -UseBasicParsing
-      Invoke-WebRequest -Headers @{"x-ms-version"="2017-11-09"; Authorization ="Bearer $AccessToken"} -Uri "$StorageAccountUrl$ContainerName/$BlobName" -OutFile $Installer
-      Start-Process -FilePath $Installer -ArgumentList "/extract:$env:windir\temp /quiet /passive /norestart" -Wait -PassThru | Out-Null
+      $destFile = Join-Path -Path $appDir -ChildPath 'office.zip'
+      Invoke-WebRequest -Headers @{"x-ms-version" = "2017-11-09"; Authorization = "Bearer $AccessToken" } -Uri "$StorageAccountUrl$ContainerName/$BlobName" -OutFile $destFile
+      Expand-Archive -Path $destFile -DestinationPath "$appDir\Temp" -Force
+      $DeploymentTool = (Get-ChildItem -Path $appDir\Temp -Filter '*.exe' -Recurse -File).FullName
+      Start-Process -FilePath $DeploymentTool -ArgumentList "/extract:`"$appDir\ODT`" /quiet /passive /norestart" -Wait -PassThru | Out-Null
       Write-Host "Downloaded & extracted the Office 365 Deployment Toolkit"
-      Start-Process -FilePath "$env:windir\temp\setup.exe" -ArgumentList "/configure $env:windir\temp\office365x64.xml" -Wait -PassThru -ErrorAction "Stop" | Out-Null
+      $setup = (Get-ChildItem -Path "$appDir\ODT" -Filter '*setup*.exe').FullName
+      Start-Process -FilePath $setup -ArgumentList "/configure `"$configFile`"" -Wait -PassThru -ErrorAction "Stop" | Out-Null
       Write-Host "Installed the selected Office365 applications"
       '''
     }
   }
   dependsOn: [
+    createBuildDir
     applications
   ]
 }
@@ -381,38 +422,12 @@ resource vdot 'Microsoft.Compute/virtualMachines/runCommands@2022-11-01' = if (i
     timeoutInSeconds: 640
   }
   dependsOn: [
+    createBuildDir
     teams
     applications
     office
   ]
 }
-
-// resource fslogix 'Microsoft.Compute/virtualMachines/runCommands@2022-11-01' = if (installFsLogix) {
-//   name: 'fslogix'
-//   location: location
-//   parent: vm
-//   properties: {
-//     source: {
-//       script: '''
-//       $ErrorActionPreference = "Stop"
-//       $ZIP = "$env:windir\temp\fslogix.zip"
-//       Invoke-WebRequest -Uri "https://aka.ms/fslogix_download" -OutFile $ZIP
-//       Unblock-File -Path $ZIP
-//       Expand-Archive -LiteralPath $ZIP -DestinationPath "$env:windir\temp\fslogix" -Force
-//       Write-Host "Downloaded the latest version of FSLogix"
-//       $ErrorActionPreference = "Stop"
-//       Start-Process -FilePath "$env:windir\temp\fslogix\x64\Release\FSLogixAppsSetup.exe" -ArgumentList "/install /quiet /norestart" -Wait -PassThru | Out-Null
-//       Write-Host "Installed the latest version of FSLogix"
-//       '''
-//     }
-//     timeoutInSeconds: 640
-//   }
-//   dependsOn: [
-//     applications
-//     teams
-//     office
-//   ]
-// }
 
 resource teams 'Microsoft.Compute/virtualMachines/runCommands@2022-11-01' = if (installTeams) {
   name: 'teams'
@@ -420,6 +435,10 @@ resource teams 'Microsoft.Compute/virtualMachines/runCommands@2022-11-01' = if (
   parent: vm
   properties: {
     parameters: [
+      {
+        name: 'BuildDir'
+        value: buildDir
+      }
       {
         name: 'tenantType'
         value: tenantType
@@ -524,8 +543,38 @@ resource teams 'Microsoft.Compute/virtualMachines/runCommands@2022-11-01' = if (
     }
   }
   dependsOn: [
+    createBuildDir
     applications
     office
+  ]
+}
+
+resource removeBuildDir 'Microsoft.Compute/virtualMachines/runCommands@2023-03-01' = {
+  name: 'remove-BuildDir'
+  location: location
+  parent: vm
+  properties: {
+    treatFailureAsDeploymentFailure: true
+    parameters: [
+      {
+        name: 'BuildDir'
+        value: buildDir
+      }
+    ]
+    source: {
+      script: '''
+      param(
+        [string]$BuildDir
+      )
+      Remove-Item -Path $BuildDir -Recurse -Force | Out-Null
+      '''
+    }
+  }
+  dependsOn: [
+    createBuildDir
+    applications
+    office
+    teams
   ]
 }
 

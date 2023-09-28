@@ -139,6 +139,7 @@ If ($Service -eq 'MU') {
     $UpdateServiceManager = New-Object -ComObject Microsoft.Update.ServiceManager
     $UpdateServiceManager.ClientApplicationID = $AppName
     $UpdateServiceManager.AddService2("7971f918-a847-4430-9279-4a52d1efe18d",7,"")
+    reg.exe ADD "HKLM\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU" /v AllowMUUpdateService /t REG_DWORD /d 1 /f
 }
 
 $UpdateSession = New-Object -ComObject Microsoft.Update.Session
@@ -350,5 +351,8 @@ If ($SearchResult.Updates.Count -eq 0) {
                 }
             }
         }
-    }  
+    }
+    If ($service -eq 'MU') {
+        Reg.exe DELETE "HKLM\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU" /v AllowMUUpdateService /f
+    }
 } 

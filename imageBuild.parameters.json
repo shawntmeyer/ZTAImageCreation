@@ -1,0 +1,137 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "computeGalleryResourceId": {
+      "value": "/subscriptions/6dc4ed51-16b9-4494-a406-4fb7a8330d95/resourceGroups/rg-image-management-use/providers/Microsoft.Compute/galleries/cg_avd_use"
+    },
+    "storageAcountResourceId": {
+      "value": "/subscriptions/6dc4ed51-16b9-4494-a406-4fb7a8330d95/resourceGroups/rg-image-management-use/providers/Microsoft.Storage/storageAccounts/saimageassetsuse"
+    },
+    "containerName": {
+      "value": "artifacts"
+    },
+    "SubnetResourceId": {
+      "value": "/subscriptions/6dc4ed51-16b9-4494-a406-4fb7a8330d95/resourceGroups/rg-avd-networking-eastus/providers/Microsoft.Network/virtualNetworks/vnet-avd-eastus/subnets/default"
+    },
+    "userAssignedIdentityResourceId": {
+      "value": "/subscriptions/6dc4ed51-16b9-4494-a406-4fb7a8330d95/resourcegroups/rg-image-management-use/providers/Microsoft.ManagedIdentity/userAssignedIdentities/uai-image-management-use"
+    },
+    "envClassification": {
+      "value": ""
+    },
+    "offer": {
+      "value": "office-365"
+    },
+    "publisher": {
+      "value": "microsoftwindowsdesktop"
+    },
+    "sku": {
+      "value": "win11-21h2-avd-m365"
+    },
+    "vmSize": {
+      "value": "Standard_D4ads_v5"
+    },
+    "tenantType": {
+      "value": "Commercial"
+    },
+    "installAccess": {
+      "value": false
+    },
+    "installExcel": {
+      "value": false
+    },
+    "installOneDriveForBusiness": {
+      "value": false
+    },
+    "installOneNote": {
+      "value": false
+    },
+    "installOutlook": {
+      "value": false
+    },
+    "installPowerPoint": {
+      "value": false
+    },
+    "installProject": {
+      "value": false
+    },
+    "installpublisher": {
+      "value": false
+    },
+    "installSkypeForBusiness": {
+      "value": false
+    },
+    "installTeams": {
+      "value": false
+    },
+    "installVirtualDesktopOptimizationTool": {
+      "value": false
+    },
+    "installVisio": {
+      "value": false
+    },
+    "installWord": {
+      "value": false
+    },
+    "vDotInstaller": {
+      "value": ""
+    },
+    "teamsInstaller": {
+      "value": ""
+    },
+    "msrdcwebrtcsvcInstaller": {
+      "value": ""
+    },
+    "vcRedistInstaller": {
+      "value": ""
+    },
+    "imageVersionExcludeFromLatest": {
+      "value": false
+    },
+    "imageMajorVersion": {
+      "value": 11
+    },
+    "imageMinorVersion": {
+      "value": 1
+    },
+    "customizations": {
+      "value": [
+        {
+          "name": "FSLogix",
+          "blobName": "Install-FSLogix.zip",
+          "arguments": ""
+        },
+        {
+          "name": "VSCode",
+          "blobName": "VSCode.zip",
+          "arguments": ""
+        }
+      ]
+    },
+    "imageDefinitionOffer": {
+      "value": "office-365"
+    },
+    "imageDefinitionPublisher": {
+      "value": "Microsoft Federal"
+    },
+    "imageDefinitionSku": {
+      "value": "win11-avd"
+    },
+    "replicaCount": {
+      "value": 10
+    },
+    "replicationRegions": {
+      "value": [
+        "WestUS",
+        "CentralUS"
+      ]
+    },
+    "securityType": {
+      "value": "TrustedLaunch"
+    },
+    "hyperVGeneration": {
+      "value": "V2"
+    }
+  }
+}

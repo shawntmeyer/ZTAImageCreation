@@ -49,28 +49,28 @@ resource restartVm 'Microsoft.Compute/virtualMachines/runCommands@2023-03-01' = 
         [string]$imageVmRg,
         [string]$imageVmName,
         [string]$Environment
-        )
-        # Connect to Azure
-        Connect-AzAccount -Identity -AccountId $miId -Environment $Environment # Run on the virtual machine
-        # Restart VM
-        Restart-AzVM -Name $imageVmName -ResourceGroupName $imageVmRg
-
-        $lastProvisioningState = ""
-        $provisioningState = (Get-AzVM -resourcegroupname $imageVmRg -name $imageVmName -Status).Statuses[1].Code
-        $condition = ($provisioningState -eq "PowerState/running")
-        while (!$condition) {
-          if ($lastProvisioningState -ne $provisioningState) {
-            write-host $imageVmName "under" $imageVmRg "is" $provisioningState "(waiting for state change)"
-          }
-          $lastProvisioningState = $provisioningState
-
-          Start-Sleep -Seconds 5
-          $provisioningState = (Get-AzVM -resourcegroupname $imageVmRg -name $imageVmName -Status).Statuses[1].Code
-
-          $condition = ($provisioningState -eq "PowerState/running")
+      )
+      # Connect to Azure
+      Connect-AzAccount -Identity -AccountId $miClientId -Environment $Environment # Run on the virtual machine
+      # Restart VM
+      Restart-AzVM -Name $imageVmName -ResourceGroupName $imageVmRg
+  
+      $lastProvisioningState = ""
+      $provisioningState = (Get-AzVM -resourcegroupname $imageVmRg -name $imageVmName -Status).Statuses[1].Code
+      $condition = ($provisioningState -eq "PowerState/running")
+      while (!$condition) {
+        if ($lastProvisioningState -ne $provisioningState) {
+          write-host $imageVmName "under" $imageVmRg "is" $provisioningState "(waiting for state change)"
         }
-        write-host $imageVmName "under" $imageVmRg "is" $provisioningState
-        start-sleep 30
+        $lastProvisioningState = $provisioningState
+  
+        Start-Sleep -Seconds 5
+        $provisioningState = (Get-AzVM -resourcegroupname $imageVmRg -name $imageVmName -Status).Statuses[1].Code
+  
+        $condition = ($provisioningState -eq "PowerState/running")
+      }
+      write-host $imageVmName "under" $imageVmRg "is" $provisioningState
+      start-sleep 15
       '''
     }
   }

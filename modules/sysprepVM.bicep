@@ -16,7 +16,7 @@ resource sysprep 'Microsoft.Compute/virtualMachines/runCommands@2022-11-01' = {
     parameters: []
     source: {
       script: '''
-      C:\Windows\System32\Sysprep\Sysprep.exe /generalize /oobe /shutdown /mode:vm
+      Start-Process -FilePath "C:\Windows\System32\Sysprep\Sysprep.exe" -ArgumentList "/generalize /oobe /quit /mode:vm" -Wait
       '''
     }
   }

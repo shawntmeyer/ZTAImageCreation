@@ -128,7 +128,8 @@ param excludedDiskTypes array = []
 param tags object = {}
 
 var diskControllerTypes = isHigherStoragePerformanceSupported ? {
-  DiskControllerTypes: 'SCSI, NVMe'
+  name: 'DiskControllerTypes'
+  value: 'SCSI, NVMe'
 } : {}
 
 var features = !empty(securityType) && securityType != 'Standard' ? union([
@@ -160,10 +161,9 @@ resource gallery 'Microsoft.Compute/galleries@2022-03-03' existing = {
 }
 
 resource image 'Microsoft.Compute/galleries/images@2022-03-03' = {
+  location: location
   name: name
   parent: gallery
-  location: location
-  tags: tags
   properties: {
     architecture: architecture == 'x64' && hyperVGeneration == 'V2' ? architecture : null
     osType: osType
@@ -199,6 +199,7 @@ resource image 'Microsoft.Compute/galleries/images@2022-03-03' = {
       diskTypes: excludedDiskTypes
     }
   }
+  tags: tags
 }
 
 @sys.description('The resource group the image was deployed into.')

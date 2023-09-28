@@ -8,7 +8,7 @@ param imageVersionCreationTime string = utcNow()
 
 param guidValue string = newGuid()
 
-@description('The location to deploy the VM and associated resources.')
+@description('The location to deploy all resources in this template.')
 param location string = deployment().location
 
 @allowed([
@@ -18,7 +18,7 @@ param location string = deployment().location
   ''
 ])
 @description('Optional. The environment for which the images are being created.')
-param Environment string = ''
+param envClassification string = ''
 
 // Required Existing Resources
 @description('Azure Compute Gallery Resource Id.')
@@ -31,7 +31,7 @@ param storageAcountResourceId string
 param containerName string
 
 @description('The resource Id of the subnet to which the image build VM will be attached.')
-param SubnetResourceId string
+param subnetResourceId string
 
 @description('The resource Id of the user assigned managed identity used to access the storage account.')
 param userAssignedIdentityResourceId string
@@ -76,11 +76,25 @@ param installVirtualDesktopOptimizationTool bool
 param installVisio bool
 param installWord bool
 param vDotInstaller string
-param officeInstaller string
+param officeInstaller string = 'Office365-Install.zip'
 param teamsInstaller string
 param msrdcwebrtcsvcInstaller string
 param vcRedistInstaller string
-@description('An array of image customizations consisting of the blob name and parameters.')
+@description('''An array of image customizations consisting of the blob name and parameters.
+BICEP example:
+[
+  {
+    name: 'FSLogix'
+    blobName: 'Install-FSLogix.zip'
+    arguments: 'latest'
+  }
+  {
+    name: 'VSCode'
+    blobName: 'VSCode.zip'
+    arguments: ''
+  }
+]
+''')
 param customizations array = []
 
 // Output Image properties
@@ -102,7 +116,7 @@ param imageDefinitionPublisher string = ''
 param imageDefinitionSku string = ''
 
 @description('Exclude the image version created by this process from the latest version for the image definition.')
-param imageVersionExcludeFromLatest bool
+param imageVersionExcludeFromLatest bool = false
 
 @description('Optional. The number of days from now that the image version will reach end of life.')
 param imageVersionExpiresInDays int = 0
@@ -134,14 +148,17 @@ param hyperVGeneration string = 'V2'
 var adminPw = '${toUpper(uniqueString(subscription().id))}-${guidValue}'
 var adminUserName = 'xadmin'
 var cloud = environment().name
-var subscriptionId = subscription().subscriptionId
 var blobParentUrl = '${storageAccount.properties.primaryEndpoints.blob}${containerName}/'
 
 var locations = loadJsonContent('data/locations.json')
 var resourceAbbreviations = loadJsonContent('data/resourceAbbreviations.json')
 
-var imageBuildResourceGroupName = empty(customBuildResourceGroupName) ? customBuildResourceGroupName : !empty(Environment) ? '${resourceAbbreviations.resourceGroups}-image-builder-${Environment}-${locations[location].abbreviation}' : '${resourceAbbreviations.resourceGroups}-image-builder-${locations[location].abbreviation}'
-var imageDefinitionName = empty(imageDefinitionResourceId) ? (empty(customImageDefinitionName) ? '${resourceAbbreviations.imageDefinitions}-${imageDefinitionPublisher}-${imageDefinitionOffer}-${imageDefinitionSku}' : customImageDefinitionName) : last(split(imageDefinitionResourceId, '/'))
+var galleryImageDefinitionPublisher = replace(imageDefinitionPublisher, ' ', '')
+var galleryImageDefinitionOffer = replace(imageDefinitionOffer, ' ', '')
+var galleryImageDefinitionSku = replace(imageDefinitionSku, ' ', '')
+
+var imageBuildResourceGroupName = !empty(customBuildResourceGroupName) ? customBuildResourceGroupName : (!empty(envClassification) ? '${resourceAbbreviations.resourceGroups}-image-builder-${envClassification}-${locations[location].abbreviation}' : '${resourceAbbreviations.resourceGroups}-image-builder-${locations[location].abbreviation}')
+var imageDefinitionName = empty(imageDefinitionResourceId) ? (empty(customImageDefinitionName) ? '${replace('${resourceAbbreviations.imageDefinitions}-${galleryImageDefinitionPublisher}-${galleryImageDefinitionOffer}-${galleryImageDefinitionSku}', ' ', '')}' : customImageDefinitionName) : last(split(imageDefinitionResourceId, '/'))
 
 var imageDefinitionIsHybernateSupported = 'true'
 var imageDefinitionIsAcceleratedNetworkSupported = 'true'
@@ -151,8 +168,6 @@ var imagePatch = baseTime
 var autoImageVersion ='${imageMajorVersion}.${imageMinorVersion}.${imagePatch}'
 var imageVersionStorageAccountType = 'Standard_LRS'
 var imageVersionEndOfLifeDate = imageVersionExpiresInDays != 0 ? dateTimeAdd(imageVersionCreationTime, 'P${imageVersionExpiresInDays}D') : ''
-
-var allowDeletionOfReplicatedLocations = true
 
 var targetRegions = [for region in replicationRegions: {
   excludedFromLatest: imageVersionExcludeFromLatest
@@ -173,7 +188,6 @@ var imageVersionTargetRegions = union(targetRegions, defReplicationRegion)
 var imageVmName = take('vmimg-${uniqueString(baseTime)}', 15)
 var managementVmName = take('vmmgt-${uniqueString(baseTime)}', 15)
 
-
 // * RESOURCES * //
 
 resource storageAccount 'Microsoft.Storage/storageAccounts@2022-09-01' existing = {
@@ -186,26 +200,23 @@ resource managedIdentity 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-
   name: last(split(userAssignedIdentityResourceId, '/'))
 }
 
-module imageBuildRG 'carml/resources/resource-group/main.bicep' = {
-  name: 'ImageBuildRG-${baseTime}'
+resource imageBuildRG 'Microsoft.Resources/resourceGroups@2023-07-01' = {
+  name: imageBuildResourceGroupName
+  location: location
+}
+
+module roleAssignment 'carml/authorization/role-assignment/resource-group/main.bicep' = {
+  name: 'RoleAssignment-${baseTime}'
+  scope: resourceGroup(imageBuildRG.name)
   params: {
-    name: imageBuildResourceGroupName
-    location: location
-    roleAssignments: [
-      {
-          roleDefinitionIdOrName: 'Virtual Machine Contributor'
-          description: 'Allows Managed Identity to manage Image VMs'
-          principalIds: [
-            managedIdentity.properties.principalId
-          ]
-      }
-    ]
+    principalId: managedIdentity.properties.principalId
+    roleDefinitionIdOrName: 'Virtual Machine Contributor'
   }
 }
 
 module imageVm 'carml/compute/virtual-machine/main.bicep' = {
   name: 'image-vm-${baseTime}'
-  scope: resourceGroup(subscriptionId, imageBuildResourceGroupName)
+  scope: resourceGroup(imageBuildRG.name)
   params: {
     location: location
     name: imageVmName
@@ -224,7 +235,7 @@ module imageVm 'carml/compute/virtual-machine/main.bicep' = {
         ipConfigurations: [
           {
             name: 'ipconfig01'
-            subnetResourceId: SubnetResourceId
+            subnetResourceId: subnetResourceId
           }
         ]
         nicSuffix: '-nic-01'
@@ -248,14 +259,11 @@ module imageVm 'carml/compute/virtual-machine/main.bicep' = {
     }
     vmSize: vmSize
   }
-  dependsOn: [
-    imageBuildRG
-  ]
 }
 
-module customize 'modules/image.bicep' = {
-  name: 'custom-vm-${baseTime}'
-  scope: resourceGroup(subscriptionId, imageBuildResourceGroupName)
+module customizeImage 'modules/customizeImage.bicep' = {
+  name: 'customize-image-${baseTime}'
+  scope: resourceGroup(imageBuildRG.name)
   params: {
     location: location
     containerName: containerName
@@ -277,21 +285,18 @@ module customize 'modules/image.bicep' = {
     storageEndpoint: storageAccount.properties.primaryEndpoints.blob
     tenantType: tenantType
     userAssignedIdentityObjectId: managedIdentity.properties.principalId
-    vmName: imageVmName
+    vmName: imageVm.outputs.name
     vDotInstaller: vDotInstaller
     officeInstaller: officeInstaller
     msrdcwebrtcsvcInstaller: msrdcwebrtcsvcInstaller
     teamsInstaller: teamsInstaller
     vcRedistInstaller: vcRedistInstaller
   }
-  dependsOn: [
-    imageVm
-  ]
 }
 
 module managementVm 'carml/compute/virtual-machine/main.bicep' = {
   name: 'management-vm-${baseTime}'
-  scope: resourceGroup(subscriptionId, imageBuildResourceGroupName)
+  scope: resourceGroup(imageBuildRG.name)
   params: {
     location: location
     name: managementVmName
@@ -325,7 +330,7 @@ module managementVm 'carml/compute/virtual-machine/main.bicep' = {
         ipConfigurations: [
           {
             name: 'ipconfig01'
-            subnetResourceId: SubnetResourceId
+            subnetResourceId: subnetResourceId
           }
         ]
         nicSuffix: '-nic-01'
@@ -349,14 +354,11 @@ module managementVm 'carml/compute/virtual-machine/main.bicep' = {
     }
     vmSize: vmSize
   }
-  dependsOn: [
-    imageBuildRG
-  ]
 }
 
-module restart 'modules/restartVM.bicep' = {
+module restartVM 'modules/restartVM.bicep' = {
   name: 'restart-vm-${baseTime}'
-  scope: resourceGroup(subscriptionId, imageBuildResourceGroupName)
+  scope: resourceGroup(imageBuildResourceGroupName)
   params: {
     cloud: cloud
     location: location
@@ -365,28 +367,25 @@ module restart 'modules/restartVM.bicep' = {
     userAssignedIdentityResourceId: userAssignedIdentityResourceId
   }
   dependsOn: [
-    customize
+    customizeImage
   ]
 }
 
-module sysprep 'modules/sysprep.bicep' = {
+module sysprepVM 'modules/sysprepVM.bicep' = {
   name: 'sysprep-vm-${baseTime}'
-  scope: resourceGroup(subscriptionId, imageBuildResourceGroupName)
+  scope: resourceGroup(imageBuildResourceGroupName)
   params: {
     location: location
     vmName: imageVm.outputs.name
   }
   dependsOn: [
-    customize
-    imageVm
-    restart
-    managementVm
+    restartVM
   ]
 }
 
 module generalizeVm 'modules/generalizeVM.bicep' = {
   name: 'generalize-vm-${baseTime}'
-  scope: resourceGroup(subscriptionId, imageBuildResourceGroupName)
+  scope: resourceGroup(imageBuildResourceGroupName)
   params: {
     cloud: cloud
     location: location
@@ -395,8 +394,13 @@ module generalizeVm 'modules/generalizeVM.bicep' = {
     userAssignedIdentityResourceId: userAssignedIdentityResourceId
   }
   dependsOn: [
-    sysprep
+    sysprepVM
   ]
+}
+
+resource existingImageDefinition 'Microsoft.Compute/galleries/images@2022-03-03' existing = if (!empty(imageDefinitionResourceId)) {
+  name: last(split(imageDefinitionResourceId, '/'))
+  scope: resourceGroup(split(imageDefinitionResourceId, '/')[2], split(imageDefinitionResourceId, '/')[4])  
 }
 
 module imageDefinition 'carml/compute/gallery/image/main.bicep' = if(empty(imageDefinitionResourceId)) {
@@ -408,37 +412,40 @@ module imageDefinition 'carml/compute/gallery/image/main.bicep' = if(empty(image
     name: imageDefinitionName
     hyperVGeneration: hyperVGeneration
     isHibernateSupported: imageDefinitionIsHybernateSupported
-    securityType: securityType
     isAcceleratedNetworkSupported: imageDefinitionIsAcceleratedNetworkSupported
     isHigherStoragePerformanceSupported: imageDefinitionIsHigherPerformanceSupported
+    securityType: securityType
     osType: 'Windows'
     osState: 'Generalized'
-    publisher: imageDefinitionPublisher
-    offer: imageDefinitionOffer
-    sku: imageDefinitionSku
+    publisher: galleryImageDefinitionPublisher
+    offer: galleryImageDefinitionOffer
+    sku: galleryImageDefinitionSku
   }
 }
 
-module imageVersion 'carml/compute/gallery/image/versions/main.bicep' = {
+module imageVersion 'modules/imageVersion.bicep' = {
   name: 'ImageVersion-${baseTime}'
   scope: resourceGroup(split(computeGalleryResourceId, '/')[2], split(computeGalleryResourceId, '/')[4])
   params: {
     location: location
     name: autoImageVersion
     replicaCount: replicaCount
-    vmImageDefinitionName: !empty(imageDefinitionResourceId) ? last(split(imageDefinitionResourceId, '/')) : imageDefinition.outputs.name
-    allowDeletionOfReplicatedLocations: allowDeletionOfReplicatedLocations
+    galleryName: last(split(computeGalleryResourceId, '/'))
+    imageName: !empty(imageDefinitionResourceId) ? existingImageDefinition.name : imageDefinition.outputs.name
     endOfLifeDate: imageVersionEndOfLifeDate
     excludeFromLatest: imageVersionExcludeFromLatest
     targetRegions: imageVersionTargetRegions
     tags: {}
     osDiskImageSourceId: imageVm.outputs.resourceId
   }
+  dependsOn: [
+    generalizeVm
+  ]
 }
 
 module removeVms 'modules/removeVMs.bicep' = {
   name: 'remove-vm-${baseTime}'
-  scope: resourceGroup(subscriptionId, imageBuildResourceGroupName)
+  scope: resourceGroup(imageBuildResourceGroupName)
   params: {
     cloud: cloud
     location: location

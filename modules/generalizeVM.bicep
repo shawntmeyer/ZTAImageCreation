@@ -26,7 +26,7 @@ resource generalize 'Microsoft.Compute/virtualMachines/runCommands@2023-03-01' =
     asyncExecution: false
     parameters: [
       {
-        name: 'miId'
+        name: 'miClientId'
         value: managedIdentity.properties.clientId
       }
       {
@@ -51,13 +51,14 @@ resource generalize 'Microsoft.Compute/virtualMachines/runCommands@2023-03-01' =
         [string]$Environment
         )
         # Connect to Azure
-        Connect-AzAccount -Identity -AccountId $miId -Environment $Environment # Run on the virtual machine
+        Connect-AzAccount -Identity -AccountId $miClientId -Environment $Environment # Run on the virtual machine
 
         Do {
           Start-Sleep -seconds 5
         } Until (Get-AzResource -ResourceType 'Microsoft.Compute/VirtualMachines')
         
         # Generalize VM Using PowerShell
+        Stop-AzVM -ResourceGroupName $imageVmRg -Name $imageVmName -Force
         Set-AzVm -ResourceGroupName $imageVmRg -Name $imageVmName -Generalized
 
         Write-Output "Generalized"

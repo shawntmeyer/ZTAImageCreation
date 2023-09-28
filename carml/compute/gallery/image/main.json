@@ -1,0 +1,329 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "metadata": {
+    "_generator": {
+      "name": "bicep",
+      "version": "0.21.1.54444",
+      "templateHash": "4412442143906878636"
+    },
+    "name": "Compute Galleries Image Definitions",
+    "description": "This module deploys an Azure Compute Gallery Image Definition.",
+    "owner": "Azure/module-maintainers"
+  },
+  "parameters": {
+    "name": {
+      "type": "string",
+      "metadata": {
+        "description": "Required. Name of the image definition."
+      }
+    },
+    "location": {
+      "type": "string",
+      "defaultValue": "[resourceGroup().location]",
+      "metadata": {
+        "description": "Optional. Location for all resources."
+      }
+    },
+    "galleryName": {
+      "type": "string",
+      "minLength": 1,
+      "metadata": {
+        "description": "Conditional. The name of the parent Azure Shared Image Gallery. Required if the template is used in a standalone deployment."
+      }
+    },
+    "architecture": {
+      "type": "string",
+      "defaultValue": "x64",
+      "allowedValues": [
+        "x64",
+        "Arm64"
+      ],
+      "metadata": {
+        "description": "Optional. The OS architecture of the image to be created. V1 images do not support Arm64."
+      }
+    },
+    "osType": {
+      "type": "string",
+      "defaultValue": "Windows",
+      "allowedValues": [
+        "Windows",
+        "Linux"
+      ],
+      "metadata": {
+        "description": "Optional. OS type of the image to be created."
+      }
+    },
+    "osState": {
+      "type": "string",
+      "defaultValue": "Generalized",
+      "allowedValues": [
+        "Generalized",
+        "Specialized"
+      ],
+      "metadata": {
+        "description": "Optional. This property allows the user to specify whether the virtual machines created under this image are 'Generalized' or 'Specialized'."
+      }
+    },
+    "publisher": {
+      "type": "string",
+      "defaultValue": "MicrosoftWindowsServer",
+      "metadata": {
+        "description": "Optional. The name of the gallery Image Definition publisher."
+      }
+    },
+    "offer": {
+      "type": "string",
+      "defaultValue": "WindowsServer",
+      "metadata": {
+        "description": "Optional. The name of the gallery Image Definition offer."
+      }
+    },
+    "sku": {
+      "type": "string",
+      "defaultValue": "2019-Datacenter",
+      "metadata": {
+        "description": "Optional. The name of the gallery Image Definition SKU."
+      }
+    },
+    "minRecommendedvCPUs": {
+      "type": "int",
+      "defaultValue": 1,
+      "minValue": 1,
+      "maxValue": 128,
+      "metadata": {
+        "description": "Optional. The minimum number of the CPU cores recommended for this image."
+      }
+    },
+    "maxRecommendedvCPUs": {
+      "type": "int",
+      "defaultValue": 4,
+      "minValue": 1,
+      "maxValue": 128,
+      "metadata": {
+        "description": "Optional. The maximum number of the CPU cores recommended for this image."
+      }
+    },
+    "minRecommendedMemory": {
+      "type": "int",
+      "defaultValue": 4,
+      "minValue": 1,
+      "maxValue": 4000,
+      "metadata": {
+        "description": "Optional. The minimum amount of RAM in GB recommended for this image."
+      }
+    },
+    "maxRecommendedMemory": {
+      "type": "int",
+      "defaultValue": 16,
+      "minValue": 1,
+      "maxValue": 4000,
+      "metadata": {
+        "description": "Optional. The maximum amount of RAM in GB recommended for this image."
+      }
+    },
+    "hyperVGeneration": {
+      "type": "string",
+      "defaultValue": "",
+      "allowedValues": [
+        "",
+        "V1",
+        "V2"
+      ],
+      "metadata": {
+        "description": "Optional. The hypervisor generation of the Virtual Machine.</p>- If this value is not specified, then it is determined by the securityType parameter.</p>- If the securityType parameter is specified, then the value of hyperVGeneration will be V2, else V1."
+      }
+    },
+    "securityType": {
+      "type": "string",
+      "defaultValue": "Standard",
+      "allowedValues": [
+        "Standard",
+        "TrustedLaunch",
+        "TrustedLaunchSupported",
+        "ConfidentialVM",
+        "ConfidentialVMSupported"
+      ],
+      "metadata": {
+        "description": "Optional. The security type of the image. Requires a hyperVGeneration V2."
+      }
+    },
+    "isHibernateSupported": {
+      "type": "string",
+      "defaultValue": "false",
+      "allowedValues": [
+        "true",
+        "false"
+      ],
+      "metadata": {
+        "description": "Optional. The image will support hibernation."
+      }
+    },
+    "isAcceleratedNetworkSupported": {
+      "type": "string",
+      "defaultValue": "false",
+      "allowedValues": [
+        "true",
+        "false"
+      ],
+      "metadata": {
+        "description": "Optional. The image supports accelerated networking.</p>Accelerated networking enables single root I/O virtualization (SR-IOV) to a VM, greatly improving its networking performance.</p>This high-performance path bypasses the host from the data path, which reduces latency, jitter, and CPU utilization for the most demanding network workloads on supported VM types."
+      }
+    },
+    "isHigherStoragePerformanceSupported": {
+      "type": "bool",
+      "defaultValue": false,
+      "metadata": {
+        "description": "Optional. The image supports Higher Storage Performance with NVMe."
+      }
+    },
+    "description": {
+      "type": "string",
+      "defaultValue": "",
+      "metadata": {
+        "description": "Optional. The description of this gallery Image Definition resource. This property is updatable."
+      }
+    },
+    "eula": {
+      "type": "string",
+      "defaultValue": "",
+      "metadata": {
+        "description": "Optional. The Eula agreement for the gallery Image Definition. Has to be a valid URL."
+      }
+    },
+    "privacyStatementUri": {
+      "type": "string",
+      "defaultValue": "",
+      "metadata": {
+        "description": "Optional. The privacy statement uri. Has to be a valid URL."
+      }
+    },
+    "releaseNoteUri": {
+      "type": "string",
+      "defaultValue": "",
+      "metadata": {
+        "description": "Optional. The release note uri. Has to be a valid URL."
+      }
+    },
+    "productName": {
+      "type": "string",
+      "defaultValue": "",
+      "metadata": {
+        "description": "Optional. The product ID."
+      }
+    },
+    "planName": {
+      "type": "string",
+      "defaultValue": "",
+      "metadata": {
+        "description": "Optional. The plan ID."
+      }
+    },
+    "planPublisherName": {
+      "type": "string",
+      "defaultValue": "",
+      "metadata": {
+        "description": "Optional. The publisher ID."
+      }
+    },
+    "endOfLife": {
+      "type": "string",
+      "defaultValue": "",
+      "metadata": {
+        "description": "Optional. The end of life date of the gallery Image Definition. This property can be used for decommissioning purposes. This property is updatable. Allowed format: 2020-01-10T23:00:00.000Z."
+      }
+    },
+    "excludedDiskTypes": {
+      "type": "array",
+      "defaultValue": [],
+      "metadata": {
+        "description": "Optional. List of the excluded disk types. E.g. Standard_LRS."
+      }
+    },
+    "tags": {
+      "type": "object",
+      "defaultValue": {},
+      "metadata": {
+        "description": "Optional. Tags for all resources."
+      }
+    }
+  },
+  "variables": {
+    "diskControllerTypes": "[if(parameters('isHigherStoragePerformanceSupported'), createObject('name', 'DiskControllerTypes', 'value', 'SCSI, NVMe'), createObject())]",
+    "features": "[if(and(not(empty(parameters('securityType'))), not(equals(parameters('securityType'), 'Standard'))), union(createArray(createObject('name', 'SecurityType', 'value', parameters('securityType')), createObject('name', 'IsAcceleratedNetworkSupported', 'value', parameters('isAcceleratedNetworkSupported')), createObject('name', 'IsHibernateSupported', 'value', parameters('isHibernateSupported'))), createArray(variables('diskControllerTypes'))), union(createArray(createObject('name', 'IsAcceleratedNetworkSupported', 'value', parameters('isAcceleratedNetworkSupported')), createObject('name', 'IsHibernateSupported', 'value', parameters('isHibernateSupported'))), createArray(variables('diskControllerTypes'))))]"
+  },
+  "resources": [
+    {
+      "type": "Microsoft.Compute/galleries/images",
+      "apiVersion": "2022-03-03",
+      "name": "[format('{0}/{1}', parameters('galleryName'), parameters('name'))]",
+      "location": "[parameters('location')]",
+      "tags": "[parameters('tags')]",
+      "properties": {
+        "architecture": "[if(and(equals(parameters('architecture'), 'x64'), equals(parameters('hyperVGeneration'), 'V2')), parameters('architecture'), null())]",
+        "osType": "[parameters('osType')]",
+        "osState": "[parameters('osState')]",
+        "identifier": {
+          "publisher": "[parameters('publisher')]",
+          "offer": "[parameters('offer')]",
+          "sku": "[parameters('sku')]"
+        },
+        "recommended": {
+          "vCPUs": {
+            "min": "[parameters('minRecommendedvCPUs')]",
+            "max": "[parameters('maxRecommendedvCPUs')]"
+          },
+          "memory": {
+            "min": "[parameters('minRecommendedMemory')]",
+            "max": "[parameters('maxRecommendedMemory')]"
+          }
+        },
+        "hyperVGeneration": "[if(not(empty(parameters('hyperVGeneration'))), parameters('hyperVGeneration'), if(not(empty(parameters('securityType'))), 'V2', 'V1'))]",
+        "features": "[variables('features')]",
+        "description": "[parameters('description')]",
+        "eula": "[parameters('eula')]",
+        "privacyStatementUri": "[parameters('privacyStatementUri')]",
+        "releaseNoteUri": "[parameters('releaseNoteUri')]",
+        "purchasePlan": {
+          "product": "[if(not(empty(parameters('productName'))), parameters('productName'), null())]",
+          "name": "[if(not(empty(parameters('planName'))), parameters('planName'), null())]",
+          "publisher": "[if(not(empty(parameters('planPublisherName'))), parameters('planPublisherName'), null())]"
+        },
+        "endOfLifeDate": "[parameters('endOfLife')]",
+        "disallowed": {
+          "diskTypes": "[parameters('excludedDiskTypes')]"
+        }
+      }
+    }
+  ],
+  "outputs": {
+    "resourceGroupName": {
+      "type": "string",
+      "metadata": {
+        "description": "The resource group the image was deployed into."
+      },
+      "value": "[resourceGroup().name]"
+    },
+    "resourceId": {
+      "type": "string",
+      "metadata": {
+        "description": "The resource ID of the image."
+      },
+      "value": "[resourceId('Microsoft.Compute/galleries/images', parameters('galleryName'), parameters('name'))]"
+    },
+    "name": {
+      "type": "string",
+      "metadata": {
+        "description": "The name of the image."
+      },
+      "value": "[parameters('name')]"
+    },
+    "location": {
+      "type": "string",
+      "metadata": {
+        "description": "The location the resource was deployed into."
+      },
+      "value": "[reference(resourceId('Microsoft.Compute/galleries/images', parameters('galleryName'), parameters('name')), '2022-03-03', 'full').location]"
+    }
+  }
+}
