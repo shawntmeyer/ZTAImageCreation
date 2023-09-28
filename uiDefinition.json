@@ -245,9 +245,9 @@
                                     "type": "Microsoft.Common.Slider",
                                     "min": 1,
                                     "max": 12,
-                                    "label": "Image Major Version. The minor and patch versions will be auto generated.",
-                                    "subLabel": "Maj. Version",
-                                    "defaultValue": 1,
+                                    "label": "Image Major Version.",
+                                    "subLabel": "Major Version",
+                                    "defaultValue": 0,
                                     "showStepMarkers": false,
                                     "toolTip": "Pick the size in MB",
                                     "constraints": {
@@ -261,9 +261,9 @@
                                     "type": "Microsoft.Common.Slider",
                                     "min": 1,
                                     "max": 12,
-                                    "label": "Image Patch Version. The minor version will be auto generated.",
-                                    "subLabel": "Patch Version",
-                                    "defaultValue": 1,
+                                    "label": "Image Minor Version.",
+                                    "subLabel": "Minor Version",
+                                    "defaultValue": 0,
                                     "showStepMarkers": false,
                                     "toolTip": "Pick the size in MB",
                                     "constraints": {
@@ -271,6 +271,33 @@
                                     },
                                     "visible": true,
                                     "required": true
+                                },
+                                {
+                                    "name": "patchVersion",
+                                    "type": "Microsoft.Common.Slider",
+                                    "min": 1,
+                                    "max": 12,
+                                    "label": "Image Patch Version.",
+                                    "subLabel": "Patch Version",
+                                    "defaultValue": 0,
+                                    "showStepMarkers": false,
+                                    "toolTip": "Pick the size in MB",
+                                    "constraints": {
+                                        "required": false
+                                    },
+                                    "visible": true,
+                                    "required": true
+                                },
+                                {
+                                    "name": "publisher",
+                                    "type": "Microsoft.Common.TextBox",
+                                    "label": "Image Publisher",
+                                    "defaultValue": "MicrosoftWindowsDesktop",
+                                    "placeholder": "Example: MicrosoftWindowsDesktop",
+                                    "visible": true,
+                                    "constraints": {
+                                        "required": true
+                                    }
                                 },
                                 {
                                     "name": "offer",
@@ -312,17 +339,6 @@
                                     "toolTip": "Select the desired marketplace image SKU.",
                                     "constraints": {
                                         "allowedValues": "[map(steps('info').image.skuApi, (item) => parse(concat('{\"label\":\"', item.name, '\",\"value\":\"', item.name, '\"}')))]",
-                                        "required": true
-                                    }
-                                },
-                                {
-                                    "name": "publisher",
-                                    "type": "Microsoft.Common.TextBox",
-                                    "label": "Image Publisher",
-                                    "defaultValue": "MicrosoftWindowsDesktop",
-                                    "placeholder": "Example: MicrosoftWindowsDesktop",
-                                    "visible": true,
-                                    "constraints": {
                                         "required": true
                                     }
                                 },

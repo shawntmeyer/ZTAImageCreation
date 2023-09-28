@@ -127,12 +127,14 @@ param excludedDiskTypes array = []
 @sys.description('Optional. Tags for all resources.')
 param tags object = {}
 
-var diskControllerTypes = isHigherStoragePerformanceSupported ? {
+var diskControllerTypes = isHigherStoragePerformanceSupported ? [
+  {
   name: 'DiskControllerTypes'
   value: 'SCSI, NVMe'
-} : {}
+  }
+ ] : []
 
-var features = !empty(securityType) && securityType != 'Standard' ? union([
+var gaFeatures = !empty(securityType) && securityType != 'Standard' ? [
   {
     name: 'SecurityType'
     value: securityType
@@ -145,7 +147,7 @@ var features = !empty(securityType) && securityType != 'Standard' ? union([
     name: 'IsHibernateSupported'
     value: isHibernateSupported
   }
-], [diskControllerTypes]) : union([
+] : [
   {
     name: 'IsAcceleratedNetworkSupported'
     value: isAcceleratedNetworkSupported
@@ -154,7 +156,9 @@ var features = !empty(securityType) && securityType != 'Standard' ? union([
     name: 'IsHibernateSupported'
     value: isHibernateSupported
   }
-], [diskControllerTypes])
+]
+
+var features = !empty(diskControllerTypes) ? union(gaFeatures, diskControllerTypes) : gaFeatures
 
 resource gallery 'Microsoft.Compute/galleries@2022-03-03' existing = {
   name: galleryName

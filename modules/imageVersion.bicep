@@ -78,8 +78,23 @@ param osDiskImageSourceId string = ''
 @sys.description('Optional. The uri of the gallery artifact version source. Currently used to specify vhd/blob source.')
 param osDiskImageSourceUri string = ''
 
+@sys.description('Optional. The id of the gallery artifact version source. Can specify a disk uri, snapshot uri, user image or storage account resource.')
+param sourceId string = ''
+
 @sys.description('Optional. Tags for all resources.')
 param tags object = {}
+
+var sourceStorageProfile = !empty(sourceId) ?  {
+  id: sourceId
+} : {}
+
+var osDiskImageStorageProfile = !empty(osDiskImageSourceId) || !empty(osDiskImageSourceUri) ? {
+  hostCaching: hostCaching
+  source: {
+    id: !empty(osDiskImageSourceId) ? osDiskImageSourceId : null
+    uri: !empty(osDiskImageSourceUri) ? osDiskImageSourceUri : null
+  }
+} : {}
 
 var targetRegionDefault = [
   {
@@ -123,13 +138,8 @@ resource version 'Microsoft.Compute/galleries/images/versions@2022-03-03' = {
       allowDeletionOfReplicatedLocations: allowDeletionOfReplicatedLocations
     }
     storageProfile: {
-      osDiskImage: {
-        hostCaching: hostCaching
-        source: {
-          id: osDiskImageSourceId
-          uri: osDiskImageSourceUri
-        }
-      }
+      osDiskImage: osDiskImageStorageProfile
+      source: sourceStorageProfile
     }
   }
   tags: tags
