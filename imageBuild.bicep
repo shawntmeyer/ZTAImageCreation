@@ -1,7 +1,14 @@
 targetScope = 'subscription'
 
+@description('Value to preppend to the deployment names.')
+@maxLength(6)
+param deploymentPrefix string = ''
+
 @description('Value appended to the deployment names.')
 param deploymentSuffix string = utcNow('yyMMddHHmm')
+
+@description('Deployment location. Note that the compute resources will be deployed to the region where the subnet is location.')
+param deploymentLocation string
 
 @description('Automatically generated Image Version name.')
 param autoImageVersionName string = utcNow('yy.MMdd.hhmm')
@@ -10,9 +17,6 @@ param autoImageVersionName string = utcNow('yy.MMdd.hhmm')
 param imageVersionCreationTime string = utcNow()
 
 param guidValue string = newGuid()
-
-@description('The location to deploy all resources in this template.')
-param location string = deployment().location
 
 @allowed([
   'Dev'
@@ -149,6 +153,8 @@ param hyperVGeneration string = 'V2'
 
 // * VARIABLE DECLARATIONS * //
 
+var computeLocation = vnet.location
+
 var adminPw = '${toUpper(uniqueString(subscription().id))}-${guidValue}'
 var adminUserName = 'xadmin'
 var cloud = environment().name
@@ -161,7 +167,7 @@ var galleryImageDefinitionPublisher = replace(imageDefinitionPublisher, ' ', '')
 var galleryImageDefinitionOffer = replace(imageDefinitionOffer, ' ', '')
 var galleryImageDefinitionSku = replace(imageDefinitionSku, ' ', '')
 
-var imageBuildResourceGroupName = !empty(customBuildResourceGroupName) ? customBuildResourceGroupName : (!empty(envClassification) ? '${resourceAbbreviations.resourceGroups}-image-builder-${envClassification}-${locations[location].abbreviation}' : '${resourceAbbreviations.resourceGroups}-image-builder-${locations[location].abbreviation}')
+var imageBuildResourceGroupName = !empty(customBuildResourceGroupName) ? customBuildResourceGroupName : (!empty(envClassification) ? '${resourceAbbreviations.resourceGroups}-image-builder-${envClassification}-${locations[deploymentLocation].abbreviation}' : '${resourceAbbreviations.resourceGroups}-image-builder-${locations[deploymentLocation].abbreviation}')
 var imageDefinitionName = empty(imageDefinitionResourceId) ? (empty(customImageDefinitionName) ? '${replace('${resourceAbbreviations.imageDefinitions}-${replace(galleryImageDefinitionPublisher, '-', '')}-${replace(galleryImageDefinitionOffer, '-', '')}-${replace(galleryImageDefinitionSku, '-', '')}', ' ', '')}' : customImageDefinitionName) : last(split(imageDefinitionResourceId, '/'))
 
 var imageDefinitionIsHybernateSupported = 'true'
@@ -182,7 +188,7 @@ var targetRegions = [for region in replicationRegions: {
 
 var defReplicationRegion = [{
   excludeFromLatest: imageVersionExcludeFromLatest
-  name: location
+  name: computeLocation
   regionalReplicaCount: replicaCount
   storageAccountType: imageVersionStorageAccountType
 }]
@@ -206,11 +212,15 @@ resource managedIdentity 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-
 
 resource imageBuildRG 'Microsoft.Resources/resourceGroups@2023-07-01' = {
   name: imageBuildResourceGroupName
-  location: location
+  location: deploymentLocation
 }
 
+resource vnet 'Microsoft.Network/virtualNetworks@2023-05-01' existing = {
+  name: split(subnetResourceId, '/')[8]
+  scope: resourceGroup(split(subnetResourceId, '/')[2], split(subnetResourceId, '/')[4])
+}
 module roleAssignment 'carml/authorization/role-assignment/resource-group/main.bicep' = {
-  name: 'roleAssignment-uai-to-rg-${deploymentSuffix}'
+  name: '${deploymentPrefix}-roleAssignment-uai-to-rg-${deploymentSuffix}'
   scope: resourceGroup(imageBuildRG.name)
   params: {
     principalId: managedIdentity.properties.principalId
@@ -222,7 +232,7 @@ module imageVm 'carml/compute/virtual-machine/main.bicep' = {
   name: 'imageVM-${deploymentSuffix}'
   scope: resourceGroup(imageBuildRG.name)
   params: {
-    location: location
+    location: computeLocation
     name: imageVmName
     adminPassword: adminPw
     adminUsername: adminUserName
@@ -266,10 +276,10 @@ module imageVm 'carml/compute/virtual-machine/main.bicep' = {
 }
 
 module customizeImage 'modules/customizeImage.bicep' = {
-  name: 'customizeImage-${deploymentSuffix}'
+  name: '${deploymentPrefix}-customizeImage-${deploymentSuffix}'
   scope: resourceGroup(imageBuildRG.name)
   params: {
-    location: location
+    location: computeLocation
     containerName: containerName
     customizations: customizations
     installAccess:  installAccess
@@ -299,10 +309,10 @@ module customizeImage 'modules/customizeImage.bicep' = {
 }
 
 module managementVm 'carml/compute/virtual-machine/main.bicep' = {
-  name: 'managementVM-${deploymentSuffix}'
+  name: '${deploymentPrefix}-managementVM-${deploymentSuffix}'
   scope: resourceGroup(imageBuildRG.name)
   params: {
-    location: location
+    location: computeLocation
     name: managementVmName
     adminPassword: adminPw
     adminUsername: adminUserName
@@ -361,11 +371,11 @@ module managementVm 'carml/compute/virtual-machine/main.bicep' = {
 }
 
 module restartVM 'modules/restartVM.bicep' = {
-  name: 'restartVM-${deploymentSuffix}'
+  name: '${deploymentPrefix}-restartVM-${deploymentSuffix}'
   scope: resourceGroup(imageBuildResourceGroupName)
   params: {
     cloud: cloud
-    location: location
+    location: computeLocation
     imageVmName: imageVm.outputs.name
     managementVmName: managementVm.outputs.name
     userAssignedIdentityResourceId: userAssignedIdentityResourceId
@@ -376,10 +386,10 @@ module restartVM 'modules/restartVM.bicep' = {
 }
 
 module sysprepVM 'modules/sysprepVM.bicep' = {
-  name: 'sysprepVM-${deploymentSuffix}'
+  name: '${deploymentPrefix}-sysprepVM-${deploymentSuffix}'
   scope: resourceGroup(imageBuildResourceGroupName)
   params: {
-    location: location
+    location: computeLocation
     vmName: imageVm.outputs.name
   }
   dependsOn: [
@@ -388,11 +398,11 @@ module sysprepVM 'modules/sysprepVM.bicep' = {
 }
 
 module generalizeVm 'modules/generalizeVM.bicep' = {
-  name: 'generalizeVM-${deploymentSuffix}'
+  name: '${deploymentPrefix}-generalizeVM-${deploymentSuffix}'
   scope: resourceGroup(imageBuildResourceGroupName)
   params: {
     cloud: cloud
-    location: location
+    location: computeLocation
     imageVmName: imageVm.outputs.name
     managementVmName: managementVm.outputs.name
     userAssignedIdentityResourceId: userAssignedIdentityResourceId
@@ -408,10 +418,10 @@ resource existingImageDefinition 'Microsoft.Compute/galleries/images@2022-03-03'
 }
 
 module imageDefinition 'carml/compute/gallery/image/main.bicep' = if(empty(imageDefinitionResourceId)) {
-  name: 'gallery-image-definition-${deploymentSuffix}'
+  name: '${deploymentPrefix}-gallery-image-definition-${deploymentSuffix}'
   scope: resourceGroup(split(computeGalleryResourceId, '/')[2], split(computeGalleryResourceId, '/')[4])
   params: {
-    location: location
+    location: deploymentLocation
     galleryName: last(split(computeGalleryResourceId,'/'))
     name: imageDefinitionName
     hyperVGeneration: hyperVGeneration
@@ -428,10 +438,10 @@ module imageDefinition 'carml/compute/gallery/image/main.bicep' = if(empty(image
 }
 
 module imageVersion 'modules/imageVersion.bicep' = {
-  name: 'ImageVersion-${deploymentSuffix}'
+  name: '${deploymentPrefix}-imageVersion-${deploymentSuffix}'
   scope: resourceGroup(split(computeGalleryResourceId, '/')[2], split(computeGalleryResourceId, '/')[4])
   params: {
-    location: location
+    location: deploymentLocation
     name: imageVersionName
     replicaCount: replicaCount
     galleryName: last(split(computeGalleryResourceId, '/'))
@@ -448,11 +458,11 @@ module imageVersion 'modules/imageVersion.bicep' = {
 }
 
 module removeVms 'modules/removeVMs.bicep' = {
-  name: 'remove-vm-${deploymentSuffix}'
+  name: '${deploymentPrefix}-removeVms-${deploymentSuffix}'
   scope: resourceGroup(imageBuildResourceGroupName)
   params: {
     cloud: cloud
-    location: location
+    location: computeLocation
     imageVmName: imageVm.outputs.name
     managementVmName: managementVm.outputs.name
     userAssignedIdentityResourceId: userAssignedIdentityResourceId

@@ -5,15 +5,29 @@
     "_generator": {
       "name": "bicep",
       "version": "0.21.1.54444",
-      "templateHash": "13665732249855143481"
+      "templateHash": "16038639167273791970"
     }
   },
   "parameters": {
+    "deploymentPrefix": {
+      "type": "string",
+      "defaultValue": "",
+      "maxLength": 6,
+      "metadata": {
+        "description": "Value to preppend to the deployment names."
+      }
+    },
     "deploymentSuffix": {
       "type": "string",
       "defaultValue": "[utcNow('yyMMddHHmm')]",
       "metadata": {
         "description": "Value appended to the deployment names."
+      }
+    },
+    "deploymentLocation": {
+      "type": "string",
+      "metadata": {
+        "description": "Deployment location. Note that the compute resources will be deployed to the region where the subnet is location."
       }
     },
     "autoImageVersionName": {
@@ -33,13 +47,6 @@
     "guidValue": {
       "type": "string",
       "defaultValue": "[newGuid()]"
-    },
-    "location": {
-      "type": "string",
-      "defaultValue": "[deployment().location]",
-      "metadata": {
-        "description": "The location to deploy all resources in this template."
-      }
     },
     "envClassification": {
       "type": "string",
@@ -599,7 +606,7 @@
     "galleryImageDefinitionPublisher": "[replace(parameters('imageDefinitionPublisher'), ' ', '')]",
     "galleryImageDefinitionOffer": "[replace(parameters('imageDefinitionOffer'), ' ', '')]",
     "galleryImageDefinitionSku": "[replace(parameters('imageDefinitionSku'), ' ', '')]",
-    "imageBuildResourceGroupName": "[if(not(empty(parameters('customBuildResourceGroupName'))), parameters('customBuildResourceGroupName'), if(not(empty(parameters('envClassification'))), format('{0}-image-builder-{1}-{2}', variables('resourceAbbreviations').resourceGroups, parameters('envClassification'), variables('locations')[parameters('location')].abbreviation), format('{0}-image-builder-{1}', variables('resourceAbbreviations').resourceGroups, variables('locations')[parameters('location')].abbreviation)))]",
+    "imageBuildResourceGroupName": "[if(not(empty(parameters('customBuildResourceGroupName'))), parameters('customBuildResourceGroupName'), if(not(empty(parameters('envClassification'))), format('{0}-image-builder-{1}-{2}', variables('resourceAbbreviations').resourceGroups, parameters('envClassification'), variables('locations')[parameters('deploymentLocation')].abbreviation), format('{0}-image-builder-{1}', variables('resourceAbbreviations').resourceGroups, variables('locations')[parameters('deploymentLocation')].abbreviation)))]",
     "imageDefinitionName": "[if(empty(parameters('imageDefinitionResourceId')), if(empty(parameters('customImageDefinitionName')), format('{0}', replace(format('{0}-{1}-{2}-{3}', variables('resourceAbbreviations').imageDefinitions, replace(variables('galleryImageDefinitionPublisher'), '-', ''), replace(variables('galleryImageDefinitionOffer'), '-', ''), replace(variables('galleryImageDefinitionSku'), '-', '')), ' ', '')), parameters('customImageDefinitionName')), last(split(parameters('imageDefinitionResourceId'), '/')))]",
     "imageDefinitionIsHybernateSupported": "true",
     "imageDefinitionIsAcceleratedNetworkSupported": "true",
@@ -607,15 +614,6 @@
     "imageVersionName": "[if(and(and(not(equals(parameters('imageMajorVersion'), 0)), not(equals(parameters('imageMajorVersion'), 0))), not(equals(parameters('imagePatch'), 0))), format('{0}.{1}.{2}', parameters('imageMajorVersion'), parameters('imageMinorVersion'), parameters('imagePatch')), parameters('autoImageVersionName'))]",
     "imageVersionStorageAccountType": "Standard_LRS",
     "imageVersionEndOfLifeDate": "[if(not(equals(parameters('imageVersionEOLinDays'), 0)), dateTimeAdd(parameters('imageVersionCreationTime'), format('P{0}D', parameters('imageVersionEOLinDays'))), '')]",
-    "defReplicationRegion": [
-      {
-        "excludeFromLatest": "[parameters('imageVersionExcludeFromLatest')]",
-        "name": "[parameters('location')]",
-        "regionalReplicaCount": "[parameters('replicaCount')]",
-        "storageAccountType": "[variables('imageVersionStorageAccountType')]"
-      }
-    ],
-    "imageVersionTargetRegions": "[union(variables('targetRegions'), variables('defReplicationRegion'))]",
     "imageVmName": "[take(format('vmimg-{0}', uniqueString(parameters('deploymentSuffix'))), 15)]",
     "managementVmName": "[take(format('vmmgt-{0}', uniqueString(parameters('deploymentSuffix'))), 15)]"
   },
@@ -624,12 +622,12 @@
       "type": "Microsoft.Resources/resourceGroups",
       "apiVersion": "2023-07-01",
       "name": "[variables('imageBuildResourceGroupName')]",
-      "location": "[parameters('location')]"
+      "location": "[parameters('deploymentLocation')]"
     },
     {
       "type": "Microsoft.Resources/deployments",
       "apiVersion": "2022-09-01",
-      "name": "[format('RoleAssignment-{0}', parameters('deploymentSuffix'))]",
+      "name": "[format('{0}-roleAssignment-uai-to-rg-{1}', parameters('deploymentPrefix'), parameters('deploymentSuffix'))]",
       "resourceGroup": "[variables('imageBuildResourceGroupName')]",
       "properties": {
         "expressionEvaluationOptions": {
@@ -1188,7 +1186,7 @@
     {
       "type": "Microsoft.Resources/deployments",
       "apiVersion": "2022-09-01",
-      "name": "[format('image-vm-{0}', parameters('deploymentSuffix'))]",
+      "name": "[format('imageVM-{0}', parameters('deploymentSuffix'))]",
       "resourceGroup": "[variables('imageBuildResourceGroupName')]",
       "properties": {
         "expressionEvaluationOptions": {
@@ -1197,7 +1195,7 @@
         "mode": "Incremental",
         "parameters": {
           "location": {
-            "value": "[parameters('location')]"
+            "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', split(parameters('subnetResourceId'), '/')[2], split(parameters('subnetResourceId'), '/')[4]), 'Microsoft.Network/virtualNetworks', split(parameters('subnetResourceId'), '/')[8]), '2023-05-01', 'full').location]"
           },
           "name": {
             "value": "[variables('imageVmName')]"
@@ -4885,7 +4883,7 @@
     {
       "type": "Microsoft.Resources/deployments",
       "apiVersion": "2022-09-01",
-      "name": "[format('customize-image-{0}', parameters('deploymentSuffix'))]",
+      "name": "[format('{0}-customizeImage-{1}', parameters('deploymentPrefix'), parameters('deploymentSuffix'))]",
       "resourceGroup": "[variables('imageBuildResourceGroupName')]",
       "properties": {
         "expressionEvaluationOptions": {
@@ -4894,7 +4892,7 @@
         "mode": "Incremental",
         "parameters": {
           "location": {
-            "value": "[parameters('location')]"
+            "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', split(parameters('subnetResourceId'), '/')[2], split(parameters('subnetResourceId'), '/')[4]), 'Microsoft.Network/virtualNetworks', split(parameters('subnetResourceId'), '/')[8]), '2023-05-01', 'full').location]"
           },
           "containerName": {
             "value": "[parameters('containerName')]"
@@ -4954,7 +4952,7 @@
             "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', split(parameters('userAssignedIdentityResourceId'), '/')[2], split(parameters('userAssignedIdentityResourceId'), '/')[4]), 'Microsoft.ManagedIdentity/userAssignedIdentities', last(split(parameters('userAssignedIdentityResourceId'), '/'))), '2023-01-31').principalId]"
           },
           "vmName": {
-            "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('imageBuildResourceGroupName')), 'Microsoft.Resources/deployments', format('image-vm-{0}', parameters('deploymentSuffix'))), '2022-09-01').outputs.name.value]"
+            "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('imageBuildResourceGroupName')), 'Microsoft.Resources/deployments', format('imageVM-{0}', parameters('deploymentSuffix'))), '2022-09-01').outputs.name.value]"
           },
           "vDotInstaller": {
             "value": "[parameters('vDotInstaller')]"
@@ -4979,7 +4977,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.21.1.54444",
-              "templateHash": "3904774433203510943"
+              "templateHash": "2343254190327048955"
             }
           },
           "parameters": {
@@ -5351,7 +5349,13 @@
                 "source": {
                   "script": "          param (\r\n              # The App Name to pass to the WUA API as the calling application.\r\n              [Parameter()]\r\n              [String]$AppName = \"Windows Update API Script\",\r\n              # The search criteria to be used.\r\n              [Parameter()]\r\n              [String]$Criteria = \"IsInstalled=0 and Type='Software' and IsHidden=0\",\r\n              # Default service (WSUS if machine is configured to use it, or MU if opted in, or WU otherwise.)\r\n              [Parameter()]\r\n              [string]$Service = 'MU'\r\n          )\r\n          \r\n          #region Functions\r\n          Function Get-InstallationResultText {\r\n              [CmdletBinding()]\r\n              param (\r\n                  [Parameter()]\r\n                  [int] $Result\r\n              )\r\n              Switch ($Result) {\r\n                  2 { $Text = \"Succeed\" }\r\n                  3 { $Text = \"Succeed with errors\" }\r\n                  4 { $Text = \"Failed\" }\r\n                  5 { $Text = \"Cancelled\" }\r\n                  Else { $Text = \"Unexpected ($result)\" }\r\n              } \r\n              Return $Text\r\n          }\r\n          \r\n          Function Get-DeploymentActionText {\r\n              [CmdletBinding()]\r\n              param (\r\n                  [Parameter()]\r\n                  [int]$Action\r\n              )\r\n              Switch ($Action) {\r\n                  0 { $Text = \"None (Inherit)\" }\r\n                  1 { $Text = \"Installation\" }\r\n                  2 { $Text = \"Uninstallation\" }\r\n                  3 { $Text = \"Detection\" }\r\n                  4 { $Text = \"Optional Installation\" }\r\n                  5 { $Text = \"Unexpected ($Action)\" }\r\n              }\r\n              Return $Text\r\n          }\r\n          \r\n          function Get-UpdateDescription {\r\n              [CmdletBinding()]\r\n              param (\r\n                  [Parameter()]\r\n                  $Update\r\n              )\r\n              [String]$Description = $null\r\n              [string]$Description = \"$($Update.Title) {$($update.Identity.UpdateID).$($update.IdentityRevisionNumber)}\"\r\n              If ($Update.IsHidden) {\r\n                  $Description = \"$($Description) (hidden)\"\r\n              }\r\n              If ($Script:ShowDetails) {\r\n                  If ($update.KBArticleIDs.Count -gt 0) {\r\n                      $Description = \"$($Description)  (\"\r\n                      For ($i = 0; $i -lt $($Update.KBArticleIDs.Count); $i++) {\r\n                          If ($i -gt 0) {\r\n                              $Description = \"$($Description), \"\r\n                          }\r\n                          $Description = \"$($Description)KB$($update.KBArticleIDs.Item[$i])\"\r\n                      }\r\n                      $Description = \"$($Description))\"\r\n                  }\r\n                  $Description = \"$($Description)  Categories: \"\r\n                  For ($i = 0; $i -lt $Update.Categories.Count; $i++) {\r\n                      $Category = $($Update.Categories.Item[$i])\r\n                      If ($i -gt 0) {\r\n                          $Description = \"$($Description),\"\r\n                      }\r\n                      $Description = \"$($Description) $($Category.Name) {$($Category.CategoryID)}\"\r\n                  }\r\n                  $Description = \"$($Description) Deployment action: ($(Get-DeploymentActionText -Action $($Update.DeploymentAction))\"\r\n              }\r\n              Return $Description\r\n          }\r\n          #endregion functions\r\n          \r\n          $ExitCode = 0\r\n          \r\n          Switch ($Service.ToUpper()) {\r\n              'WU' { $ServerSelection = 2 }\r\n              'MU' { $ServerSelection = 3; $ServiceId = \"7971f918-a847-4430-9279-4a52d1efe18d\" }\r\n              'WSUS' { $ServerSelection = 1 }\r\n              'DCAT' { $ServerSelection = 3; $ServiceId = \"855E8A7C-ECB4-4CA3-B045-1DFA50104289\" }\r\n              'STORE' { $serverSelection = 3; $ServiceId = \"117cab2d-82b1-4b5a-a08c-4d62dbee7782\" }\r\n              Else { $ServerSelection = 3; $ServiceId = $Service }\r\n          }\r\n          \r\n          If ($Service -eq 'MU') {\r\n              $UpdateServiceManager = New-Object -ComObject Microsoft.Update.ServiceManager\r\n              $UpdateServiceManager.ClientApplicationID = $AppName\r\n              $UpdateServiceManager.AddService2(\"7971f918-a847-4430-9279-4a52d1efe18d\", 7, \"\")\r\n              reg.exe ADD \"HKLM\\SOFTWARE\\Policies\\Microsoft\\Windows\\WindowsUpdate\\AU\" /v AllowMUUpdateService /t REG_DWORD /d 1 /f\r\n          }\r\n          \r\n          $UpdateSession = New-Object -ComObject Microsoft.Update.Session\r\n          $updateSession.ClientApplicationID = $AppName\r\n              \r\n          $UpdateSearcher = $UpdateSession.CreateUpdateSearcher()\r\n          $UpdateSearcher.ServerSelection = $ServerSelection\r\n          If ($ServerSelection -eq 3) {\r\n              $UpdateSearcher.ServiceId = $ServiceId\r\n          }\r\n          \r\n          Write-Output \"Searching for Updates...\"\r\n          \r\n          $SearchResult = $UpdateSearcher.Search($Criteria)\r\n          If ($SearchResult.Updates.Count -eq 0) {\r\n              Write-Output \"There are no applicable updates.\"\r\n              Write-Output \"Now Exiting\"\r\n              Exit $ExitCode\r\n          }\r\n          \r\n          Write-Output \"List of applicable items found for this computer:\"\r\n          \r\n          For ($i = 0; $i -lt $SearchResult.Updates.Count; $i++) {\r\n              $Update = $SearchResult.Updates.Item[$i]\r\n              Write-Output \"$($i + 1)  > $(Get-UpdateDescription -Update $Update)\"\r\n          }\r\n          \r\n          $AtLeastOneAdded = $false\r\n          $ExclusiveAdded = $false   \r\n          $UpdatesToDownload = New-Object -ComObject Microsoft.Update.UpdateColl\r\n          Write-Output \"Checking search results:\"\r\n          For ($i = 0; $i -lt $SearchResult.Updates.Count; $i++) {\r\n              $Update = $SearchResult.Updates.Item[$i]\r\n              $Description = Get-UpdateDescription -Update $Update\r\n              $AddThisUpdate = $false\r\n          \r\n              If ($ExclusiveAdded) {\r\n                  Write-Output \"$($i + 1) > skipping: '$($Description)' because an exclusive update has already been selected.\"\r\n              } Else {\r\n                  $AddThisUpdate = $true\r\n              }\r\n          \r\n              If ($AddThisUpdate) {\r\n                  $PropertyTest = 0\r\n                  $ErrorActionPreference = 'SilentlyContinue'\r\n                  $PropertyTest = $Update.InstallationBehavior.Impact\r\n                  $ErrorActionPreference = 'Stop'\r\n                  If ($PropertyTest -eq 2) {\r\n                      If ($AtLeastOneAdded) {\r\n                          Write-Output \"$($i + 1) > skipping: '$($Description)' because it is exclusive and other updates are being installed first.\"\r\n                          $AddThisUpdate = $false\r\n                      }\r\n                  }\r\n              }\r\n          \r\n              If ($AddThisUpdate) {\r\n                  Write-Output \"$($i + 1) > : adding '$($Description)'\"\r\n                  $UpdatesToDownload.Add($Update)\r\n                  $AtLeastOneAdded = $true\r\n                  $ErrorActionPreference = 'SilentlyContinue'\r\n                  $PropertyTest = $Update.InstallationBehavior.Impact\r\n                  $ErrorActionPreference = 'Stop'\r\n                  If ($PropertyTest -eq 2) {\r\n                      Write-Output \"This update is exclusive; skipping remaining updates\"\r\n                      $ExclusiveAdded = $true\r\n                  }\r\n              }\r\n          }\r\n          \r\n          $UpdatesToInstall = New-Object -ComObject Microsoft.Update.UpdateColl\r\n          Write-Output \"Downloading updates...\"\r\n          $Downloader = $UpdateSession.CreateUpdateDownloader()\r\n          $Downloader.Updates = $UpdatesToDownload\r\n          $Downloader.Download()\r\n          Write-Output \"Succesfully downloaded updates:\"\r\n          \r\n          For ($i = 0; $i -lt $UpdatesToDownload.Count; $i++) {\r\n              $Update = $UpdatesToDownload.Item[$i]\r\n              If ($Update.IsDownloaded -eq $true) {\r\n                  Write-Output \"$($i + 1) > $(Get-UpdateDescription -Update $Update)\"\r\n                  $UpdatesToInstall.Add($Update)\r\n              }\r\n          }\r\n          \r\n          If ($UpdatesToInstall.Count -gt 0) {\r\n              $Installer = $UpdateSession.CreateUpdateInstaller()\r\n              $Installer.Updates = $UpdatesToInstall\r\n              $InstallationResult = $Installer.Install()\r\n              Write-Output \"Installation Result: $(Get-InstallationResultText -Result $($InstallationResult.ResultCode)) HRESULT: $($InstallationResult.GetUpdateResult[$i].HResult)\"\r\n              If ($InstallationResult.GetUpdateResult[$i].HResult -eq -2145116147) {\r\n                  Write-Output \"An updated needed additional downloaded content. Please rerun the script.\"\r\n              }\r\n          \r\n              If ($InstallationResult.RebootRequired) {\r\n                  $ExitCode = 1641\r\n              }    \r\n          }\r\n          If ($service -eq 'MU') {\r\n              Reg.exe DELETE \"HKLM\\SOFTWARE\\Policies\\Microsoft\\Windows\\WindowsUpdate\\AU\" /v AllowMUUpdateService /f\r\n          }\r\n          Exit $ExitCode\r\n          "
                 }
-              }
+              },
+              "dependsOn": [
+                "applications",
+                "[resourceId('Microsoft.Compute/virtualMachines/runCommands', parameters('vmName'), 'create-BuildDir')]",
+                "[resourceId('Microsoft.Compute/virtualMachines/runCommands', parameters('vmName'), 'office')]",
+                "[resourceId('Microsoft.Compute/virtualMachines/runCommands', parameters('vmName'), 'teams')]"
+              ]
             },
             {
               "type": "Microsoft.Compute/virtualMachines/runCommands",
@@ -5373,6 +5377,7 @@
               "dependsOn": [
                 "applications",
                 "[resourceId('Microsoft.Compute/virtualMachines/runCommands', parameters('vmName'), 'create-BuildDir')]",
+                "[resourceId('Microsoft.Compute/virtualMachines/runCommands', parameters('vmName'), 'microsoftUpdate')]",
                 "[resourceId('Microsoft.Compute/virtualMachines/runCommands', parameters('vmName'), 'office')]",
                 "[resourceId('Microsoft.Compute/virtualMachines/runCommands', parameters('vmName'), 'teams')]"
               ]
@@ -5388,13 +5393,13 @@
       },
       "dependsOn": [
         "[subscriptionResourceId('Microsoft.Resources/resourceGroups', variables('imageBuildResourceGroupName'))]",
-        "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('imageBuildResourceGroupName')), 'Microsoft.Resources/deployments', format('image-vm-{0}', parameters('deploymentSuffix')))]"
+        "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('imageBuildResourceGroupName')), 'Microsoft.Resources/deployments', format('imageVM-{0}', parameters('deploymentSuffix')))]"
       ]
     },
     {
       "type": "Microsoft.Resources/deployments",
       "apiVersion": "2022-09-01",
-      "name": "[format('management-vm-{0}', parameters('deploymentSuffix'))]",
+      "name": "[format('{0}-managementVM-{1}', parameters('deploymentPrefix'), parameters('deploymentSuffix'))]",
       "resourceGroup": "[variables('imageBuildResourceGroupName')]",
       "properties": {
         "expressionEvaluationOptions": {
@@ -5403,7 +5408,7 @@
         "mode": "Incremental",
         "parameters": {
           "location": {
-            "value": "[parameters('location')]"
+            "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', split(parameters('subnetResourceId'), '/')[2], split(parameters('subnetResourceId'), '/')[4]), 'Microsoft.Network/virtualNetworks', split(parameters('subnetResourceId'), '/')[8]), '2023-05-01', 'full').location]"
           },
           "name": {
             "value": "[variables('managementVmName')]"
@@ -9109,7 +9114,7 @@
     {
       "type": "Microsoft.Resources/deployments",
       "apiVersion": "2022-09-01",
-      "name": "[format('restart-vm-{0}', parameters('deploymentSuffix'))]",
+      "name": "[format('{0}-restartVM-{1}', parameters('deploymentPrefix'), parameters('deploymentSuffix'))]",
       "resourceGroup": "[variables('imageBuildResourceGroupName')]",
       "properties": {
         "expressionEvaluationOptions": {
@@ -9121,13 +9126,13 @@
             "value": "[variables('cloud')]"
           },
           "location": {
-            "value": "[parameters('location')]"
+            "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', split(parameters('subnetResourceId'), '/')[2], split(parameters('subnetResourceId'), '/')[4]), 'Microsoft.Network/virtualNetworks', split(parameters('subnetResourceId'), '/')[8]), '2023-05-01', 'full').location]"
           },
           "imageVmName": {
-            "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('imageBuildResourceGroupName')), 'Microsoft.Resources/deployments', format('image-vm-{0}', parameters('deploymentSuffix'))), '2022-09-01').outputs.name.value]"
+            "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('imageBuildResourceGroupName')), 'Microsoft.Resources/deployments', format('imageVM-{0}', parameters('deploymentSuffix'))), '2022-09-01').outputs.name.value]"
           },
           "managementVmName": {
-            "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('imageBuildResourceGroupName')), 'Microsoft.Resources/deployments', format('management-vm-{0}', parameters('deploymentSuffix'))), '2022-09-01').outputs.name.value]"
+            "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('imageBuildResourceGroupName')), 'Microsoft.Resources/deployments', format('{0}-managementVM-{1}', parameters('deploymentPrefix'), parameters('deploymentSuffix'))), '2022-09-01').outputs.name.value]"
           },
           "userAssignedIdentityResourceId": {
             "value": "[parameters('userAssignedIdentityResourceId')]"
@@ -9197,15 +9202,15 @@
         }
       },
       "dependsOn": [
-        "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('imageBuildResourceGroupName')), 'Microsoft.Resources/deployments', format('customize-image-{0}', parameters('deploymentSuffix')))]",
-        "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('imageBuildResourceGroupName')), 'Microsoft.Resources/deployments', format('image-vm-{0}', parameters('deploymentSuffix')))]",
-        "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('imageBuildResourceGroupName')), 'Microsoft.Resources/deployments', format('management-vm-{0}', parameters('deploymentSuffix')))]"
+        "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('imageBuildResourceGroupName')), 'Microsoft.Resources/deployments', format('{0}-customizeImage-{1}', parameters('deploymentPrefix'), parameters('deploymentSuffix')))]",
+        "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('imageBuildResourceGroupName')), 'Microsoft.Resources/deployments', format('imageVM-{0}', parameters('deploymentSuffix')))]",
+        "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('imageBuildResourceGroupName')), 'Microsoft.Resources/deployments', format('{0}-managementVM-{1}', parameters('deploymentPrefix'), parameters('deploymentSuffix')))]"
       ]
     },
     {
       "type": "Microsoft.Resources/deployments",
       "apiVersion": "2022-09-01",
-      "name": "[format('sysprep-vm-{0}', parameters('deploymentSuffix'))]",
+      "name": "[format('{0}-sysprepVM-{1}', parameters('deploymentPrefix'), parameters('deploymentSuffix'))]",
       "resourceGroup": "[variables('imageBuildResourceGroupName')]",
       "properties": {
         "expressionEvaluationOptions": {
@@ -9214,10 +9219,10 @@
         "mode": "Incremental",
         "parameters": {
           "location": {
-            "value": "[parameters('location')]"
+            "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', split(parameters('subnetResourceId'), '/')[2], split(parameters('subnetResourceId'), '/')[4]), 'Microsoft.Network/virtualNetworks', split(parameters('subnetResourceId'), '/')[8]), '2023-05-01', 'full').location]"
           },
           "vmName": {
-            "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('imageBuildResourceGroupName')), 'Microsoft.Resources/deployments', format('image-vm-{0}', parameters('deploymentSuffix'))), '2022-09-01').outputs.name.value]"
+            "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('imageBuildResourceGroupName')), 'Microsoft.Resources/deployments', format('imageVM-{0}', parameters('deploymentSuffix'))), '2022-09-01').outputs.name.value]"
           }
         },
         "template": {
@@ -9257,14 +9262,14 @@
         }
       },
       "dependsOn": [
-        "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('imageBuildResourceGroupName')), 'Microsoft.Resources/deployments', format('image-vm-{0}', parameters('deploymentSuffix')))]",
-        "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('imageBuildResourceGroupName')), 'Microsoft.Resources/deployments', format('restart-vm-{0}', parameters('deploymentSuffix')))]"
+        "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('imageBuildResourceGroupName')), 'Microsoft.Resources/deployments', format('imageVM-{0}', parameters('deploymentSuffix')))]",
+        "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('imageBuildResourceGroupName')), 'Microsoft.Resources/deployments', format('{0}-restartVM-{1}', parameters('deploymentPrefix'), parameters('deploymentSuffix')))]"
       ]
     },
     {
       "type": "Microsoft.Resources/deployments",
       "apiVersion": "2022-09-01",
-      "name": "[format('generalize-vm-{0}', parameters('deploymentSuffix'))]",
+      "name": "[format('{0}-generalizeVM-{1}', parameters('deploymentPrefix'), parameters('deploymentSuffix'))]",
       "resourceGroup": "[variables('imageBuildResourceGroupName')]",
       "properties": {
         "expressionEvaluationOptions": {
@@ -9276,13 +9281,13 @@
             "value": "[variables('cloud')]"
           },
           "location": {
-            "value": "[parameters('location')]"
+            "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', split(parameters('subnetResourceId'), '/')[2], split(parameters('subnetResourceId'), '/')[4]), 'Microsoft.Network/virtualNetworks', split(parameters('subnetResourceId'), '/')[8]), '2023-05-01', 'full').location]"
           },
           "imageVmName": {
-            "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('imageBuildResourceGroupName')), 'Microsoft.Resources/deployments', format('image-vm-{0}', parameters('deploymentSuffix'))), '2022-09-01').outputs.name.value]"
+            "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('imageBuildResourceGroupName')), 'Microsoft.Resources/deployments', format('imageVM-{0}', parameters('deploymentSuffix'))), '2022-09-01').outputs.name.value]"
           },
           "managementVmName": {
-            "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('imageBuildResourceGroupName')), 'Microsoft.Resources/deployments', format('management-vm-{0}', parameters('deploymentSuffix'))), '2022-09-01').outputs.name.value]"
+            "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('imageBuildResourceGroupName')), 'Microsoft.Resources/deployments', format('{0}-managementVM-{1}', parameters('deploymentPrefix'), parameters('deploymentSuffix'))), '2022-09-01').outputs.name.value]"
           },
           "userAssignedIdentityResourceId": {
             "value": "[parameters('userAssignedIdentityResourceId')]"
@@ -9352,16 +9357,16 @@
         }
       },
       "dependsOn": [
-        "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('imageBuildResourceGroupName')), 'Microsoft.Resources/deployments', format('image-vm-{0}', parameters('deploymentSuffix')))]",
-        "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('imageBuildResourceGroupName')), 'Microsoft.Resources/deployments', format('management-vm-{0}', parameters('deploymentSuffix')))]",
-        "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('imageBuildResourceGroupName')), 'Microsoft.Resources/deployments', format('sysprep-vm-{0}', parameters('deploymentSuffix')))]"
+        "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('imageBuildResourceGroupName')), 'Microsoft.Resources/deployments', format('imageVM-{0}', parameters('deploymentSuffix')))]",
+        "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('imageBuildResourceGroupName')), 'Microsoft.Resources/deployments', format('{0}-managementVM-{1}', parameters('deploymentPrefix'), parameters('deploymentSuffix')))]",
+        "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('imageBuildResourceGroupName')), 'Microsoft.Resources/deployments', format('{0}-sysprepVM-{1}', parameters('deploymentPrefix'), parameters('deploymentSuffix')))]"
       ]
     },
     {
       "condition": "[empty(parameters('imageDefinitionResourceId'))]",
       "type": "Microsoft.Resources/deployments",
       "apiVersion": "2022-09-01",
-      "name": "[format('gallery-image-definition-{0}', parameters('deploymentSuffix'))]",
+      "name": "[format('{0}-gallery-image-definition-{1}', parameters('deploymentPrefix'), parameters('deploymentSuffix'))]",
       "subscriptionId": "[split(parameters('computeGalleryResourceId'), '/')[2]]",
       "resourceGroup": "[split(parameters('computeGalleryResourceId'), '/')[4]]",
       "properties": {
@@ -9371,7 +9376,7 @@
         "mode": "Incremental",
         "parameters": {
           "location": {
-            "value": "[parameters('location')]"
+            "value": "[parameters('deploymentLocation')]"
           },
           "galleryName": {
             "value": "[last(split(parameters('computeGalleryResourceId'), '/'))]"
@@ -9745,7 +9750,7 @@
     {
       "type": "Microsoft.Resources/deployments",
       "apiVersion": "2022-09-01",
-      "name": "[format('ImageVersion-{0}', parameters('deploymentSuffix'))]",
+      "name": "[format('{0}-imageVersion-{1}', parameters('deploymentPrefix'), parameters('deploymentSuffix'))]",
       "subscriptionId": "[split(parameters('computeGalleryResourceId'), '/')[2]]",
       "resourceGroup": "[split(parameters('computeGalleryResourceId'), '/')[4]]",
       "properties": {
@@ -9755,7 +9760,7 @@
         "mode": "Incremental",
         "parameters": {
           "location": {
-            "value": "[parameters('location')]"
+            "value": "[parameters('deploymentLocation')]"
           },
           "name": {
             "value": "[variables('imageVersionName')]"
@@ -9766,7 +9771,7 @@
           "galleryName": {
             "value": "[last(split(parameters('computeGalleryResourceId'), '/'))]"
           },
-          "imageName": "[if(not(empty(parameters('imageDefinitionResourceId'))), createObject('value', last(split(parameters('imageDefinitionResourceId'), '/'))), createObject('value', reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', split(parameters('computeGalleryResourceId'), '/')[2], split(parameters('computeGalleryResourceId'), '/')[4]), 'Microsoft.Resources/deployments', format('gallery-image-definition-{0}', parameters('deploymentSuffix'))), '2022-09-01').outputs.name.value))]",
+          "imageName": "[if(not(empty(parameters('imageDefinitionResourceId'))), createObject('value', last(split(parameters('imageDefinitionResourceId'), '/'))), createObject('value', reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', split(parameters('computeGalleryResourceId'), '/')[2], split(parameters('computeGalleryResourceId'), '/')[4]), 'Microsoft.Resources/deployments', format('{0}-gallery-image-definition-{1}', parameters('deploymentPrefix'), parameters('deploymentSuffix'))), '2022-09-01').outputs.name.value))]",
           "endOfLifeDate": {
             "value": "[variables('imageVersionEndOfLifeDate')]"
           },
@@ -9774,10 +9779,10 @@
             "value": "[parameters('imageVersionExcludeFromLatest')]"
           },
           "targetRegions": {
-            "value": "[variables('imageVersionTargetRegions')]"
+            "value": "[union(variables('targetRegions'), createArray(createObject('excludeFromLatest', parameters('imageVersionExcludeFromLatest'), 'name', reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', split(parameters('subnetResourceId'), '/')[2], split(parameters('subnetResourceId'), '/')[4]), 'Microsoft.Network/virtualNetworks', split(parameters('subnetResourceId'), '/')[8]), '2023-05-01', 'full').location, 'regionalReplicaCount', parameters('replicaCount'), 'storageAccountType', variables('imageVersionStorageAccountType'))))]"
           },
           "sourceId": {
-            "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('imageBuildResourceGroupName')), 'Microsoft.Resources/deployments', format('image-vm-{0}', parameters('deploymentSuffix'))), '2022-09-01').outputs.resourceId.value]"
+            "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('imageBuildResourceGroupName')), 'Microsoft.Resources/deployments', format('imageVM-{0}', parameters('deploymentSuffix'))), '2022-09-01').outputs.resourceId.value]"
           },
           "tags": {
             "value": {}
@@ -10022,15 +10027,15 @@
         }
       },
       "dependsOn": [
-        "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('imageBuildResourceGroupName')), 'Microsoft.Resources/deployments', format('generalize-vm-{0}', parameters('deploymentSuffix')))]",
-        "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', split(parameters('computeGalleryResourceId'), '/')[2], split(parameters('computeGalleryResourceId'), '/')[4]), 'Microsoft.Resources/deployments', format('gallery-image-definition-{0}', parameters('deploymentSuffix')))]",
-        "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('imageBuildResourceGroupName')), 'Microsoft.Resources/deployments', format('image-vm-{0}', parameters('deploymentSuffix')))]"
+        "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('imageBuildResourceGroupName')), 'Microsoft.Resources/deployments', format('{0}-generalizeVM-{1}', parameters('deploymentPrefix'), parameters('deploymentSuffix')))]",
+        "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', split(parameters('computeGalleryResourceId'), '/')[2], split(parameters('computeGalleryResourceId'), '/')[4]), 'Microsoft.Resources/deployments', format('{0}-gallery-image-definition-{1}', parameters('deploymentPrefix'), parameters('deploymentSuffix')))]",
+        "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('imageBuildResourceGroupName')), 'Microsoft.Resources/deployments', format('imageVM-{0}', parameters('deploymentSuffix')))]"
       ]
     },
     {
       "type": "Microsoft.Resources/deployments",
       "apiVersion": "2022-09-01",
-      "name": "[format('remove-vm-{0}', parameters('deploymentSuffix'))]",
+      "name": "[format('{0}-removeVms-{1}', parameters('deploymentPrefix'), parameters('deploymentSuffix'))]",
       "resourceGroup": "[variables('imageBuildResourceGroupName')]",
       "properties": {
         "expressionEvaluationOptions": {
@@ -10042,13 +10047,13 @@
             "value": "[variables('cloud')]"
           },
           "location": {
-            "value": "[parameters('location')]"
+            "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', split(parameters('subnetResourceId'), '/')[2], split(parameters('subnetResourceId'), '/')[4]), 'Microsoft.Network/virtualNetworks', split(parameters('subnetResourceId'), '/')[8]), '2023-05-01', 'full').location]"
           },
           "imageVmName": {
-            "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('imageBuildResourceGroupName')), 'Microsoft.Resources/deployments', format('image-vm-{0}', parameters('deploymentSuffix'))), '2022-09-01').outputs.name.value]"
+            "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('imageBuildResourceGroupName')), 'Microsoft.Resources/deployments', format('imageVM-{0}', parameters('deploymentSuffix'))), '2022-09-01').outputs.name.value]"
           },
           "managementVmName": {
-            "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('imageBuildResourceGroupName')), 'Microsoft.Resources/deployments', format('management-vm-{0}', parameters('deploymentSuffix'))), '2022-09-01').outputs.name.value]"
+            "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('imageBuildResourceGroupName')), 'Microsoft.Resources/deployments', format('{0}-managementVM-{1}', parameters('deploymentPrefix'), parameters('deploymentSuffix'))), '2022-09-01').outputs.name.value]"
           },
           "userAssignedIdentityResourceId": {
             "value": "[parameters('userAssignedIdentityResourceId')]"
@@ -10126,9 +10131,9 @@
         }
       },
       "dependsOn": [
-        "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', split(parameters('computeGalleryResourceId'), '/')[2], split(parameters('computeGalleryResourceId'), '/')[4]), 'Microsoft.Resources/deployments', format('ImageVersion-{0}', parameters('deploymentSuffix')))]",
-        "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('imageBuildResourceGroupName')), 'Microsoft.Resources/deployments', format('image-vm-{0}', parameters('deploymentSuffix')))]",
-        "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('imageBuildResourceGroupName')), 'Microsoft.Resources/deployments', format('management-vm-{0}', parameters('deploymentSuffix')))]"
+        "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', split(parameters('computeGalleryResourceId'), '/')[2], split(parameters('computeGalleryResourceId'), '/')[4]), 'Microsoft.Resources/deployments', format('{0}-imageVersion-{1}', parameters('deploymentPrefix'), parameters('deploymentSuffix')))]",
+        "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('imageBuildResourceGroupName')), 'Microsoft.Resources/deployments', format('imageVM-{0}', parameters('deploymentSuffix')))]",
+        "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('imageBuildResourceGroupName')), 'Microsoft.Resources/deployments', format('{0}-managementVM-{1}', parameters('deploymentPrefix'), parameters('deploymentSuffix')))]"
       ]
     }
   ]
