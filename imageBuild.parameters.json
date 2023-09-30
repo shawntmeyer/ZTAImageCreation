@@ -5,6 +5,9 @@
     "computeGalleryResourceId": {
       "value": "/subscriptions/6dc4ed51-16b9-4494-a406-4fb7a8330d95/resourceGroups/rg-image-management-use/providers/Microsoft.Compute/galleries/cg_avd_use"
     },
+    "deploymentLocation": {
+      "value": "EastUS"
+    },
     "storageAcountResourceId": {
       "value": "/subscriptions/6dc4ed51-16b9-4494-a406-4fb7a8330d95/resourceGroups/rg-image-management-use/providers/Microsoft.Storage/storageAccounts/saimageassetsuse"
     },
