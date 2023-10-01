@@ -15,6 +15,8 @@ param installVirtualDesktopOptimizationTool bool
 param installVisio bool
 param installWord bool
 param location string = resourceGroup().location
+param logBlobClientId string
+param logBlobContainerUri string
 param storageAccountName string
 param storageEndpoint string
 param vmName string
@@ -77,12 +79,20 @@ resource createBuildDir 'Microsoft.Compute/virtualMachines/runCommands@2023-03-0
 }
 
 @batchSize(1)
-resource applications 'Microsoft.Compute/virtualMachines/runCommands@2023-03-01' = [for installer in installers : {
+resource applications 'Microsoft.Compute/virtualMachines/runCommands@2023-03-01' = [for installer in installers: {
   name: 'app-${installer.name}'
   location: location
   parent: vm
   properties: {
     treatFailureAsDeploymentFailure: true
+    errorBlobManagedIdentity: empty(logBlobClientId) ? {} : {
+      clientId: logBlobClientId
+    }
+    errorBlobUri: empty(logBlobContainerUri) ? null : '${logBlobContainerUri}${installer.name}-error.log' 
+    outputBlobManagedIdentity: empty(logBlobClientId) ? {} : {
+      clientId: logBlobClientId
+    }
+    outputBlobUri: empty(logBlobContainerUri) ? null : '${logBlobContainerUri}${installer.name}-output.log'
     parameters: [
       {
         name: 'BuildDir'
@@ -185,7 +195,7 @@ resource applications 'Microsoft.Compute/virtualMachines/runCommands@2023-03-01'
       '''
     }
   }
-  dependsOn:[
+  dependsOn: [
     createBuildDir
   ]
 }]
@@ -195,6 +205,14 @@ resource office 'Microsoft.Compute/virtualMachines/runCommands@2023-03-01' = if 
   location: location
   parent: vm
   properties: {
+    errorBlobManagedIdentity: empty(logBlobClientId) ? {} : {
+      clientId: logBlobClientId
+    }
+    errorBlobUri: empty(logBlobContainerUri) ? null : '${logBlobContainerUri}Office-error.log' 
+    outputBlobManagedIdentity: empty(logBlobClientId) ? {} : {
+      clientId: logBlobClientId
+    }
+    outputBlobUri: empty(logBlobContainerUri) ? null : '${logBlobContainerUri}Office-output.log'
     parameters: [
       {
         name: 'BuildDir'
@@ -553,10 +571,18 @@ resource microsoftUpdate 'Microsoft.Compute/virtualMachines/runCommands@2023-03-
   location: location
   parent: vm
   properties: {
-      asyncExecution: false
-      parameters: []
-      source: {
-          script: '''
+    asyncExecution: false
+    errorBlobManagedIdentity: empty(logBlobClientId) ? {} : {
+      clientId: logBlobClientId
+    }
+    errorBlobUri: empty(logBlobContainerUri) ? null : '${logBlobContainerUri}MicrosoftUpdate-error.log' 
+    outputBlobManagedIdentity: empty(logBlobClientId) ? {} : {
+      clientId: logBlobClientId
+    }
+    outputBlobUri: empty(logBlobContainerUri) ? null : '${logBlobContainerUri}MicrosoftUpdate-output.log'
+    parameters: []
+    source: {
+      script: '''
           param (
               # The App Name to pass to the WUA API as the calling application.
               [Parameter()]
@@ -757,7 +783,7 @@ resource microsoftUpdate 'Microsoft.Compute/virtualMachines/runCommands@2023-03-
           }
           Exit $ExitCode
           '''
-      }
+    }
   }
   dependsOn: [
     createBuildDir

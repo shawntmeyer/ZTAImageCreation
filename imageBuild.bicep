@@ -64,6 +64,16 @@ param sku string
 param vmSize string
 
 // Image customizers
+@description('Optional. Collect image customization logs.')
+param collectCustomizationLogs bool = false
+
+@description('''Conditional. The resource id of the existing Azure storage account blob service private dns zone.
+This zone must be linked to or resolvable from the vnet referenced in the [privateEndpointSubnetResourceId] parameter.''')
+param blobPrivateDnsZoneResourceId string = ''
+
+@description('Conditional. The resource id of the private endpoint subnet.')
+param privateEndpointSubnetResourceId string = ''
+
 @allowed([
   'Commercial'
   'DepartmentOfDefense'
@@ -151,6 +161,10 @@ param replicaCount int
   'TrustedLaunch'
 ])
 param securityType string = 'Standard'
+
+@description('Optional. Specifies whether the network interface is accelerated networking-enabled.')
+param enableAcceleratedNetworking bool = false
+
 param imageMajorVersion int = -1
 param imageMinorVersion int = -1
 param imagePatch int = -1
@@ -162,6 +176,9 @@ param imagePatch int = -1
 @description('Optional. The Hyper-V generation of the image definition. (Default = "V2")')
 param hyperVGeneration string = 'V2'
 
+@description('Optional. The tags to apply to all resources deployed by this template.')
+param tags object = {}
+
 // * VARIABLE DECLARATIONS * //
 
 var computeLocation = vnet.location
@@ -170,11 +187,14 @@ var depPrefix = '${deploymentPrefix}-'
 var adminPw = '${toUpper(uniqueString(subscription().id))}-${guidValue}'
 var adminUserName = 'xadmin'
 var cloud = environment().name
-var blobParentUrl = '${storageAccount.properties.primaryEndpoints.blob}${containerName}/'
+var artifactsContainerUri = '${artifactsStorageAccount.properties.primaryEndpoints.blob}${containerName}/'
 
 var locations = loadJsonContent('data/locations.json')
 var resourceAbbreviations = loadJsonContent('data/resourceAbbreviations.json')
 
+var collectLogs = collectCustomizationLogs && !empty(privateEndpointSubnetResourceId) && !empty(blobPrivateDnsZoneResourceId) ? true : false
+var logContainerName = 'image-customization-logs'
+var logContainerUri = collectLogs ? '${logsStorageAccount.outputs.primaryBlobEndpoint}${logContainerName}/' : ''
 var galleryImageDefinitionPublisher = replace(imageDefinitionPublisher, ' ', '')
 var galleryImageDefinitionOffer = replace(imageDefinitionOffer, ' ', '')
 var galleryImageDefinitionSku = replace(imageDefinitionSku, ' ', '')
@@ -183,7 +203,7 @@ var imageBuildResourceGroupName = empty(imageBuildResourceGroupId) ? (empty(cust
 var imageDefinitionName = empty(imageDefinitionResourceId) ? (empty(customImageDefinitionName) ? '${replace('${resourceAbbreviations.imageDefinitions}-${replace(galleryImageDefinitionPublisher, '-', '')}-${replace(galleryImageDefinitionOffer, '-', '')}-${replace(galleryImageDefinitionSku, '-', '')}', ' ', '')}' : customImageDefinitionName) : last(split(imageDefinitionResourceId, '/'))
 
 var imageDefinitionIsHybernateSupported = 'true'
-var imageDefinitionIsAcceleratedNetworkSupported = 'true'
+var imageDefinitionIsAcceleratedNetworkSupported = enableAcceleratedNetworking ? 'true' : 'false'
 var imageDefinitionIsHigherPerformanceSupported = false
 
 var imageVersionName = imageMajorVersion != -1 && imageMajorVersion != -1 && imagePatch != -1 ? '${imageMajorVersion}.${imageMinorVersion}.${imagePatch}' : autoImageVersionName
@@ -211,7 +231,7 @@ var managementVmName = take('vmmgt-${uniqueString(deploymentSuffix)}', 15)
 
 // * RESOURCES * //
 
-resource storageAccount 'Microsoft.Storage/storageAccounts@2022-09-01' existing = {
+resource artifactsStorageAccount 'Microsoft.Storage/storageAccounts@2022-09-01' existing = {
   scope: resourceGroup(split(storageAcountResourceId, '/')[2], split(storageAcountResourceId, '/')[4])
   name: last(split(storageAcountResourceId, '/'))
 }
@@ -239,6 +259,71 @@ module roleAssignment 'carml/authorization/role-assignment/resource-group/main.b
   }
 }
 
+module logsStorageAccount 'carml/storage/storage-account/main.bicep' = if(collectLogs) {
+  name: '${depPrefix}logsStorageAccount-${deploymentSuffix}'
+  scope: resourceGroup(imageBuildRG.name)
+  params: {
+    name: 'logs${depPrefix}${uniqueString(subscription().id,imageBuildRG.name,depPrefix)}'
+    location: computeLocation
+    allowSharedKeyAccess: false
+    blobServices: {
+      containers: [
+        {
+          name: logContainerName
+          publicAccess: 'None'
+        }
+      ]
+    }
+    kind: 'StorageV2'
+    managementPolicyRules: [
+      {
+        enabled: true
+        name: 'Delete Blobs after 7 days'
+        type: 'Lifecycle'
+        definition: {
+          actions: {
+            baseBlob: {
+              delete: {
+                daysAfterModificationGreaterThan: 7
+              }
+            }
+          }
+          filters: {
+            blobTypes: [
+              'blockBlob'
+              'appendBlob'
+            ]
+          }
+        }
+      }
+    ]
+    privateEndpoints: [
+      {
+        name: 'pe-logs${depPrefix}${uniqueString(subscription().id,imageBuildRG.name,depPrefix)}-blob-${locations[computeLocation].abbreviation}'
+        privateDnsZoneGroup: {
+          privateDNSResourceIds: ['${blobPrivateDnsZoneResourceId}']
+        }
+        service: 'blob'
+        subnetResourceId: privateEndpointSubnetResourceId
+        tags: tags
+      }
+    ]
+    publicNetworkAccess: 'Disabled'
+    sasExpirationPeriod: '180.00:00:00'
+    skuName: 'Standard_LRS'
+    tags: tags
+  }
+}
+
+module logsRoleAssignment 'carml/authorization/role-assignment/resource-group/main.bicep' = if (collectLogs) {
+  name: '${depPrefix}roleassignment-blobwriter-storage-${deploymentSuffix}'
+  scope: resourceGroup(imageBuildRG.name)
+  params: {
+    principalId: managedIdentity.properties.principalId
+    roleDefinitionIdOrName: 'Storage Blob Data Contributor'
+  }  
+}
+
 module imageVm 'carml/compute/virtual-machine/main.bicep' = {
   name: 'imageVM-${deploymentSuffix}'
   scope: resourceGroup(imageBuildRG.name)
@@ -256,6 +341,7 @@ module imageVm 'carml/compute/virtual-machine/main.bicep' = {
     }
     nicConfigurations: [
       {
+        enabledAcceleratedNetworking: enableAcceleratedNetworking
         deleteOption: 'Delete'
         ipConfigurations: [
           {
@@ -277,6 +363,7 @@ module imageVm 'carml/compute/virtual-machine/main.bicep' = {
     }
     osType: 'Windows'
     securityType: securityType
+    tags: tags
     vTpmEnabled: true
     secureBootEnabled: true
     userAssignedIdentities: {
@@ -306,8 +393,8 @@ module customizeImage 'modules/customizeImage.bicep' = {
     installVirtualDesktopOptimizationTool: installVirtualDesktopOptimizationTool
     installVisio: installVisio
     installWord: installWord
-    storageAccountName: storageAccount.name
-    storageEndpoint: storageAccount.properties.primaryEndpoints.blob
+    storageAccountName: artifactsStorageAccount.name
+    storageEndpoint: artifactsStorageAccount.properties.primaryEndpoints.blob
     tenantType: tenantType
     userAssignedIdentityObjectId: managedIdentity.properties.principalId
     vmName: imageVm.outputs.name
@@ -316,6 +403,8 @@ module customizeImage 'modules/customizeImage.bicep' = {
     msrdcwebrtcsvcInstaller: msrdcwebrtcsvcInstaller
     teamsInstaller: teamsInstaller
     vcRedistInstaller: vcRedistInstaller
+    logBlobClientId: collectLogs ? managedIdentity.properties.clientId : ''
+    logBlobContainerUri: logContainerUri
   }
 }
 
@@ -331,10 +420,10 @@ module managementVm 'carml/compute/virtual-machine/main.bicep' = {
       enabled: true
       fileData: [
         {
-          uri: '${blobParentUrl}PowerShell-Az-Module.zip'
+          uri: '${artifactsContainerUri}PowerShell-Az-Module.zip'
         }
         {
-          uri: '${blobParentUrl}cse_master_script.ps1'
+          uri: '${artifactsContainerUri}cse_master_script.ps1'
         }
       ]
     }
@@ -373,6 +462,7 @@ module managementVm 'carml/compute/virtual-machine/main.bicep' = {
     osType: 'Windows'
     securityType: securityType
     secureBootEnabled: true
+    tags: tags
     vTpmEnabled: true
     userAssignedIdentities: {
       '${userAssignedIdentityResourceId}': {}
