@@ -224,21 +224,14 @@ var imageVersionName = imageMajorVersion != -1 && imageMajorVersion != -1 && ima
 
 var imageVersionEndOfLifeDate = imageVersionEOLinDays != 0 ? dateTimeAdd(imageVersionCreationTime, 'P${imageVersionEOLinDays}D') : ''
 
-var targetRegions = [for region in replicationRegions: {
+var imageRegions = union(['computeLocation'], replicationRegions)
+
+var targetRegions = [for region in imageRegions: {
   excludeFromLatest: imageVersionExcludeFromLatest
   name: region
   regionalReplicaCount: replicaCount
   storageAccountType: imageVersionStorageAccountType
 }]
-
-var defReplicationRegion = [{
-  excludeFromLatest: imageVersionExcludeFromLatest
-  name: computeLocation
-  regionalReplicaCount: replicaCount
-  storageAccountType: imageVersionStorageAccountType
-}]
-
-var imageVersionTargetRegions = union(targetRegions, defReplicationRegion)
 
 var imageVmName = take('vmimg-${uniqueString(timeStamp)}', 15)
 var managementVmName = take('vmmgt-${uniqueString(timeStamp)}', 15)
@@ -566,7 +559,7 @@ module imageVersion 'modules/imageVersion.bicep' = {
     replicaCount: replicaCount
     storageAccountType: imageVersionStorageAccountType
     sourceId: imageVm.outputs.resourceId
-    targetRegions: imageVersionTargetRegions
+    targetRegions: targetRegions
     tags: {}
   }
   dependsOn: [

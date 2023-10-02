@@ -5,10 +5,17 @@
     "_generator": {
       "name": "bicep",
       "version": "0.21.1.54444",
-      "templateHash": "15216466712918852708"
+      "templateHash": "6319621076253112481"
     }
   },
   "parameters": {
+    "deploymentLocation": {
+      "type": "string",
+      "defaultValue": "[deployment().location]",
+      "metadata": {
+        "description": "Deployment location. Note that the compute resources will be deployed to the region where the subnet is location."
+      }
+    },
     "deploymentPrefix": {
       "type": "string",
       "defaultValue": "",
@@ -17,25 +24,11 @@
         "description": "Value to prepend to the deployment names."
       }
     },
-    "deploymentSuffix": {
+    "timeStamp": {
       "type": "string",
       "defaultValue": "[utcNow('yyMMddHHmm')]",
       "metadata": {
         "description": "Value appended to the deployment names."
-      }
-    },
-    "deploymentLocation": {
-      "type": "string",
-      "defaultValue": "[deployment().location]",
-      "metadata": {
-        "description": "Deployment location. Note that the compute resources will be deployed to the region where the subnet is location."
-      }
-    },
-    "autoImageVersionName": {
-      "type": "string",
-      "defaultValue": "[utcNow('yy.MMdd.hhmm')]",
-      "metadata": {
-        "description": "Automatically generated Image Version name."
       }
     },
     "imageVersionCreationTime": {
@@ -80,16 +73,16 @@
         "description": "The name of the storage blob container which contains the artifacts (scripts, installers, etc) used during the image build."
       }
     },
-    "subnetResourceId": {
-      "type": "string",
-      "metadata": {
-        "description": "The resource Id of the subnet to which the image build VM will be attached."
-      }
-    },
     "userAssignedIdentityResourceId": {
       "type": "string",
       "metadata": {
         "description": "The resource Id of the user assigned managed identity used to access the storage account."
+      }
+    },
+    "subnetResourceId": {
+      "type": "string",
+      "metadata": {
+        "description": "The resource Id of the subnet to which the image build VM will be attached."
       }
     },
     "imageBuildResourceGroupId": {
@@ -103,19 +96,19 @@
       "type": "string",
       "defaultValue": "",
       "metadata": {
-        "description": "The name of the resource group where the image build and management vms will be created."
-      }
-    },
-    "offer": {
-      "type": "string",
-      "metadata": {
-        "description": "The Marketplace Image offer"
+        "description": "The custom name of the resource group where the image build and management vms will be created. Leave blank to create a new resource group based on Cloud Adoption Framework naming principals."
       }
     },
     "publisher": {
       "type": "string",
       "metadata": {
         "description": "The Marketplace Image publisher"
+      }
+    },
+    "offer": {
+      "type": "string",
+      "metadata": {
+        "description": "The Marketplace Image offer"
       }
     },
     "sku": {
@@ -130,29 +123,25 @@
         "description": "The size of the Image build and Management VMs."
       }
     },
-    "collectCustomizationLogs": {
+    "securityType": {
+      "type": "string",
+      "defaultValue": "Standard",
+      "allowedValues": [
+        "Standard",
+        "ConfidentialVM",
+        "TrustedLaunch"
+      ]
+    },
+    "enableAcceleratedNetworking": {
       "type": "bool",
       "defaultValue": false,
       "metadata": {
-        "description": "Optional. Collect image customization logs."
-      }
-    },
-    "blobPrivateDnsZoneResourceId": {
-      "type": "string",
-      "defaultValue": "",
-      "metadata": {
-        "description": "Conditional. The resource id of the existing Azure storage account blob service private dns zone.\r\nThis zone must be linked to or resolvable from the vnet referenced in the [privateEndpointSubnetResourceId] parameter."
-      }
-    },
-    "privateEndpointSubnetResourceId": {
-      "type": "string",
-      "defaultValue": "",
-      "metadata": {
-        "description": "Conditional. The resource id of the private endpoint subnet."
+        "description": "Optional. Specifies whether the network interface is accelerated networking-enabled."
       }
     },
     "tenantType": {
       "type": "string",
+      "defaultValue": "Commercial",
       "allowedValues": [
         "Commercial",
         "DepartmentOfDefense",
@@ -164,59 +153,76 @@
       }
     },
     "installAccess": {
-      "type": "bool"
+      "type": "bool",
+      "defaultValue": false
     },
     "installExcel": {
-      "type": "bool"
+      "type": "bool",
+      "defaultValue": false
     },
     "installOneDriveForBusiness": {
-      "type": "bool"
+      "type": "bool",
+      "defaultValue": false
     },
     "installOneNote": {
-      "type": "bool"
+      "type": "bool",
+      "defaultValue": false
     },
     "installOutlook": {
-      "type": "bool"
+      "type": "bool",
+      "defaultValue": false
     },
     "installPowerPoint": {
-      "type": "bool"
+      "type": "bool",
+      "defaultValue": false
     },
     "installProject": {
-      "type": "bool"
+      "type": "bool",
+      "defaultValue": false
     },
     "installpublisher": {
-      "type": "bool"
+      "type": "bool",
+      "defaultValue": false
     },
     "installSkypeForBusiness": {
-      "type": "bool"
+      "type": "bool",
+      "defaultValue": false
     },
     "installTeams": {
-      "type": "bool"
+      "type": "bool",
+      "defaultValue": false
     },
     "installVirtualDesktopOptimizationTool": {
-      "type": "bool"
+      "type": "bool",
+      "defaultValue": false
     },
     "installVisio": {
-      "type": "bool"
+      "type": "bool",
+      "defaultValue": false
     },
     "installWord": {
-      "type": "bool"
+      "type": "bool",
+      "defaultValue": false
     },
     "vDotInstaller": {
-      "type": "string"
+      "type": "string",
+      "defaultValue": "VDOT"
     },
     "officeInstaller": {
       "type": "string",
       "defaultValue": "Office365-Install.zip"
     },
     "teamsInstaller": {
-      "type": "string"
+      "type": "string",
+      "defaultValue": "teams.exe"
     },
     "msrdcwebrtcsvcInstaller": {
-      "type": "string"
+      "type": "string",
+      "defaultValue": "string"
     },
     "vcRedistInstaller": {
-      "type": "string"
+      "type": "string",
+      "defaultValue": "vsstudio.exe"
     },
     "customizations": {
       "type": "array",
@@ -225,25 +231,39 @@
         "description": "An array of image customizations consisting of the blob name and parameters.\r\nBICEP example:\r\n[\r\n  {\r\n    name: 'FSLogix'\r\n    blobName: 'Install-FSLogix.zip'\r\n    arguments: 'latest'\r\n  }\r\n  {\r\n    name: 'VSCode'\r\n    blobName: 'VSCode.zip'\r\n    arguments: ''\r\n  }\r\n]\r\n"
       }
     },
+    "collectCustomizationLogs": {
+      "type": "bool",
+      "defaultValue": false,
+      "metadata": {
+        "description": "Optional. Collect image customization logs."
+      }
+    },
+    "blobPrivateDnsZoneResourceId": {
+      "type": "string",
+      "defaultValue": "",
+      "metadata": {
+        "description": "Conditional. The resource id of the existing Azure storage account blob service private dns zone.\r\nMust be provided if [collectCustomizationLogs] is set to \"true\".\r\nThis zone must be linked to or resolvable from the vnet referenced in the [privateEndpointSubnetResourceId] parameter."
+      }
+    },
+    "privateEndpointSubnetResourceId": {
+      "type": "string",
+      "defaultValue": "",
+      "metadata": {
+        "description": "Conditional. The resource id of the private endpoint subnet. Must be provided if [collectCustomizationLogs] is set to \"true\"."
+      }
+    },
     "imageDefinitionResourceId": {
       "type": "string",
       "defaultValue": "",
       "metadata": {
-        "description": "The resource id of an existing Image Definition in the Compute gallery."
+        "description": "Optional. The resource id of an existing Image Definition in the Compute gallery."
       }
     },
     "customImageDefinitionName": {
       "type": "string",
       "defaultValue": "",
       "metadata": {
-        "description": "Conditional. The name of the image Definition to create in the Compute Gallery. Must be provided if the [imageDefinitionResourceId] is not provided."
-      }
-    },
-    "imageDefinitionOffer": {
-      "type": "string",
-      "defaultValue": "",
-      "metadata": {
-        "description": "Conditional. The computer gallery image definition Offer."
+        "description": "Conditional. The name of the image Definition to create in the Compute Gallery.\r\nOnly valid if [imageDefinitionResourceId] is not provided.\r\nIf left blank, the image definition name will be built on Cloud Adoption Framework principals and based on the [imageDefinitonPublisher], [imageDefinitionOffer], and [imageDefinitionSku] values."
       }
     },
     "imageDefinitionPublisher": {
@@ -253,6 +273,13 @@
         "description": "Conditional. The compute gallery image definition Publisher."
       }
     },
+    "imageDefinitionOffer": {
+      "type": "string",
+      "defaultValue": "",
+      "metadata": {
+        "description": "Conditional. The computer gallery image definition Offer."
+      }
+    },
     "imageDefinitionSku": {
       "type": "string",
       "defaultValue": "",
@@ -260,11 +287,38 @@
         "description": "Conditional. The compute gallery image definition Sku."
       }
     },
-    "imageVersionExcludeFromLatest": {
-      "type": "bool",
-      "defaultValue": false,
+    "autoImageVersionName": {
+      "type": "string",
+      "defaultValue": "[utcNow('yy.MMdd.hhmm')]",
       "metadata": {
-        "description": "Exclude the image version created by this process from the latest version for the image definition."
+        "description": "Automatically generated Image Version name."
+      }
+    },
+    "imageMajorVersion": {
+      "type": "int",
+      "defaultValue": -1,
+      "minValue": -1,
+      "maxValue": 9999,
+      "metadata": {
+        "description": "Optional. The image major version from 0 - 9999.\r\nIn order to specify a custom image version you must specify the [imageMajorVersion], [imageMinorVersion], and [imagePatch] integer from 0-9999."
+      }
+    },
+    "imageMinorVersion": {
+      "type": "int",
+      "defaultValue": -1,
+      "minValue": -1,
+      "maxValue": 9999,
+      "metadata": {
+        "description": "Optional. The image minor version from 0 - 9999.\r\nIn order to specify a custom image version you must specify the [imageMajorVersion], [imageMinorVersion], and [imagePatch] integer from 0-9999."
+      }
+    },
+    "imagePatch": {
+      "type": "int",
+      "defaultValue": -1,
+      "minValue": -1,
+      "maxValue": 9999,
+      "metadata": {
+        "description": "Optional. The image patch version from 0 - 9999.\r\nIn order to specify a custom image version you must specify the [imageMajorVersion], [imageMinorVersion], and [imagePatch] integer from 0-9999."
       }
     },
     "imageVersionEOLinDays": {
@@ -272,6 +326,13 @@
       "defaultValue": 0,
       "metadata": {
         "description": "Optional. The number of days from now that the image version will reach end of life."
+      }
+    },
+    "imageVersionExcludeFromLatest": {
+      "type": "bool",
+      "defaultValue": false,
+      "metadata": {
+        "description": "Exclude the image version created by this process from the latest version for the image definition."
       }
     },
     "imageVersionStorageAccountType": {
@@ -299,45 +360,6 @@
         "description": "The number of replicas in the primary region of the image version."
       }
     },
-    "securityType": {
-      "type": "string",
-      "defaultValue": "Standard",
-      "allowedValues": [
-        "Standard",
-        "ConfidentialVM",
-        "TrustedLaunch"
-      ]
-    },
-    "enableAcceleratedNetworking": {
-      "type": "bool",
-      "defaultValue": false,
-      "metadata": {
-        "description": "Optional. Specifies whether the network interface is accelerated networking-enabled."
-      }
-    },
-    "imageMajorVersion": {
-      "type": "int",
-      "defaultValue": -1
-    },
-    "imageMinorVersion": {
-      "type": "int",
-      "defaultValue": -1
-    },
-    "imagePatch": {
-      "type": "int",
-      "defaultValue": -1
-    },
-    "hyperVGeneration": {
-      "type": "string",
-      "defaultValue": "V2",
-      "allowedValues": [
-        "V1",
-        "V2"
-      ],
-      "metadata": {
-        "description": "Optional. The Hyper-V generation of the image definition. (Default = \"V2\")"
-      }
-    },
     "tags": {
       "type": "object",
       "defaultValue": {},
@@ -350,10 +372,10 @@
     "copy": [
       {
         "name": "targetRegions",
-        "count": "[length(parameters('replicationRegions'))]",
+        "count": "[length(variables('imageRegions'))]",
         "input": {
           "excludeFromLatest": "[parameters('imageVersionExcludeFromLatest')]",
-          "name": "[parameters('replicationRegions')[copyIndex('targetRegions')]]",
+          "name": "[variables('imageRegions')[copyIndex('targetRegions')]]",
           "regionalReplicaCount": "[parameters('replicaCount')]",
           "storageAccountType": "[parameters('imageVersionStorageAccountType')]"
         }
@@ -653,7 +675,7 @@
       "virtualMachines": "vm",
       "workspaces": "ws"
     },
-    "depPrefix": "[format('{0}-', parameters('deploymentPrefix'))]",
+    "depPrefix": "[if(not(empty(parameters('deploymentPrefix'))), format('{0}-', parameters('deploymentPrefix')), '')]",
     "adminPw": "[format('{0}-{1}', toUpper(uniqueString(subscription().id)), parameters('guidValue'))]",
     "adminUserName": "xadmin",
     "cloud": "[environment().name]",
@@ -664,6 +686,7 @@
     "galleryImageDefinitionPublisher": "[replace(parameters('imageDefinitionPublisher'), ' ', '')]",
     "galleryImageDefinitionOffer": "[replace(parameters('imageDefinitionOffer'), ' ', '')]",
     "galleryImageDefinitionSku": "[replace(parameters('imageDefinitionSku'), ' ', '')]",
+    "galleryImageDefinitionHyperVGeneration": "[if(or(endsWith(parameters('sku'), 'g2'), startsWith(parameters('sku'), 'win11')), 'V2', 'V1')]",
     "imageBuildResourceGroupName": "[if(empty(parameters('imageBuildResourceGroupId')), if(empty(parameters('customBuildResourceGroupName')), if(not(empty(parameters('envClassification'))), format('{0}-image-builder-{1}-{2}', variables('resourceAbbreviations').resourceGroups, parameters('envClassification'), variables('locations')[parameters('deploymentLocation')].abbreviation), format('{0}-image-builder-{1}', variables('resourceAbbreviations').resourceGroups, variables('locations')[parameters('deploymentLocation')].abbreviation)), parameters('customBuildResourceGroupName')), last(split(parameters('imageBuildResourceGroupId'), '/')))]",
     "imageDefinitionName": "[if(empty(parameters('imageDefinitionResourceId')), if(empty(parameters('customImageDefinitionName')), format('{0}', replace(format('{0}-{1}-{2}-{3}', variables('resourceAbbreviations').imageDefinitions, replace(variables('galleryImageDefinitionPublisher'), '-', ''), replace(variables('galleryImageDefinitionOffer'), '-', ''), replace(variables('galleryImageDefinitionSku'), '-', '')), ' ', '')), parameters('customImageDefinitionName')), last(split(parameters('imageDefinitionResourceId'), '/')))]",
     "imageDefinitionIsHybernateSupported": "true",
@@ -671,8 +694,9 @@
     "imageDefinitionIsHigherPerformanceSupported": false,
     "imageVersionName": "[if(and(and(not(equals(parameters('imageMajorVersion'), -1)), not(equals(parameters('imageMajorVersion'), -1))), not(equals(parameters('imagePatch'), -1))), format('{0}.{1}.{2}', parameters('imageMajorVersion'), parameters('imageMinorVersion'), parameters('imagePatch')), parameters('autoImageVersionName'))]",
     "imageVersionEndOfLifeDate": "[if(not(equals(parameters('imageVersionEOLinDays'), 0)), dateTimeAdd(parameters('imageVersionCreationTime'), format('P{0}D', parameters('imageVersionEOLinDays'))), '')]",
-    "imageVmName": "[take(format('vmimg-{0}', uniqueString(parameters('deploymentSuffix'))), 15)]",
-    "managementVmName": "[take(format('vmmgt-{0}', uniqueString(parameters('deploymentSuffix'))), 15)]"
+    "imageRegions": "[union(createArray('computeLocation'), parameters('replicationRegions'))]",
+    "imageVmName": "[take(format('vmimg-{0}', uniqueString(parameters('timeStamp'))), 15)]",
+    "managementVmName": "[take(format('vmmgt-{0}', uniqueString(parameters('timeStamp'))), 15)]"
   },
   "resources": [
     {
@@ -685,7 +709,7 @@
     {
       "type": "Microsoft.Resources/deployments",
       "apiVersion": "2022-09-01",
-      "name": "[format('{0}roleAssignment-uai-to-rg-{1}', variables('depPrefix'), parameters('deploymentSuffix'))]",
+      "name": "[format('{0}roleAssignment-uai-to-rg-{1}', variables('depPrefix'), parameters('timeStamp'))]",
       "resourceGroup": "[variables('imageBuildResourceGroupName')]",
       "properties": {
         "expressionEvaluationOptions": {
@@ -1245,7 +1269,7 @@
       "condition": "[variables('collectLogs')]",
       "type": "Microsoft.Resources/deployments",
       "apiVersion": "2022-09-01",
-      "name": "[format('{0}logsStorageAccount-{1}', variables('depPrefix'), parameters('deploymentSuffix'))]",
+      "name": "[format('{0}logsStorageAccount-{1}', variables('depPrefix'), parameters('timeStamp'))]",
       "resourceGroup": "[variables('imageBuildResourceGroupName')]",
       "properties": {
         "expressionEvaluationOptions": {
@@ -1259,8 +1283,11 @@
           "location": {
             "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', split(parameters('subnetResourceId'), '/')[2], split(parameters('subnetResourceId'), '/')[4]), 'Microsoft.Network/virtualNetworks', split(parameters('subnetResourceId'), '/')[8]), '2023-05-01', 'full').location]"
           },
-          "allowSharedKeyAccess": {
+          "allowCrossTenantReplication": {
             "value": false
+          },
+          "allowSharedKeyAccess": {
+            "value": true
           },
           "blobServices": {
             "value": {
@@ -4001,7 +4028,7 @@
       "condition": "[variables('collectLogs')]",
       "type": "Microsoft.Resources/deployments",
       "apiVersion": "2022-09-01",
-      "name": "[format('{0}roleassignment-blobwriter-storage-{1}', variables('depPrefix'), parameters('deploymentSuffix'))]",
+      "name": "[format('{0}roleassignment-blobwriter-storage-{1}', variables('depPrefix'), parameters('timeStamp'))]",
       "resourceGroup": "[variables('imageBuildResourceGroupName')]",
       "properties": {
         "expressionEvaluationOptions": {
@@ -4560,7 +4587,7 @@
     {
       "type": "Microsoft.Resources/deployments",
       "apiVersion": "2022-09-01",
-      "name": "[format('imageVM-{0}', parameters('deploymentSuffix'))]",
+      "name": "[format('{0}imageVM-{1}', variables('depPrefix'), parameters('timeStamp'))]",
       "resourceGroup": "[variables('imageBuildResourceGroupName')]",
       "properties": {
         "expressionEvaluationOptions": {
@@ -8261,7 +8288,7 @@
     {
       "type": "Microsoft.Resources/deployments",
       "apiVersion": "2022-09-01",
-      "name": "[format('{0}customizeImage-{1}', variables('depPrefix'), parameters('deploymentSuffix'))]",
+      "name": "[format('{0}customizeImage-{1}', variables('depPrefix'), parameters('timeStamp'))]",
       "resourceGroup": "[variables('imageBuildResourceGroupName')]",
       "properties": {
         "expressionEvaluationOptions": {
@@ -8330,7 +8357,7 @@
             "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', split(parameters('userAssignedIdentityResourceId'), '/')[2], split(parameters('userAssignedIdentityResourceId'), '/')[4]), 'Microsoft.ManagedIdentity/userAssignedIdentities', last(split(parameters('userAssignedIdentityResourceId'), '/'))), '2023-01-31').principalId]"
           },
           "vmName": {
-            "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('imageBuildResourceGroupName')), 'Microsoft.Resources/deployments', format('imageVM-{0}', parameters('deploymentSuffix'))), '2022-09-01').outputs.name.value]"
+            "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('imageBuildResourceGroupName')), 'Microsoft.Resources/deployments', format('{0}imageVM-{1}', variables('depPrefix'), parameters('timeStamp'))), '2022-09-01').outputs.name.value]"
           },
           "vDotInstaller": {
             "value": "[parameters('vDotInstaller')]"
@@ -8348,7 +8375,7 @@
             "value": "[parameters('vcRedistInstaller')]"
           },
           "logBlobClientId": "[if(variables('collectLogs'), createObject('value', reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', split(parameters('userAssignedIdentityResourceId'), '/')[2], split(parameters('userAssignedIdentityResourceId'), '/')[4]), 'Microsoft.ManagedIdentity/userAssignedIdentities', last(split(parameters('userAssignedIdentityResourceId'), '/'))), '2023-01-31').clientId), createObject('value', ''))]",
-          "logBlobContainerUri": "[if(variables('collectLogs'), createObject('value', format('{0}{1}/', reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('imageBuildResourceGroupName')), 'Microsoft.Resources/deployments', format('{0}logsStorageAccount-{1}', variables('depPrefix'), parameters('deploymentSuffix'))), '2022-09-01').outputs.primaryBlobEndpoint.value, variables('logContainerName'))), createObject('value', ''))]"
+          "logBlobContainerUri": "[if(variables('collectLogs'), createObject('value', format('{0}{1}/', reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('imageBuildResourceGroupName')), 'Microsoft.Resources/deployments', format('{0}logsStorageAccount-{1}', variables('depPrefix'), parameters('timeStamp'))), '2022-09-01').outputs.primaryBlobEndpoint.value, variables('logContainerName'))), createObject('value', ''))]"
         },
         "template": {
           "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
@@ -8357,7 +8384,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.21.1.54444",
-              "templateHash": "79321684612178699"
+              "templateHash": "8074977292802497015"
             }
           },
           "parameters": {
@@ -8451,6 +8478,10 @@
             },
             "msrdcwebrtcsvcInstaller": {
               "type": "string"
+            },
+            "timeStamp": {
+              "type": "string",
+              "defaultValue": "[utcNow('yyMMddhhmm')]"
             }
           },
           "variables": {
@@ -8501,9 +8532,9 @@
               "properties": {
                 "treatFailureAsDeploymentFailure": true,
                 "errorBlobManagedIdentity": "[if(empty(parameters('logBlobClientId')), createObject(), createObject('clientId', parameters('logBlobClientId')))]",
-                "errorBlobUri": "[if(empty(parameters('logBlobContainerUri')), null(), format('{0}{1}-error.log', parameters('logBlobContainerUri'), variables('installers')[copyIndex()].name))]",
+                "errorBlobUri": "[if(empty(parameters('logBlobContainerUri')), null(), format('{0}{1}-error-{2}.log', parameters('logBlobContainerUri'), variables('installers')[copyIndex()].name, parameters('timeStamp')))]",
                 "outputBlobManagedIdentity": "[if(empty(parameters('logBlobClientId')), createObject(), createObject('clientId', parameters('logBlobClientId')))]",
-                "outputBlobUri": "[if(empty(parameters('logBlobContainerUri')), null(), format('{0}{1}-output.log', parameters('logBlobContainerUri'), variables('installers')[copyIndex()].name))]",
+                "outputBlobUri": "[if(empty(parameters('logBlobContainerUri')), null(), format('{0}{1}-output-{2}.log', parameters('logBlobContainerUri'), variables('installers')[copyIndex()].name, parameters('timeStamp')))]",
                 "parameters": [
                   {
                     "name": "BuildDir",
@@ -8539,7 +8570,7 @@
                   }
                 ],
                 "source": {
-                  "script": "      param(\r\n        [string]$BuildDir,\r\n        [string]$UserAssignedIdentityObjectId,\r\n        [string]$StorageAccountName,\r\n        [string]$ContainerName,\r\n        [string]$StorageEndpoint,\r\n        [string]$BlobName,\r\n        [string]$Installer,\r\n        [string]$Arguments\r\n      )\r\n      $UserAssignedIdentityObjectId = $UserAssignedIdentityObjectId\r\n      $StorageAccountName = $StorageAccountName\r\n      $ContainerName = $ContainerName\r\n      $BlobName = $BlobName\r\n      $StorageAccountUrl = $StorageEndpoint\r\n      $TokenUri = \"http://169.254.169.254/metadata/identity/oauth2/token?api-version=2018-02-01&resource=$StorageAccountUrl&object_id=$UserAssignedIdentityObjectId\"\r\n      $AccessToken = ((Invoke-WebRequest -Headers @{Metadata=$true} -Uri $TokenUri -UseBasicParsing).Content | ConvertFrom-Json).access_token\r\n      New-Item -Path $BuildDir -Name $Installer -ItemType Directory -Force | Out-Null\r\n      Invoke-WebRequest -Headers @{\"x-ms-version\"=\"2017-11-09\"; Authorization =\"Bearer $AccessToken\"} -Uri \"$StorageAccountUrl$ContainerName/$BlobName\" -OutFile $BuildDir\\$Installer\\$Blobname\r\n      Start-Sleep -Seconds 10\r\n      Set-Location -Path $BuildDir\\$Installer\r\n      if($Blobname -like (\"*.exe\"))\r\n      {\r\n        Start-Process -FilePath $BuildDir\\$Installer\\$Blobname -ArgumentList $Arguments -NoNewWindow -Wait -PassThru\r\n        $status = Get-WmiObject -Class Win32_Product | Where-Object Name -like \"*$($installer)*\"\r\n        if($status)\r\n        {\r\n          Write-Host $status.Name \"is installed\"\r\n        }\r\n        else\r\n        {\r\n          Write-host $Installer \"did not install properly, please check arguments\"\r\n        }\r\n      }\r\n      if($Blobname -like (\"*.msi\"))\r\n      {\r\n        If ($Arguments -notcontains $Blobname) {$Arguments = \"/i $Blobname $Arguments\"}\r\n        Start-Process -FilePath msiexec.exe -ArgumentList $Arguments -Wait\r\n        $status = Get-WmiObject -Class Win32_Product | Where-Object Name -like \"*$($installer)*\"\r\n        if($status)\r\n        {\r\n          Write-Host $status.Name \"is installed\"\r\n        }\r\n        else\r\n        {\r\n          Write-host $Installer \"did not install properly, please check arguments\"\r\n        }\r\n      }\r\n      if($Blobname -like (\"*.bat\"))\r\n      {\r\n        Start-Process -FilePath cmd.exe -ArgumentList \"$BlobName $Arguments\" -Wait\r\n      }\r\n      if($Blobname -like (\"*.ps1\"))\r\n      {\r\n        & $BlobName $Arguments\r\n      }\r\n      if($Blobname -like (\"*.zip\"))\r\n      {\r\n        $destinationPath = \"$BuildDir\\$Installer\\$($Blobname.BaseName)\"\r\n        Expand-Archive -Path $BuildDir\\$Installer\\$Blobname -DestinationPath $destinationPath -Force\r\n        $PSScript = ((Get-ChildItem -Path $destinationPath -filter '*.ps1').FullName)[0]\r\n          & $PSScript $Arguments \r\n      }\r\n      "
+                  "script": "      param(\r\n        [string]$BuildDir,\r\n        [string]$UserAssignedIdentityObjectId,\r\n        [string]$StorageAccountName,\r\n        [string]$ContainerName,\r\n        [string]$StorageEndpoint,\r\n        [string]$BlobName,\r\n        [string]$Installer,\r\n        [string]$Arguments\r\n      )\r\n      $UserAssignedIdentityObjectId = $UserAssignedIdentityObjectId\r\n      $StorageAccountName = $StorageAccountName\r\n      $ContainerName = $ContainerName\r\n      $BlobName = $BlobName\r\n      $StorageAccountUrl = $StorageEndpoint\r\n      $TokenUri = \"http://169.254.169.254/metadata/identity/oauth2/token?api-version=2018-02-01&resource=$StorageAccountUrl&object_id=$UserAssignedIdentityObjectId\"\r\n      $AccessToken = ((Invoke-WebRequest -Headers @{Metadata=$true} -Uri $TokenUri -UseBasicParsing).Content | ConvertFrom-Json).access_token\r\n      New-Item -Path $BuildDir -Name $Installer -ItemType Directory -Force | Out-Null\r\n      Invoke-WebRequest -Headers @{\"x-ms-version\"=\"2017-11-09\"; Authorization =\"Bearer $AccessToken\"} -Uri \"$StorageAccountUrl$ContainerName/$BlobName\" -OutFile $BuildDir\\$Installer\\$Blobname\r\n      Start-Sleep -Seconds 10\r\n      Set-Location -Path $BuildDir\\$Installer\r\n      if($Blobname -like (\"*.exe\"))\r\n      {\r\n        Start-Process -FilePath $BuildDir\\$Installer\\$Blobname -ArgumentList $Arguments -NoNewWindow -Wait -PassThru\r\n        $status = Get-WmiObject -Class Win32_Product | Where-Object Name -like \"*$($installer)*\"\r\n        if($status)\r\n        {\r\n          Write-Host $status.Name \"is installed\"\r\n        }\r\n        else\r\n        {\r\n          Write-host $Installer \"did not install properly, please check arguments\"\r\n        }\r\n      }\r\n      if($Blobname -like (\"*.msi\"))\r\n      {\r\n        If ($Arguments -notcontains $Blobname) {$Arguments = \"/i $Blobname $Arguments\"}\r\n        Start-Process -FilePath msiexec.exe -ArgumentList $Arguments -Wait\r\n        $status = Get-WmiObject -Class Win32_Product | Where-Object Name -like \"*$($installer)*\"\r\n        if($status)\r\n        {\r\n          Write-Host $status.Name \"is installed\"\r\n        }\r\n        else\r\n        {\r\n          Write-host $Installer \"did not install properly, please check arguments\"\r\n        }\r\n      }\r\n      if($Blobname -like (\"*.bat\"))\r\n      {\r\n        Start-Process -FilePath cmd.exe -ArgumentList \"$BlobName $Arguments\" -Wait\r\n      }\r\n      if($Blobname -like (\"*.ps1\"))\r\n      {\r\n        & $BlobName $Arguments\r\n      }\r\n      if($Blobname -like (\"*.zip\"))\r\n      {\r\n        $destinationPath = \"$BuildDir\\$Installer\\$($Blobname.BaseName)\"\r\n        Expand-Archive -Path $BuildDir\\$Installer\\$Blobname -DestinationPath $destinationPath -Force\r\n        $PSScript = (Get-ChildItem -Path $destinationPath -filter '*.ps1').FullName\r\n        If ($PSScript.count -gt 1) { $PSScript = $PSScript[0] }\r\n        If ($Arguments -ne \"\") {\r\n          & $PSScript $Arguments\r\n        } Else {          \r\n          & $PSScript\r\n        }\r\n      }\r\n      "
                 }
               },
               "dependsOn": [
@@ -8554,9 +8585,9 @@
               "location": "[parameters('location')]",
               "properties": {
                 "errorBlobManagedIdentity": "[if(empty(parameters('logBlobClientId')), createObject(), createObject('clientId', parameters('logBlobClientId')))]",
-                "errorBlobUri": "[if(empty(parameters('logBlobContainerUri')), null(), format('{0}Office-error.log', parameters('logBlobContainerUri')))]",
+                "errorBlobUri": "[if(empty(parameters('logBlobContainerUri')), null(), format('{0}Office-error-{1}.log', parameters('logBlobContainerUri'), parameters('timeStamp')))]",
                 "outputBlobManagedIdentity": "[if(empty(parameters('logBlobClientId')), createObject(), createObject('clientId', parameters('logBlobClientId')))]",
-                "outputBlobUri": "[if(empty(parameters('logBlobContainerUri')), null(), format('{0}Office-output.log', parameters('logBlobContainerUri')))]",
+                "outputBlobUri": "[if(empty(parameters('logBlobContainerUri')), null(), format('{0}Office-output-{1}.log', parameters('logBlobContainerUri'), parameters('timeStamp')))]",
                 "parameters": [
                   {
                     "name": "BuildDir",
@@ -8740,12 +8771,12 @@
               "properties": {
                 "asyncExecution": false,
                 "errorBlobManagedIdentity": "[if(empty(parameters('logBlobClientId')), createObject(), createObject('clientId', parameters('logBlobClientId')))]",
-                "errorBlobUri": "[if(empty(parameters('logBlobContainerUri')), null(), format('{0}MicrosoftUpdate-error.log', parameters('logBlobContainerUri')))]",
+                "errorBlobUri": "[if(empty(parameters('logBlobContainerUri')), null(), format('{0}MicrosoftUpdate-error-{1}.log', parameters('logBlobContainerUri'), parameters('timeStamp')))]",
                 "outputBlobManagedIdentity": "[if(empty(parameters('logBlobClientId')), createObject(), createObject('clientId', parameters('logBlobClientId')))]",
-                "outputBlobUri": "[if(empty(parameters('logBlobContainerUri')), null(), format('{0}MicrosoftUpdate-output.log', parameters('logBlobContainerUri')))]",
+                "outputBlobUri": "[if(empty(parameters('logBlobContainerUri')), null(), format('{0}MicrosoftUpdate-output-{1}.log', parameters('logBlobContainerUri'), parameters('timeStamp')))]",
                 "parameters": [],
                 "source": {
-                  "script": "          param (\r\n              # The App Name to pass to the WUA API as the calling application.\r\n              [Parameter()]\r\n              [String]$AppName = \"Windows Update API Script\",\r\n              # The search criteria to be used.\r\n              [Parameter()]\r\n              [String]$Criteria = \"IsInstalled=0 and Type='Software' and IsHidden=0\",\r\n              # Default service (WSUS if machine is configured to use it, or MU if opted in, or WU otherwise.)\r\n              [Parameter()]\r\n              [string]$Service = 'MU'\r\n          )\r\n          \r\n          #region Functions\r\n          Function Get-InstallationResultText {\r\n              [CmdletBinding()]\r\n              param (\r\n                  [Parameter()]\r\n                  [int] $Result\r\n              )\r\n              Switch ($Result) {\r\n                  2 { $Text = \"Succeed\" }\r\n                  3 { $Text = \"Succeed with errors\" }\r\n                  4 { $Text = \"Failed\" }\r\n                  5 { $Text = \"Cancelled\" }\r\n                  Else { $Text = \"Unexpected ($result)\" }\r\n              } \r\n              Return $Text\r\n          }\r\n          \r\n          Function Get-DeploymentActionText {\r\n              [CmdletBinding()]\r\n              param (\r\n                  [Parameter()]\r\n                  [int]$Action\r\n              )\r\n              Switch ($Action) {\r\n                  0 { $Text = \"None (Inherit)\" }\r\n                  1 { $Text = \"Installation\" }\r\n                  2 { $Text = \"Uninstallation\" }\r\n                  3 { $Text = \"Detection\" }\r\n                  4 { $Text = \"Optional Installation\" }\r\n                  5 { $Text = \"Unexpected ($Action)\" }\r\n              }\r\n              Return $Text\r\n          }\r\n          \r\n          function Get-UpdateDescription {\r\n              [CmdletBinding()]\r\n              param (\r\n                  [Parameter()]\r\n                  $Update\r\n              )\r\n              [String]$Description = $null\r\n              [string]$Description = \"$($Update.Title) {$($update.Identity.UpdateID).$($update.IdentityRevisionNumber)}\"\r\n              If ($Update.IsHidden) {\r\n                  $Description = \"$($Description) (hidden)\"\r\n              }\r\n              If ($Script:ShowDetails) {\r\n                  If ($update.KBArticleIDs.Count -gt 0) {\r\n                      $Description = \"$($Description)  (\"\r\n                      For ($i = 0; $i -lt $($Update.KBArticleIDs.Count); $i++) {\r\n                          If ($i -gt 0) {\r\n                              $Description = \"$($Description), \"\r\n                          }\r\n                          $Description = \"$($Description)KB$($update.KBArticleIDs.Item[$i])\"\r\n                      }\r\n                      $Description = \"$($Description))\"\r\n                  }\r\n                  $Description = \"$($Description)  Categories: \"\r\n                  For ($i = 0; $i -lt $Update.Categories.Count; $i++) {\r\n                      $Category = $($Update.Categories.Item[$i])\r\n                      If ($i -gt 0) {\r\n                          $Description = \"$($Description),\"\r\n                      }\r\n                      $Description = \"$($Description) $($Category.Name) {$($Category.CategoryID)}\"\r\n                  }\r\n                  $Description = \"$($Description) Deployment action: ($(Get-DeploymentActionText -Action $($Update.DeploymentAction))\"\r\n              }\r\n              Return $Description\r\n          }\r\n          #endregion functions\r\n          \r\n          $ExitCode = 0\r\n          \r\n          Switch ($Service.ToUpper()) {\r\n              'WU' { $ServerSelection = 2 }\r\n              'MU' { $ServerSelection = 3; $ServiceId = \"7971f918-a847-4430-9279-4a52d1efe18d\" }\r\n              'WSUS' { $ServerSelection = 1 }\r\n              'DCAT' { $ServerSelection = 3; $ServiceId = \"855E8A7C-ECB4-4CA3-B045-1DFA50104289\" }\r\n              'STORE' { $serverSelection = 3; $ServiceId = \"117cab2d-82b1-4b5a-a08c-4d62dbee7782\" }\r\n              Else { $ServerSelection = 3; $ServiceId = $Service }\r\n          }\r\n          \r\n          If ($Service -eq 'MU') {\r\n              $UpdateServiceManager = New-Object -ComObject Microsoft.Update.ServiceManager\r\n              $UpdateServiceManager.ClientApplicationID = $AppName\r\n              $UpdateServiceManager.AddService2(\"7971f918-a847-4430-9279-4a52d1efe18d\", 7, \"\")\r\n              reg.exe ADD \"HKLM\\SOFTWARE\\Policies\\Microsoft\\Windows\\WindowsUpdate\\AU\" /v AllowMUUpdateService /t REG_DWORD /d 1 /f\r\n          }\r\n          \r\n          $UpdateSession = New-Object -ComObject Microsoft.Update.Session\r\n          $updateSession.ClientApplicationID = $AppName\r\n              \r\n          $UpdateSearcher = $UpdateSession.CreateUpdateSearcher()\r\n          $UpdateSearcher.ServerSelection = $ServerSelection\r\n          If ($ServerSelection -eq 3) {\r\n              $UpdateSearcher.ServiceId = $ServiceId\r\n          }\r\n          \r\n          Write-Output \"Searching for Updates...\"\r\n          \r\n          $SearchResult = $UpdateSearcher.Search($Criteria)\r\n          If ($SearchResult.Updates.Count -eq 0) {\r\n              Write-Output \"There are no applicable updates.\"\r\n              Write-Output \"Now Exiting\"\r\n              Exit $ExitCode\r\n          }\r\n          \r\n          Write-Output \"List of applicable items found for this computer:\"\r\n          \r\n          For ($i = 0; $i -lt $SearchResult.Updates.Count; $i++) {\r\n              $Update = $SearchResult.Updates.Item[$i]\r\n              Write-Output \"$($i + 1)  > $(Get-UpdateDescription -Update $Update)\"\r\n          }\r\n          \r\n          $AtLeastOneAdded = $false\r\n          $ExclusiveAdded = $false   \r\n          $UpdatesToDownload = New-Object -ComObject Microsoft.Update.UpdateColl\r\n          Write-Output \"Checking search results:\"\r\n          For ($i = 0; $i -lt $SearchResult.Updates.Count; $i++) {\r\n              $Update = $SearchResult.Updates.Item[$i]\r\n              $Description = Get-UpdateDescription -Update $Update\r\n              $AddThisUpdate = $false\r\n          \r\n              If ($ExclusiveAdded) {\r\n                  Write-Output \"$($i + 1) > skipping: '$($Description)' because an exclusive update has already been selected.\"\r\n              } Else {\r\n                  $AddThisUpdate = $true\r\n              }\r\n          \r\n              If ($AddThisUpdate) {\r\n                  $PropertyTest = 0\r\n                  $ErrorActionPreference = 'SilentlyContinue'\r\n                  $PropertyTest = $Update.InstallationBehavior.Impact\r\n                  $ErrorActionPreference = 'Stop'\r\n                  If ($PropertyTest -eq 2) {\r\n                      If ($AtLeastOneAdded) {\r\n                          Write-Output \"$($i + 1) > skipping: '$($Description)' because it is exclusive and other updates are being installed first.\"\r\n                          $AddThisUpdate = $false\r\n                      }\r\n                  }\r\n              }\r\n          \r\n              If ($AddThisUpdate) {\r\n                  Write-Output \"$($i + 1) > : adding '$($Description)'\"\r\n                  $UpdatesToDownload.Add($Update)\r\n                  $AtLeastOneAdded = $true\r\n                  $ErrorActionPreference = 'SilentlyContinue'\r\n                  $PropertyTest = $Update.InstallationBehavior.Impact\r\n                  $ErrorActionPreference = 'Stop'\r\n                  If ($PropertyTest -eq 2) {\r\n                      Write-Output \"This update is exclusive; skipping remaining updates\"\r\n                      $ExclusiveAdded = $true\r\n                  }\r\n              }\r\n          }\r\n          \r\n          $UpdatesToInstall = New-Object -ComObject Microsoft.Update.UpdateColl\r\n          Write-Output \"Downloading updates...\"\r\n          $Downloader = $UpdateSession.CreateUpdateDownloader()\r\n          $Downloader.Updates = $UpdatesToDownload\r\n          $Downloader.Download()\r\n          Write-Output \"Succesfully downloaded updates:\"\r\n          \r\n          For ($i = 0; $i -lt $UpdatesToDownload.Count; $i++) {\r\n              $Update = $UpdatesToDownload.Item[$i]\r\n              If ($Update.IsDownloaded -eq $true) {\r\n                  Write-Output \"$($i + 1) > $(Get-UpdateDescription -Update $Update)\"\r\n                  $UpdatesToInstall.Add($Update)\r\n              }\r\n          }\r\n          \r\n          If ($UpdatesToInstall.Count -gt 0) {\r\n              $Installer = $UpdateSession.CreateUpdateInstaller()\r\n              $Installer.Updates = $UpdatesToInstall\r\n              $InstallationResult = $Installer.Install()\r\n              Write-Output \"Installation Result: $(Get-InstallationResultText -Result $($InstallationResult.ResultCode)) HRESULT: $($InstallationResult.GetUpdateResult[$i].HResult)\"\r\n              If ($InstallationResult.GetUpdateResult[$i].HResult -eq -2145116147) {\r\n                  Write-Output \"An updated needed additional downloaded content. Please rerun the script.\"\r\n              }\r\n          \r\n              If ($InstallationResult.RebootRequired) {\r\n                  $ExitCode = 1641\r\n              }    \r\n          }\r\n          If ($service -eq 'MU') {\r\n              Reg.exe DELETE \"HKLM\\SOFTWARE\\Policies\\Microsoft\\Windows\\WindowsUpdate\\AU\" /v AllowMUUpdateService /f\r\n          }\r\n          Exit $ExitCode\r\n          "
+                  "script": "        param (\r\n          # The App Name to pass to the WUA API as the calling application.\r\n          [Parameter()]\r\n          [String]$AppName = \"Windows Update API Script\",\r\n          # The search criteria to be used.\r\n          [Parameter()]\r\n          [String]$Criteria = \"IsInstalled=0 and Type='Software' and IsHidden=0\",\r\n          [Parameter()]\r\n          [bool]$ExcludePreviewUpdates = $true,\r\n          # Default service (WSUS if machine is configured to use it, or MU if opted in, or WU otherwise.)\r\n          [Parameter()]\r\n          [string]$Service = 'MU'\r\n      )\r\n      \r\n      $ExitCode = 0\r\n      \r\n      Switch ($Service.ToUpper()) {\r\n          'WU' { $ServerSelection = 2 }\r\n          'MU' { $ServerSelection = 3; $ServiceId = \"7971f918-a847-4430-9279-4a52d1efe18d\" }\r\n          'WSUS' { $ServerSelection = 1 }\r\n          'DCAT' { $ServerSelection = 3; $ServiceId = \"855E8A7C-ECB4-4CA3-B045-1DFA50104289\" }\r\n          'STORE' { $serverSelection = 3; $ServiceId = \"117cab2d-82b1-4b5a-a08c-4d62dbee7782\" }\r\n          Else { $ServerSelection = 3; $ServiceId = $Service }\r\n      }\r\n      \r\n      If ($Service -eq 'MU') {\r\n          $UpdateServiceManager = New-Object -ComObject Microsoft.Update.ServiceManager\r\n          $UpdateServiceManager.ClientApplicationID = $AppName\r\n          $UpdateServiceManager.AddService2(\"7971f918-a847-4430-9279-4a52d1efe18d\", 7, \"\")\r\n          $null = cmd /c reg.exe ADD \"HKLM\\SOFTWARE\\Policies\\Microsoft\\Windows\\WindowsUpdate\\AU\" /v AllowMUUpdateService /t REG_DWORD /d 1 /f '2>&1'\r\n          Write-Output \"Added Registry entry to configure Microsoft Update. Exit Code: [$LastExitCode]\"\r\n      }\r\n      \r\n      $UpdateSession = New-Object -ComObject Microsoft.Update.Session\r\n      $updateSession.ClientApplicationID = $AppName\r\n          \r\n      $UpdateSearcher = $UpdateSession.CreateUpdateSearcher()\r\n      $UpdateSearcher.ServerSelection = $ServerSelection\r\n      If ($ServerSelection -eq 3) {\r\n          $UpdateSearcher.ServiceId = $ServiceId\r\n      }\r\n      \r\n      Write-Output \"Searching for Updates...\"\r\n      \r\n      $SearchResult = $UpdateSearcher.Search($Criteria)\r\n      If ($SearchResult.Updates.Count -eq 0) {\r\n          Write-Output \"There are no applicable updates.\"\r\n          Write-Output \"Now Exiting\"\r\n          Exit $ExitCode\r\n      }\r\n      \r\n      Write-Output \"List of applicable items found for this computer:\"\r\n      \r\n      For ($i = 0; $i -lt $SearchResult.Updates.Count; $i++) {\r\n          $Update = $($SearchResult.Updates)[$i]\r\n          Write-Output \"$($i + 1) > $($update.Title)\"\r\n      }\r\n      \r\n      $AtLeastOneAdded = $false\r\n      $ExclusiveAdded = $false   \r\n      $UpdatesToDownload = New-Object -ComObject Microsoft.Update.UpdateColl\r\n      Write-Output \"Checking search results:\"\r\n      For ($i = 0; $i -lt $SearchResult.Updates.Count; $i++) {\r\n          $Update = $($SearchResult.Updates)[$i]\r\n          $AddThisUpdate = $false\r\n      \r\n          If ($ExclusiveAdded) {\r\n              Write-Output \"$($i + 1) > skipping: '$($update.Title)' because an exclusive update has already been selected.\"\r\n          } Else {\r\n              $AddThisUpdate = $true\r\n          }\r\n      \r\n          if ($ExcludePreviewUpdates -and $update.Title -like '*Preview*') {\r\n              Write-Output \"$($i + 1) > Skipping: '$($update.Title)' because it is a preview update.\"\r\n              $AddThisUpdate = $false\r\n          }\r\n      \r\n          If ($AddThisUpdate) {\r\n              $PropertyTest = 0\r\n              $ErrorActionPreference = 'SilentlyContinue'\r\n              $PropertyTest = $Update.InstallationBehavior.Impact\r\n              $ErrorActionPreference = 'Stop'\r\n              If ($PropertyTest -eq 2) {\r\n                  If ($AtLeastOneAdded) {\r\n                      Write-Output \"$($i + 1) > skipping: '$($update.Title)' because it is exclusive and other updates are being installed first.\"\r\n                      $AddThisUpdate = $false\r\n                  }\r\n              }\r\n          }\r\n      \r\n          If ($AddThisUpdate) {\r\n              Write-Output \"$($i + 1) > : adding '$($update.Title)'\"\r\n              $UpdatesToDownload.Add($Update) | out-null\r\n              $AtLeastOneAdded = $true\r\n              $ErrorActionPreference = 'SilentlyContinue'\r\n              $PropertyTest = $Update.InstallationBehavior.Impact\r\n              $ErrorActionPreference = 'Stop'\r\n              If ($PropertyTest -eq 2) {\r\n                  Write-Output \"This update is exclusive; skipping remaining updates\"\r\n                  $ExclusiveAdded = $true\r\n              }\r\n          }\r\n      }\r\n      \r\n      $UpdatesToInstall = New-Object -ComObject Microsoft.Update.UpdateColl\r\n      Write-Output \"Downloading updates...\"\r\n      $Downloader = $UpdateSession.CreateUpdateDownloader()\r\n      $Downloader.Updates = $UpdatesToDownload\r\n      $Downloader.Download()\r\n      Write-Output \"Successfully downloaded updates:\"\r\n      \r\n      For ($i = 0; $i -lt $UpdatesToDownload.Count; $i++) {\r\n          $Update = $UpdatesToDownload[$i]\r\n          If ($Update.IsDownloaded -eq $true) {\r\n              Write-Output \"$($i + 1) > $($update.title)\"\r\n              $UpdatesToInstall.Add($Update) | out-null\r\n          }\r\n      }\r\n      \r\n      If ($UpdatesToInstall.Count -gt 0) {\r\n          $Installer = $UpdateSession.CreateUpdateInstaller()\r\n          $Installer.Updates = $UpdatesToInstall\r\n          $InstallationResult = $Installer.Install()\r\n          Switch ($InstallationResult) {\r\n              2 { $Text = \"Succeeded\" ; $Code = 0 }\r\n              3 { $Text = \"Succeeded with errors\" ; $Code = 3 }\r\n              4 { $Text = \"Failed\" ; $Code = 4 }\r\n              5 { $Text = \"Cancelled\" ; $Code = 5}\r\n              Else { $Text = \"Unexpected ($result)\" ; $Code = 99 }\r\n          } \r\n          Write-Output \"Installation Result: $text)\"\r\n          If ($($InstallationResult.GetUpdateResult[$i]).HResult -eq -2145116147) {\r\n              Write-Output \"An updated needed additional downloaded content. Please rerun the script.\"\r\n          }\r\n      \r\n          If ($InstallationResult.RebootRequired) {\r\n              $ExitCode = 1641\r\n          }\r\n      \r\n          If ($ExitCode -ne 1641 -and $ExitCode -ne 4) {\r\n              $ExitCode = $Code\r\n          }\r\n      }\r\n      If ($service -eq 'MU') {\r\n          Reg.exe DELETE \"HKLM\\SOFTWARE\\Policies\\Microsoft\\Windows\\WindowsUpdate\\AU\" /v AllowMUUpdateService /f\r\n      }\r\n      Exit $ExitCode\r\n      "
                 }
               },
               "dependsOn": [
@@ -8791,14 +8822,14 @@
       },
       "dependsOn": [
         "[subscriptionResourceId('Microsoft.Resources/resourceGroups', variables('imageBuildResourceGroupName'))]",
-        "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('imageBuildResourceGroupName')), 'Microsoft.Resources/deployments', format('imageVM-{0}', parameters('deploymentSuffix')))]",
-        "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('imageBuildResourceGroupName')), 'Microsoft.Resources/deployments', format('{0}logsStorageAccount-{1}', variables('depPrefix'), parameters('deploymentSuffix')))]"
+        "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('imageBuildResourceGroupName')), 'Microsoft.Resources/deployments', format('{0}imageVM-{1}', variables('depPrefix'), parameters('timeStamp')))]",
+        "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('imageBuildResourceGroupName')), 'Microsoft.Resources/deployments', format('{0}logsStorageAccount-{1}', variables('depPrefix'), parameters('timeStamp')))]"
       ]
     },
     {
       "type": "Microsoft.Resources/deployments",
       "apiVersion": "2022-09-01",
-      "name": "[format('{0}managementVM-{1}', variables('depPrefix'), parameters('deploymentSuffix'))]",
+      "name": "[format('{0}managementVM-{1}', variables('depPrefix'), parameters('timeStamp'))]",
       "resourceGroup": "[variables('imageBuildResourceGroupName')]",
       "properties": {
         "expressionEvaluationOptions": {
@@ -12516,7 +12547,7 @@
     {
       "type": "Microsoft.Resources/deployments",
       "apiVersion": "2022-09-01",
-      "name": "[format('{0}restartVM-{1}', variables('depPrefix'), parameters('deploymentSuffix'))]",
+      "name": "[format('{0}restartVM-{1}', variables('depPrefix'), parameters('timeStamp'))]",
       "resourceGroup": "[variables('imageBuildResourceGroupName')]",
       "properties": {
         "expressionEvaluationOptions": {
@@ -12531,10 +12562,10 @@
             "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', split(parameters('subnetResourceId'), '/')[2], split(parameters('subnetResourceId'), '/')[4]), 'Microsoft.Network/virtualNetworks', split(parameters('subnetResourceId'), '/')[8]), '2023-05-01', 'full').location]"
           },
           "imageVmName": {
-            "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('imageBuildResourceGroupName')), 'Microsoft.Resources/deployments', format('imageVM-{0}', parameters('deploymentSuffix'))), '2022-09-01').outputs.name.value]"
+            "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('imageBuildResourceGroupName')), 'Microsoft.Resources/deployments', format('{0}imageVM-{1}', variables('depPrefix'), parameters('timeStamp'))), '2022-09-01').outputs.name.value]"
           },
           "managementVmName": {
-            "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('imageBuildResourceGroupName')), 'Microsoft.Resources/deployments', format('{0}managementVM-{1}', variables('depPrefix'), parameters('deploymentSuffix'))), '2022-09-01').outputs.name.value]"
+            "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('imageBuildResourceGroupName')), 'Microsoft.Resources/deployments', format('{0}managementVM-{1}', variables('depPrefix'), parameters('timeStamp'))), '2022-09-01').outputs.name.value]"
           },
           "userAssignedIdentityResourceId": {
             "value": "[parameters('userAssignedIdentityResourceId')]"
@@ -12604,15 +12635,15 @@
         }
       },
       "dependsOn": [
-        "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('imageBuildResourceGroupName')), 'Microsoft.Resources/deployments', format('{0}customizeImage-{1}', variables('depPrefix'), parameters('deploymentSuffix')))]",
-        "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('imageBuildResourceGroupName')), 'Microsoft.Resources/deployments', format('imageVM-{0}', parameters('deploymentSuffix')))]",
-        "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('imageBuildResourceGroupName')), 'Microsoft.Resources/deployments', format('{0}managementVM-{1}', variables('depPrefix'), parameters('deploymentSuffix')))]"
+        "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('imageBuildResourceGroupName')), 'Microsoft.Resources/deployments', format('{0}customizeImage-{1}', variables('depPrefix'), parameters('timeStamp')))]",
+        "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('imageBuildResourceGroupName')), 'Microsoft.Resources/deployments', format('{0}imageVM-{1}', variables('depPrefix'), parameters('timeStamp')))]",
+        "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('imageBuildResourceGroupName')), 'Microsoft.Resources/deployments', format('{0}managementVM-{1}', variables('depPrefix'), parameters('timeStamp')))]"
       ]
     },
     {
       "type": "Microsoft.Resources/deployments",
       "apiVersion": "2022-09-01",
-      "name": "[format('{0}sysprepVM-{1}', variables('depPrefix'), parameters('deploymentSuffix'))]",
+      "name": "[format('{0}sysprepVM-{1}', variables('depPrefix'), parameters('timeStamp'))]",
       "resourceGroup": "[variables('imageBuildResourceGroupName')]",
       "properties": {
         "expressionEvaluationOptions": {
@@ -12624,7 +12655,7 @@
             "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', split(parameters('subnetResourceId'), '/')[2], split(parameters('subnetResourceId'), '/')[4]), 'Microsoft.Network/virtualNetworks', split(parameters('subnetResourceId'), '/')[8]), '2023-05-01', 'full').location]"
           },
           "vmName": {
-            "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('imageBuildResourceGroupName')), 'Microsoft.Resources/deployments', format('imageVM-{0}', parameters('deploymentSuffix'))), '2022-09-01').outputs.name.value]"
+            "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('imageBuildResourceGroupName')), 'Microsoft.Resources/deployments', format('{0}imageVM-{1}', variables('depPrefix'), parameters('timeStamp'))), '2022-09-01').outputs.name.value]"
           }
         },
         "template": {
@@ -12664,14 +12695,14 @@
         }
       },
       "dependsOn": [
-        "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('imageBuildResourceGroupName')), 'Microsoft.Resources/deployments', format('imageVM-{0}', parameters('deploymentSuffix')))]",
-        "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('imageBuildResourceGroupName')), 'Microsoft.Resources/deployments', format('{0}restartVM-{1}', variables('depPrefix'), parameters('deploymentSuffix')))]"
+        "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('imageBuildResourceGroupName')), 'Microsoft.Resources/deployments', format('{0}imageVM-{1}', variables('depPrefix'), parameters('timeStamp')))]",
+        "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('imageBuildResourceGroupName')), 'Microsoft.Resources/deployments', format('{0}restartVM-{1}', variables('depPrefix'), parameters('timeStamp')))]"
       ]
     },
     {
       "type": "Microsoft.Resources/deployments",
       "apiVersion": "2022-09-01",
-      "name": "[format('{0}generalizeVM-{1}', variables('depPrefix'), parameters('deploymentSuffix'))]",
+      "name": "[format('{0}generalizeVM-{1}', variables('depPrefix'), parameters('timeStamp'))]",
       "resourceGroup": "[variables('imageBuildResourceGroupName')]",
       "properties": {
         "expressionEvaluationOptions": {
@@ -12686,10 +12717,10 @@
             "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', split(parameters('subnetResourceId'), '/')[2], split(parameters('subnetResourceId'), '/')[4]), 'Microsoft.Network/virtualNetworks', split(parameters('subnetResourceId'), '/')[8]), '2023-05-01', 'full').location]"
           },
           "imageVmName": {
-            "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('imageBuildResourceGroupName')), 'Microsoft.Resources/deployments', format('imageVM-{0}', parameters('deploymentSuffix'))), '2022-09-01').outputs.name.value]"
+            "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('imageBuildResourceGroupName')), 'Microsoft.Resources/deployments', format('{0}imageVM-{1}', variables('depPrefix'), parameters('timeStamp'))), '2022-09-01').outputs.name.value]"
           },
           "managementVmName": {
-            "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('imageBuildResourceGroupName')), 'Microsoft.Resources/deployments', format('{0}managementVM-{1}', variables('depPrefix'), parameters('deploymentSuffix'))), '2022-09-01').outputs.name.value]"
+            "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('imageBuildResourceGroupName')), 'Microsoft.Resources/deployments', format('{0}managementVM-{1}', variables('depPrefix'), parameters('timeStamp'))), '2022-09-01').outputs.name.value]"
           },
           "userAssignedIdentityResourceId": {
             "value": "[parameters('userAssignedIdentityResourceId')]"
@@ -12759,16 +12790,16 @@
         }
       },
       "dependsOn": [
-        "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('imageBuildResourceGroupName')), 'Microsoft.Resources/deployments', format('imageVM-{0}', parameters('deploymentSuffix')))]",
-        "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('imageBuildResourceGroupName')), 'Microsoft.Resources/deployments', format('{0}managementVM-{1}', variables('depPrefix'), parameters('deploymentSuffix')))]",
-        "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('imageBuildResourceGroupName')), 'Microsoft.Resources/deployments', format('{0}sysprepVM-{1}', variables('depPrefix'), parameters('deploymentSuffix')))]"
+        "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('imageBuildResourceGroupName')), 'Microsoft.Resources/deployments', format('{0}imageVM-{1}', variables('depPrefix'), parameters('timeStamp')))]",
+        "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('imageBuildResourceGroupName')), 'Microsoft.Resources/deployments', format('{0}managementVM-{1}', variables('depPrefix'), parameters('timeStamp')))]",
+        "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('imageBuildResourceGroupName')), 'Microsoft.Resources/deployments', format('{0}sysprepVM-{1}', variables('depPrefix'), parameters('timeStamp')))]"
       ]
     },
     {
       "condition": "[empty(parameters('imageDefinitionResourceId'))]",
       "type": "Microsoft.Resources/deployments",
       "apiVersion": "2022-09-01",
-      "name": "[format('{0}gallery-image-definition-{1}', variables('depPrefix'), parameters('deploymentSuffix'))]",
+      "name": "[format('{0}gallery-image-definition-{1}', variables('depPrefix'), parameters('timeStamp'))]",
       "subscriptionId": "[split(parameters('computeGalleryResourceId'), '/')[2]]",
       "resourceGroup": "[split(parameters('computeGalleryResourceId'), '/')[4]]",
       "properties": {
@@ -12787,7 +12818,7 @@
             "value": "[variables('imageDefinitionName')]"
           },
           "hyperVGeneration": {
-            "value": "[parameters('hyperVGeneration')]"
+            "value": "[variables('galleryImageDefinitionHyperVGeneration')]"
           },
           "isHibernateSupported": {
             "value": "[variables('imageDefinitionIsHybernateSupported')]"
@@ -13152,7 +13183,7 @@
     {
       "type": "Microsoft.Resources/deployments",
       "apiVersion": "2022-09-01",
-      "name": "[format('{0}imageVersion-{1}', variables('depPrefix'), parameters('deploymentSuffix'))]",
+      "name": "[format('{0}imageVersion-{1}', variables('depPrefix'), parameters('timeStamp'))]",
       "subscriptionId": "[split(parameters('computeGalleryResourceId'), '/')[2]]",
       "resourceGroup": "[split(parameters('computeGalleryResourceId'), '/')[4]]",
       "properties": {
@@ -13170,7 +13201,7 @@
           "galleryName": {
             "value": "[last(split(parameters('computeGalleryResourceId'), '/'))]"
           },
-          "imageName": "[if(not(empty(parameters('imageDefinitionResourceId'))), createObject('value', last(split(parameters('imageDefinitionResourceId'), '/'))), createObject('value', reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', split(parameters('computeGalleryResourceId'), '/')[2], split(parameters('computeGalleryResourceId'), '/')[4]), 'Microsoft.Resources/deployments', format('{0}gallery-image-definition-{1}', variables('depPrefix'), parameters('deploymentSuffix'))), '2022-09-01').outputs.name.value))]",
+          "imageName": "[if(not(empty(parameters('imageDefinitionResourceId'))), createObject('value', last(split(parameters('imageDefinitionResourceId'), '/'))), createObject('value', reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', split(parameters('computeGalleryResourceId'), '/')[2], split(parameters('computeGalleryResourceId'), '/')[4]), 'Microsoft.Resources/deployments', format('{0}gallery-image-definition-{1}', variables('depPrefix'), parameters('timeStamp'))), '2022-09-01').outputs.name.value))]",
           "endOfLifeDate": {
             "value": "[variables('imageVersionEndOfLifeDate')]"
           },
@@ -13184,10 +13215,10 @@
             "value": "[parameters('imageVersionStorageAccountType')]"
           },
           "sourceId": {
-            "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('imageBuildResourceGroupName')), 'Microsoft.Resources/deployments', format('imageVM-{0}', parameters('deploymentSuffix'))), '2022-09-01').outputs.resourceId.value]"
+            "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('imageBuildResourceGroupName')), 'Microsoft.Resources/deployments', format('{0}imageVM-{1}', variables('depPrefix'), parameters('timeStamp'))), '2022-09-01').outputs.resourceId.value]"
           },
           "targetRegions": {
-            "value": "[union(variables('targetRegions'), createArray(createObject('excludeFromLatest', parameters('imageVersionExcludeFromLatest'), 'name', reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', split(parameters('subnetResourceId'), '/')[2], split(parameters('subnetResourceId'), '/')[4]), 'Microsoft.Network/virtualNetworks', split(parameters('subnetResourceId'), '/')[8]), '2023-05-01', 'full').location, 'regionalReplicaCount', parameters('replicaCount'), 'storageAccountType', parameters('imageVersionStorageAccountType'))))]"
+            "value": "[variables('targetRegions')]"
           },
           "tags": {
             "value": {}
@@ -13432,15 +13463,15 @@
         }
       },
       "dependsOn": [
-        "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('imageBuildResourceGroupName')), 'Microsoft.Resources/deployments', format('{0}generalizeVM-{1}', variables('depPrefix'), parameters('deploymentSuffix')))]",
-        "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', split(parameters('computeGalleryResourceId'), '/')[2], split(parameters('computeGalleryResourceId'), '/')[4]), 'Microsoft.Resources/deployments', format('{0}gallery-image-definition-{1}', variables('depPrefix'), parameters('deploymentSuffix')))]",
-        "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('imageBuildResourceGroupName')), 'Microsoft.Resources/deployments', format('imageVM-{0}', parameters('deploymentSuffix')))]"
+        "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('imageBuildResourceGroupName')), 'Microsoft.Resources/deployments', format('{0}generalizeVM-{1}', variables('depPrefix'), parameters('timeStamp')))]",
+        "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', split(parameters('computeGalleryResourceId'), '/')[2], split(parameters('computeGalleryResourceId'), '/')[4]), 'Microsoft.Resources/deployments', format('{0}gallery-image-definition-{1}', variables('depPrefix'), parameters('timeStamp')))]",
+        "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('imageBuildResourceGroupName')), 'Microsoft.Resources/deployments', format('{0}imageVM-{1}', variables('depPrefix'), parameters('timeStamp')))]"
       ]
     },
     {
       "type": "Microsoft.Resources/deployments",
       "apiVersion": "2022-09-01",
-      "name": "[format('{0}removeVms-{1}', variables('depPrefix'), parameters('deploymentSuffix'))]",
+      "name": "[format('{0}removeVms-{1}', variables('depPrefix'), parameters('timeStamp'))]",
       "resourceGroup": "[variables('imageBuildResourceGroupName')]",
       "properties": {
         "expressionEvaluationOptions": {
@@ -13455,10 +13486,10 @@
             "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', split(parameters('subnetResourceId'), '/')[2], split(parameters('subnetResourceId'), '/')[4]), 'Microsoft.Network/virtualNetworks', split(parameters('subnetResourceId'), '/')[8]), '2023-05-01', 'full').location]"
           },
           "imageVmName": {
-            "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('imageBuildResourceGroupName')), 'Microsoft.Resources/deployments', format('imageVM-{0}', parameters('deploymentSuffix'))), '2022-09-01').outputs.name.value]"
+            "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('imageBuildResourceGroupName')), 'Microsoft.Resources/deployments', format('{0}imageVM-{1}', variables('depPrefix'), parameters('timeStamp'))), '2022-09-01').outputs.name.value]"
           },
           "managementVmName": {
-            "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('imageBuildResourceGroupName')), 'Microsoft.Resources/deployments', format('{0}managementVM-{1}', variables('depPrefix'), parameters('deploymentSuffix'))), '2022-09-01').outputs.name.value]"
+            "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('imageBuildResourceGroupName')), 'Microsoft.Resources/deployments', format('{0}managementVM-{1}', variables('depPrefix'), parameters('timeStamp'))), '2022-09-01').outputs.name.value]"
           },
           "userAssignedIdentityResourceId": {
             "value": "[parameters('userAssignedIdentityResourceId')]"
@@ -13536,9 +13567,9 @@
         }
       },
       "dependsOn": [
-        "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', split(parameters('computeGalleryResourceId'), '/')[2], split(parameters('computeGalleryResourceId'), '/')[4]), 'Microsoft.Resources/deployments', format('{0}imageVersion-{1}', variables('depPrefix'), parameters('deploymentSuffix')))]",
-        "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('imageBuildResourceGroupName')), 'Microsoft.Resources/deployments', format('imageVM-{0}', parameters('deploymentSuffix')))]",
-        "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('imageBuildResourceGroupName')), 'Microsoft.Resources/deployments', format('{0}managementVM-{1}', variables('depPrefix'), parameters('deploymentSuffix')))]"
+        "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', split(parameters('computeGalleryResourceId'), '/')[2], split(parameters('computeGalleryResourceId'), '/')[4]), 'Microsoft.Resources/deployments', format('{0}imageVersion-{1}', variables('depPrefix'), parameters('timeStamp')))]",
+        "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('imageBuildResourceGroupName')), 'Microsoft.Resources/deployments', format('{0}imageVM-{1}', variables('depPrefix'), parameters('timeStamp')))]",
+        "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('imageBuildResourceGroupName')), 'Microsoft.Resources/deployments', format('{0}managementVM-{1}', variables('depPrefix'), parameters('timeStamp')))]"
       ]
     }
   ]
