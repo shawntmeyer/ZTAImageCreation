@@ -118,6 +118,15 @@
         }
       ]
     },
+    "collectCustomizationLogs": {
+        "value": true
+    },
+    "privateEndpointSubnetResourceId": {
+        "value": "/subscriptions/6dc4ed51-16b9-4494-a406-4fb7a8330d95/resourceGroups/rg-avd-networking-eastus/providers/Microsoft.Network/virtualNetworks/vnet-avd-eastus/subnets/PrivateEndpoints"
+    },
+    "blobPrivateDnsZoneResourceId": {
+        "value": "/subscriptions/6dc4ed51-16b9-4494-a406-4fb7a8330d95/resourceGroups/rg-networking-lab-eus/providers/Microsoft.Network/privateDnsZones/privatelink.blob.core.windows.net"
+    },
     "imageDefinitionOffer": {
       "value": "office-365"
     },
@@ -128,19 +137,18 @@
       "value": "win11-avd"
     },
     "replicaCount": {
-      "value": 10
+      "value": 1
     },
     "replicationRegions": {
       "value": [
-        "WestUS",
-        "CentralUS"
+        "EastUS"
       ]
+    },
+    "enableAcceleratedNetworking": {
+        "value": true
     },
     "securityType": {
       "value": "TrustedLaunch"
-    },
-    "hyperVGeneration": {
-      "value": "V2"
     }
   }
 }

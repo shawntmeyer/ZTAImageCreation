@@ -953,7 +953,6 @@
                 "publisher": "[first(split(steps('imageVm').vmProps.osVersion, '_'))]",
                 "offer": "[last(take(split(steps('imageVm').vmProps.osVersion, '_'), 2))]",
                 "sku": "[last(split(steps('imageVm').vmProps.osVersion, '_'))]",
-				"hyperVGeneration": "[if(or(contains(steps('imageVm').vmProps.osVersion, 'g2'), contains(steps('imageVm').vmProps.osVersion, 'win11')), 'V2', 'V1')]",
 				"enableAcceleratedNetworking": "[steps('imageVm').vmProps.enableAcceleratedNetworking]",
 				"securityType": "[steps('imageVm').vmProps.securityType]",
 				"customizations": "[if(equals(steps('imageCustomizations').customSoftware.addCustomSoftware, true), steps('imageCustomizations').customSoftware.customizations, '')]",

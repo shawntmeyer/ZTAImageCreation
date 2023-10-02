@@ -34,6 +34,7 @@ param officeInstaller string
 param teamsInstaller string
 param vcRedistInstaller string
 param msrdcwebrtcsvcInstaller string
+param timeStamp string = utcNow('yyMMddhhmm')
 
 var buildDir = 'c:\\BuildDir'
 
@@ -88,11 +89,11 @@ resource applications 'Microsoft.Compute/virtualMachines/runCommands@2023-03-01'
     errorBlobManagedIdentity: empty(logBlobClientId) ? {} : {
       clientId: logBlobClientId
     }
-    errorBlobUri: empty(logBlobContainerUri) ? null : '${logBlobContainerUri}${installer.name}-error.log' 
+    errorBlobUri: empty(logBlobContainerUri) ? null : '${logBlobContainerUri}${installer.name}-error-${timeStamp}.log' 
     outputBlobManagedIdentity: empty(logBlobClientId) ? {} : {
       clientId: logBlobClientId
     }
-    outputBlobUri: empty(logBlobContainerUri) ? null : '${logBlobContainerUri}${installer.name}-output.log'
+    outputBlobUri: empty(logBlobContainerUri) ? null : '${logBlobContainerUri}${installer.name}-output-${timeStamp}.log'
     parameters: [
       {
         name: 'BuildDir'
@@ -189,8 +190,9 @@ resource applications 'Microsoft.Compute/virtualMachines/runCommands@2023-03-01'
       {
         $destinationPath = "$BuildDir\$Installer\$($Blobname.BaseName)"
         Expand-Archive -Path $BuildDir\$Installer\$Blobname -DestinationPath $destinationPath -Force
-        $PSScript = ((Get-ChildItem -Path $destinationPath -filter '*.ps1').FullName)[0]
-          & $PSScript $Arguments 
+        $PSScript = (Get-ChildItem -Path $destinationPath -filter '*.ps1').FullName
+        If ($PSScript.count -gt 1) { $PSScript = $PSScript[0] }          
+        & $PSScript $Arguments 
       }
       '''
     }
@@ -208,11 +210,11 @@ resource office 'Microsoft.Compute/virtualMachines/runCommands@2023-03-01' = if 
     errorBlobManagedIdentity: empty(logBlobClientId) ? {} : {
       clientId: logBlobClientId
     }
-    errorBlobUri: empty(logBlobContainerUri) ? null : '${logBlobContainerUri}Office-error.log' 
+    errorBlobUri: empty(logBlobContainerUri) ? null : '${logBlobContainerUri}Office-error-${timeStamp}.log' 
     outputBlobManagedIdentity: empty(logBlobClientId) ? {} : {
       clientId: logBlobClientId
     }
-    outputBlobUri: empty(logBlobContainerUri) ? null : '${logBlobContainerUri}Office-output.log'
+    outputBlobUri: empty(logBlobContainerUri) ? null : '${logBlobContainerUri}Office-output-${timeStamp}.log'
     parameters: [
       {
         name: 'BuildDir'
@@ -575,11 +577,11 @@ resource microsoftUpdate 'Microsoft.Compute/virtualMachines/runCommands@2023-03-
     errorBlobManagedIdentity: empty(logBlobClientId) ? {} : {
       clientId: logBlobClientId
     }
-    errorBlobUri: empty(logBlobContainerUri) ? null : '${logBlobContainerUri}MicrosoftUpdate-error.log' 
+    errorBlobUri: empty(logBlobContainerUri) ? null : '${logBlobContainerUri}MicrosoftUpdate-error-${timeStamp}.log' 
     outputBlobManagedIdentity: empty(logBlobClientId) ? {} : {
       clientId: logBlobClientId
     }
-    outputBlobUri: empty(logBlobContainerUri) ? null : '${logBlobContainerUri}MicrosoftUpdate-output.log'
+    outputBlobUri: empty(logBlobContainerUri) ? null : '${logBlobContainerUri}MicrosoftUpdate-output-${timeStamp}.log'
     parameters: []
     source: {
       script: '''
