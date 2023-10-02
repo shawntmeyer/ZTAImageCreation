@@ -191,8 +191,12 @@ resource applications 'Microsoft.Compute/virtualMachines/runCommands@2023-03-01'
         $destinationPath = "$BuildDir\$Installer\$($Blobname.BaseName)"
         Expand-Archive -Path $BuildDir\$Installer\$Blobname -DestinationPath $destinationPath -Force
         $PSScript = (Get-ChildItem -Path $destinationPath -filter '*.ps1').FullName
-        If ($PSScript.count -gt 1) { $PSScript = $PSScript[0] }          
-        & $PSScript $Arguments 
+        If ($PSScript.count -gt 1) { $PSScript = $PSScript[0] }
+        If ($Arguments -ne "") {
+          & $PSScript $Arguments
+        } Else {          
+          & $PSScript
+        }
       }
       '''
     }
