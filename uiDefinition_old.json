@@ -757,6 +757,46 @@
                                     "visible": true
                                 },
                                 {
+                                    "name": "TenantType",
+                                    "type": "Microsoft.Common.DropDown",
+                                    "label": "Tenant Type",
+                                    "placeholder": "",
+                                    "defaultValue": [],
+                                    "toolTip": "Multiple values can be selected",
+                                    "multiselect": false,
+                                    "selectAll": true,
+                                    "filter": true,
+                                    "filterPlaceholder": "Filter items ...",
+                                    "multiLine": false,
+                                    "defaultDescription": "Select your Azure Tenant type",
+                                    "constraints": {
+                                        "allowedValues": [
+                                            {
+                                                "label": "Commercial",
+                                                "description": "Azure Commercial Tenant Type",
+                                                "value": "Commercial"
+                                            },
+                                            {
+                                                "label": "DepartmentOfDefense",
+                                                "description": "Azure DepartmentOfDefense Tenant Type",
+                                                "value": "DepartmentOfDefense"
+                                            },
+                                            {
+                                                "label": "GovernmentCommunityCloud",
+                                                "description": "Azure GovernmentCommunityCloud Tenant Type",
+                                                "value": "GovernmentCommunityCloud"
+                                            },
+                                            {
+                                                "label": "GovernmentCommunityCloudHigh",
+                                                "description": "Azure GovernmentCommunityCloudHigh Tenant Type",
+                                                "value": "GovernmentCommunityCloudHigh"
+                                            }
+                                        ],
+                                        "required": true
+                                    },
+                                    "visible": "[steps('customizations').office.installTeams]"
+                                },
+                                {
                                     "name": "teamsBlob",
                                     "type": "Microsoft.Storage.StorageBlobSelector",
                                     "visible": "[steps('customizations').office.installTeams]",

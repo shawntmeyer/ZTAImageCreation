@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.21.1.54444",
-      "templateHash": "6319621076253112481"
+      "templateHash": "656976857617377937"
     }
   },
   "parameters": {
@@ -61,7 +61,7 @@
         "description": "Azure Compute Gallery Resource Id."
       }
     },
-    "storageAcountResourceId": {
+    "storageAccountResourceId": {
       "type": "string",
       "metadata": {
         "description": "The resource Id of the storage account containing the artifacts (scripts, installers, etc) used during the image build."
@@ -1361,7 +1361,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.21.1.54444",
-              "templateHash": "5498771906054571881"
+              "templateHash": "11888756472532297221"
             },
             "name": "Storage Accounts",
             "description": "This module deploys a Storage Account.",
@@ -1804,23 +1804,6 @@
                 "publicNetworkAccess": "[if(not(empty(parameters('publicNetworkAccess'))), parameters('publicNetworkAccess'), if(and(not(empty(parameters('privateEndpoints'))), empty(parameters('networkAcls'))), 'Disabled', null()))]",
                 "azureFilesIdentityBasedAuthentication": "[if(not(empty(parameters('azureFilesIdentityBasedAuthentication'))), parameters('azureFilesIdentityBasedAuthentication'), null())]"
               }
-            },
-            {
-              "condition": "[or(or(or(not(empty(parameters('diagnosticStorageAccountId'))), not(empty(parameters('diagnosticWorkspaceId')))), not(empty(parameters('diagnosticEventHubAuthorizationRuleId')))), not(empty(parameters('diagnosticEventHubName'))))]",
-              "type": "Microsoft.Insights/diagnosticSettings",
-              "apiVersion": "2021-05-01-preview",
-              "scope": "[format('Microsoft.Storage/storageAccounts/{0}', parameters('name'))]",
-              "name": "[if(not(empty(parameters('diagnosticSettingsName'))), parameters('diagnosticSettingsName'), format('{0}-diagnosticSettings', parameters('name')))]",
-              "properties": {
-                "storageAccountId": "[if(not(empty(parameters('diagnosticStorageAccountId'))), parameters('diagnosticStorageAccountId'), null())]",
-                "workspaceId": "[if(not(empty(parameters('diagnosticWorkspaceId'))), parameters('diagnosticWorkspaceId'), null())]",
-                "eventHubAuthorizationRuleId": "[if(not(empty(parameters('diagnosticEventHubAuthorizationRuleId'))), parameters('diagnosticEventHubAuthorizationRuleId'), null())]",
-                "eventHubName": "[if(not(empty(parameters('diagnosticEventHubName'))), parameters('diagnosticEventHubName'), null())]",
-                "metrics": "[variables('diagnosticsMetrics')]"
-              },
-              "dependsOn": [
-                "[resourceId('Microsoft.Storage/storageAccounts', parameters('name'))]"
-              ]
             },
             {
               "copy": {
@@ -8345,10 +8328,10 @@
             "value": "[parameters('installWord')]"
           },
           "storageAccountName": {
-            "value": "[last(split(parameters('storageAcountResourceId'), '/'))]"
+            "value": "[last(split(parameters('storageAccountResourceId'), '/'))]"
           },
           "storageEndpoint": {
-            "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', split(parameters('storageAcountResourceId'), '/')[2], split(parameters('storageAcountResourceId'), '/')[4]), 'Microsoft.Storage/storageAccounts', last(split(parameters('storageAcountResourceId'), '/'))), '2022-09-01').primaryEndpoints.blob]"
+            "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', split(parameters('storageAccountResourceId'), '/')[2], split(parameters('storageAccountResourceId'), '/')[4]), 'Microsoft.Storage/storageAccounts', last(split(parameters('storageAccountResourceId'), '/'))), '2022-09-01').primaryEndpoints.blob]"
           },
           "tenantType": {
             "value": "[parameters('tenantType')]"
@@ -8854,10 +8837,10 @@
               "enabled": true,
               "fileData": [
                 {
-                  "uri": "[format('{0}PowerShell-Az-Module.zip', format('{0}{1}/', reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', split(parameters('storageAcountResourceId'), '/')[2], split(parameters('storageAcountResourceId'), '/')[4]), 'Microsoft.Storage/storageAccounts', last(split(parameters('storageAcountResourceId'), '/'))), '2022-09-01').primaryEndpoints.blob, parameters('containerName')))]"
+                  "uri": "[format('{0}PowerShell-Az-Module.zip', format('{0}{1}/', reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', split(parameters('storageAccountResourceId'), '/')[2], split(parameters('storageAccountResourceId'), '/')[4]), 'Microsoft.Storage/storageAccounts', last(split(parameters('storageAccountResourceId'), '/'))), '2022-09-01').primaryEndpoints.blob, parameters('containerName')))]"
                 },
                 {
-                  "uri": "[format('{0}cse_master_script.ps1', format('{0}{1}/', reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', split(parameters('storageAcountResourceId'), '/')[2], split(parameters('storageAcountResourceId'), '/')[4]), 'Microsoft.Storage/storageAccounts', last(split(parameters('storageAcountResourceId'), '/'))), '2022-09-01').primaryEndpoints.blob, parameters('containerName')))]"
+                  "uri": "[format('{0}cse_master_script.ps1', format('{0}{1}/', reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', split(parameters('storageAccountResourceId'), '/')[2], split(parameters('storageAccountResourceId'), '/')[4]), 'Microsoft.Storage/storageAccounts', last(split(parameters('storageAccountResourceId'), '/'))), '2022-09-01').primaryEndpoints.blob, parameters('containerName')))]"
                 }
               ]
             }

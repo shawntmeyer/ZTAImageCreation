@@ -833,6 +833,46 @@
                                     },
                                     "visible": true
                                 },
+								{
+                                    "name": "TenantType",
+                                    "type": "Microsoft.Common.DropDown",
+                                    "label": "Tenant Type",
+                                    "placeholder": "",
+                                    "defaultValue": [],
+                                    "toolTip": "Multiple values can be selected",
+                                    "multiselect": false,
+                                    "selectAll": true,
+                                    "filter": true,
+                                    "filterPlaceholder": "Filter items ...",
+                                    "multiLine": false,
+                                    "defaultDescription": "Select your Azure Tenant type",
+                                    "constraints": {
+                                        "allowedValues": [
+                                            {
+                                                "label": "Commercial",
+                                                "description": "Azure Commercial Tenant Type",
+                                                "value": "Commercial"
+                                            },
+                                            {
+                                                "label": "DepartmentOfDefense",
+                                                "description": "Azure DepartmentOfDefense Tenant Type",
+                                                "value": "DepartmentOfDefense"
+                                            },
+                                            {
+                                                "label": "GovernmentCommunityCloud",
+                                                "description": "Azure GovernmentCommunityCloud Tenant Type",
+                                                "value": "GovernmentCommunityCloud"
+                                            },
+                                            {
+                                                "label": "GovernmentCommunityCloudHigh",
+                                                "description": "Azure GovernmentCommunityCloudHigh Tenant Type",
+                                                "value": "GovernmentCommunityCloudHigh"
+                                            }
+                                        ],
+                                        "required": true
+                                    },
+                                    "visible": "[steps('imageCustomizations').office.installTeams]"
+                                },
                                 {
                                     "name": "teamsBlob",
                                     "type": "Microsoft.Storage.StorageBlobSelector",
@@ -1347,6 +1387,7 @@
 				"vDotInstaller": "[if(equals(steps('imageCustomizations').office.installVirtualDesktopOptimizationTool, true), steps('imageCustomizations').office.vDotBlob.blobName,'')]",
                 "officeInstaller": "[if(equals(steps('imageCustomizations').office.installOffice, true), steps('imageCustomizations').office.officeBlob.blobName,'')]",
                 "teamsInstaller": "[if(equals(steps('imageCustomizations').office.installTeams, true), steps('imageCustomizations').office.teamsBlob.blobName,'')]",
+				"tenantType": "[if(equals(steps('imageCustomizations').office.installTeams, true), steps('imageCustomizations').office.TenantType, 'Commercial')]",
                 "vcRedistInstaller": "[if(equals(steps('imageCustomizations').office.installTeams, true), steps('imageCustomizations').office.vcRedistInstaller.blobName,'')]",
                 "msrdcwebrtcsvcInstaller": "[if(equals(steps('imageCustomizations').office.installTeams, true), steps('imageCustomizations').office.msrdcwebrtcsvcInstaller.blobName,'')]",
 				"collectCustomizationLogs": "[steps('imageCustomizations').logging.collectLogs]",
@@ -1360,11 +1401,11 @@
 				"imageMajorVersion": "[if(equals(steps('imageDest').imageVersion.useCustomVersion, true), steps('imageDest').imageVersion.imageMajorVersion, -1)]",
 				"imageMinorVersion": "[if(equals(steps('imageDest').imageVersion.useCustomVersion, true), steps('imageDest').imageVersion.imageMinorVersion, -1)]",
 				"imagePatch": "[if(equals(steps('imageDest').imageVersion.useCustomVersion, true), steps('imageDest').imageVersion.imagePatch, -1)]",
-				"imageVersionEOLinDays": "[durationFormat(duration(utcNow(), steps('imageDest').imageVersion.endOfLifeDate), 'dd')]",
+				"imageVersionEOLinDays": "[int(replace(durationFormat(duration(utcNow(), steps('imageDest').imageVersion.endOfLifeDate), 'dd'), ' days', ''))]",
 				"imageVersionExcludeFromLatest": "[steps('imageDest').imageVersion.excludeFromLatest]",
 				"imageVersionStorageAccountType": "[steps('imageDest').imageVersion.storageAccountType]",
 				"replicaCount": "[steps('imageDest').imageVersion.replicaCount]",
-				"replicationRegions": "[steps('imageDest').imageVersion.replicationRegions]"
+				"replicationRegions": "[split(steps('imageDest').imageVersion.replicationRegions, ',')]"
             }
         }
     }

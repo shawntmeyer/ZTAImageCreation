@@ -29,7 +29,7 @@ param envClassification string = ''
 param computeGalleryResourceId string
 
 @description('The resource Id of the storage account containing the artifacts (scripts, installers, etc) used during the image build.')
-param storageAcountResourceId string
+param storageAccountResourceId string
 
 @description('The name of the storage blob container which contains the artifacts (scripts, installers, etc) used during the image build.')
 param containerName string
@@ -239,8 +239,8 @@ var managementVmName = take('vmmgt-${uniqueString(timeStamp)}', 15)
 // * RESOURCES * //
 
 resource artifactsStorageAccount 'Microsoft.Storage/storageAccounts@2022-09-01' existing = {
-  scope: resourceGroup(split(storageAcountResourceId, '/')[2], split(storageAcountResourceId, '/')[4])
-  name: last(split(storageAcountResourceId, '/'))
+  scope: resourceGroup(split(storageAccountResourceId, '/')[2], split(storageAccountResourceId, '/')[4])
+  name: last(split(storageAccountResourceId, '/'))
 }
 
 resource managedIdentity 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-01-31' existing = {
