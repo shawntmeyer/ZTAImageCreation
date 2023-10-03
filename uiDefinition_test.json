@@ -1,0 +1,327 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2021-09-09/uiFormDefinition.schema.json",
+    "view": {
+        "kind": "Form",
+        "properties": {
+            "title": "Custom Image Build",
+            "steps": [
+                {
+                    "name": "basics",
+                    "label": "Deployment Basics",
+                    "elements": [
+						{
+                            "name": "scope",
+                            "type": "Microsoft.Common.ResourceScope",
+							"instanceDetailsLabel": "Image Build Location",
+                            "location": {
+								"label": "Region where temporary Image Build resources are created",
+                                "resourceTypes": ["Microsoft.Compute/virtualmachines"]
+                            }
+                        },
+						{
+                            "name": "computeApi",
+                            "type": "Microsoft.Solutions.ArmApiControl",
+                            "request": {
+                                "method": "GET",
+                                "path": "[concat(steps('basics').scope.subscription.id,'/providers/Microsoft.Compute/resourceTypes?api-version=2021-04-01')]"
+                            }
+                        },
+                        {
+                            "name": "locationsApi",
+                            "type": "Microsoft.Solutions.ArmApiControl",
+                            "request": {
+                                "method": "GET",
+                                "path": "[concat(steps('basics').scope.subscription.id,'/locations?api-version=2020-01-01')]"
+                            }
+                        },
+                        {
+                            "name": "storageApi",
+                            "type": "Microsoft.Solutions.ArmApiControl",
+                            "request": {
+                                "method": "GET",
+                                "path": "[concat(steps('basics').scope.subscription.id,'/providers/Microsoft.Storage/resourceTypes?api-version=2021-04-01')]"
+                            }
+                        }						
+					]
+				},
+				{
+					"name": "imageVm",
+					"label": "Image Virtual Machine",
+					"elements": [
+						{
+							"name": "vmProps",
+							"type": "Microsoft.Common.Section",
+							"label": "Virtual Machine Properties",
+							"elements": [
+								{
+                                    "name": "osVersion",
+                                    "type": "Microsoft.Common.DropDown",
+                                    "label": "Operating System Version",
+                                    "filter": true,
+                                    "defaultValue": "Windows 11 22H2 (Gen2)",
+                                    "toolTip": "Select the operating system version for the source image.",
+                                    "constraints": {
+                                        "required": true,
+                                        "allowedValues": [
+											{
+                                                "label": "Windows 10 22H2 Enterprise (Gen1)",
+                                                "value": "MicrosoftWindowsDesktop_windows-10_win10-22h2-ent"
+                                            },                                            
+											{
+                                                "label": "Windows 10 22H2 Multi-Session (Gen1)",
+                                                "value": "MicrosoftWindowsDesktop_windows-10_win10-22h2-avd"
+                                            },
+                                            {
+                                                "label": "Windows 10 22H2 Multi-Session with M365 Apps (Gen1)",
+                                                "value": "MicrosoftWindowsDesktop_office-365_win10-22h2-avd-m365"
+                                            },
+											{
+                                                "label": "Windows 10 22H2 Enterprise (Gen2)",
+                                                "value": "MicrosoftWindowsDesktop_windows-10_win10-22h2-ent-g2"
+                                            },                                            
+											{
+                                                "label": "Windows 10 22H2 Multi-Session (Gen2)",
+                                                "value": "MicrosoftWindowsDesktop_windows-10_win10-22h2-avd-g2"
+                                            },
+                                            {
+                                                "label": "Windows 10 22H2 Multi-Session with M365 Apps (Gen2)",
+                                                "value": "MicrosoftWindowsDesktop_office-365_win10-22h2-avd-m365-g2"
+                                            },
+											{
+                                                "label": "Windows 11 21H2 Enterprise (Gen2)",
+                                                "value": "MicrosoftWindowsDesktop_windows-11_win11-21h2-ent"
+                                            },                                            
+											{
+                                                "label": "Windows 11 21H2 Multi-Session (Gen2)",
+                                                "value": "MicrosoftWindowsDesktop_windows-11_win11-21h2-avd"
+                                            },
+                                            {
+                                                "label": "Windows 11 21H2 Multi-Session with M365 Apps (Gen2)",
+                                                "value": "MicrosoftWindowsDesktop_office-365_win11-21h2-avd-m365"
+                                            },
+																						{
+                                                "label": "Windows 11 22H2 Enterprise (Gen2)",
+                                                "value": "MicrosoftWindowsDesktop_windows-11_win11-22h2-ent"
+                                            },                                            
+											{
+                                                "label": "Windows 11 22H2 Multi-Session (Gen2)",
+                                                "value": "MicrosoftWindowsDesktop_windows-11_win11-22h2-avd"
+                                            },
+                                            {
+                                                "label": "Windows 11 22H2 Multi-Session with M365 Apps (Gen2)",
+                                                "value": "MicrosoftWindowsDesktop_office-365_win11-22h2-avd-m365"
+                                            }
+                                        ]
+                                    }
+                                }
+							]							
+						}						
+					]
+				},
+				{
+					"name": "imageCustomizations",
+                    "label": "Image Customizations",
+                    "elements": [
+						{
+							"name": "customSoftware",
+							"type": "Microsoft.Common.Section",
+							"label": "Custom Software",
+							"elements": [
+								{
+									"name": "addCustomSoftware",
+									"type": "Microsoft.Common.OptionsGroup",
+									"label": "Add Custom Software",
+									"defaultValue": "No",
+									"toolTip": "Select \"Yes\" to add custom software to the image",
+									"constraints": {
+										"allowedValues": [
+											{
+												"label": "Yes",
+												"value": true
+											},
+											{
+												"label": "No",
+												"value": false
+											}
+										],
+										"required": true
+									},
+									"visible": true
+								},
+								{
+									"name": "customizations",
+									"type": "Microsoft.Common.EditableGrid",
+									"ariaLabel": "Customizations",
+									"label": "Custom Scripts and Software",
+									"visible": "[steps('imageCustomizations').customSoftware.addCustomSoftware]",
+									"constraints": {
+										"width": "Full",
+										"rows": {
+											"count": {
+												"min": 0,
+												"max": 10
+											}
+										},
+										"columns": [
+											{
+												"id": "name",
+												"header": "Name",
+												"width": "1fr",
+												"element": {
+													"type": "Microsoft.Common.TextBox",
+													"placeholder": "Example: vscode",
+													"constraints": {
+														"required": true,
+														"validations": []
+													}
+												}
+											},
+											{
+												"id": "blobname",
+												"header": "Blobname",
+												"width": "10fr",
+												"element": {
+													"type": "Microsoft.Common.TextBox",
+													"placeholder": "Example: VSCodeSetup-x64-1.81.1.exe",
+													"constraints": {
+														"allowedValues": [
+															{
+																"label": "blobname",
+																"value": "text"
+															}
+														],
+														"required": true
+													}
+												}
+											},
+											{
+												"id": "arguments",
+												"header": "Arguments",
+												"width": "10fr",
+												"element": {
+													"type": "Microsoft.Common.TextBox",
+													"placeholder": "Example: /silent /mergetasks='!runcode'",
+													"constraints": {
+														"allowedValues": [
+															{
+																"label": "Arguments",
+																"value": "text"
+															}
+														],
+														"required": false 
+													}
+												}
+											}
+										]
+									}
+								}
+							],
+							"visible": true
+						}
+					]
+				},
+				{
+					"name": "imageDest",
+					"label": "Image Distribution Options",
+					"elements": [
+						{
+							"name": "imageVersion",
+							"type": "Microsoft.Common.Section",
+							"label": "Image Version Details",
+							"elements": [
+								{
+									"name": "storageAccountType",
+									"type": "Microsoft.Common.DropDown",
+									"label": "Image Version Storage account type",
+									"defaultValue": "Standard Locally-Redundant Storage",
+									"toolTip": "Determine the performance and redundancy for the Image Version storage.",
+									"constraints": {
+										"required": true,
+										"allowedValues": [
+											{
+												"label": "Standard Locally-Redundant Storage",
+												"value": "Standard_LRS"
+											},
+											{
+												"label": "Standard Zone-Redundant Storage",
+												"value": "Standard_ZRS"
+											}
+										]
+									}
+								},
+								{
+									"name": "replicationRegions",
+									"type": "Microsoft.Common.EditableGrid",
+									"ariaLabel": "Replication Regions",
+									"label": "Replication Regions",
+									"visible": true,
+									"constraints": {
+										"width": "Full",
+										"rows": {
+											"count": {
+												"min": 0,
+												"max": 15
+											}
+										},
+										"columns": [
+											{
+												"id": "regionName",
+												"header": "Replication Region",
+												"width": "2fr",
+												"element": {
+													"type": "Microsoft.Common.DropDown",
+													"defaultValue": "[steps('basics').scope.location.displayName]",
+													"toolTip": "Select all the regions to where you want the image version to be replicated.",
+													"constraints": {
+														"allowedValues": "[if(equals(steps('imageDest').imageVersion.storageAccountType, 'Standard_LRS'), map(first(map(filter(steps('basics').computeApi.value, (resourceTypes) => equals(resourceTypes.resourceType, 'galleries/images/versions')), (item) => item.locations)), (item) => parse(concat('{\"label\":\"', item, '\",\"value\":\"', toLower(replace(item, ' ', '')), '\"}'))), map(filter(first(map(filter(steps('basics').storageApi.value, (resourceTypes) => equals(resourceTypes.resourceType, 'storageAccounts')), (item) => item.zoneMappings)), (item) => equals(length(item.zones), 3)), (item) => parse(concat('{\"label\":\"', item.location, '\",\"value\":\"', toLower(replace(item.location, ' ', '')), '\"}'))))]",
+														"required": true
+													}
+												}
+											},
+											{
+												"id": "replicaCount",
+												"header": "Replica Count",
+												"width": "1fr",
+												"element": {
+													"type": "Microsoft.Common.TextBox",
+													"placeholder": "1",
+													"constraints": {
+														"validations": [
+															{
+																"regex": "^[1-9]$|^[1-9][0-9]$|^100$",
+																"message": "Only integers are allowed from 1-100"
+															}
+														],
+														"required": true
+													}
+												}
+											}
+										]
+									}
+								}
+							]
+                        }
+					]
+				}
+			]
+        },
+        "outputs": {
+            "kind": "Subscription",
+            "location": "[steps('basics').scope.location.name]",
+            "subscriptionId": "[steps('basics').scope.subscription.id]",
+            "parameters": {
+				"deploymentLocation": "[steps('basics').scope.location.name]",
+                
+                "publisher": "[first(split(steps('imageVm').vmProps.osVersion, '_'))]",
+                "offer": "[last(take(split(steps('imageVm').vmProps.osVersion, '_'), 2))]",
+                "sku": "[last(split(steps('imageVm').vmProps.osVersion, '_'))]",
+				
+				"customizations": "[if(equals(steps('imageCustomizations').customSoftware.addCustomSoftware, true), steps('imageCustomizations').customSoftware.customizations, '')]",
+				
+				"replicationRegions": "[steps('imageDest').imageVersion.replicationRegions]"
+
+
+            }
+        }
+    }
+}

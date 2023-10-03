@@ -1086,7 +1086,8 @@
 							"type": "Microsoft.Common.Section",
 							"visible": true,
 							"label": "Image Definition Details",
-							"elements": [{
+							"elements": [
+								{
 									"name": "useExImageDef",
 									"type": "Microsoft.Common.OptionsGroup",
 									"label": "Use Existing Image Definition",
@@ -1267,82 +1268,205 @@
 									"visible": "[equals(steps('imageDest').imageVersion.useCustomVersion, true)]"
 								},
 								{
-									"name": "excludeFromLatest",
-									"type": "Microsoft.Common.OptionsGroup",
-									"label": "Exclude this image version from latest",
-									"defaultValue": "false",
-									"toolTip": "Exclude the image version created by this process from the latest version for the image definition.",
-									"constraints": {
-										"allowedValues": [
-											{
-												"label": "true",
-												"value": true
-											},
-											{
-												"label": "false",
-												"value": false
-											}
-										],
-										"required": true
-									}
-                                },
-								{
-    								"name": "endOfLifeDate",
-									"type": "Microsoft.Common.DatePicker",
-									"label": "Image Version End of Life Date",
-									"visible": true,
+									"name": "eolDaysFromNow",
+									"type": "Microsoft.Common.Slider",
+									"label": "End of Life from today in days",
+									"subLabel": "",
+									"min": 0,
+									"max": 730,
+									"showStepMarkers": false,
+									"toolTip": "Enter the number of days before this image version should be replaced.",
 									"constraints": {
 										"required": false
+									},									
+									"visible": true
+								},
+								{
+									"name": "defaultReplicationText",
+									"type": "Microsoft.Common.InfoBox",
+									"visible": true,
+									"options": {
+										"style": "Info",
+										"text": "By default, the image will be replicated to the deployment location chosen on the basics tab using the values provided below. To customize replication, select 'Yes' for 'Specify Additional Replication Regions'."
 									}
 								},
 								{
 									"name": "storageAccountType",
 									"type": "Microsoft.Common.DropDown",
-									"label": "Image Version Storage account type",
-									"defaultValue": "Standard Locally-Redundant Storage",
-									"toolTip": "Determine the performance and redundancy for the Image Version storage.",
+									"label": "Default Storage Account Type",
+									"defaultValue": "Standard LRS",
+									"toolTip": "Select the default storage account type for this image version. If you don't specify additional replication regions, then this value will be used with the deployment location.",
 									"constraints": {
-										"required": true,
 										"allowedValues": [
 											{
-												"label": "Standard Locally-Redundant Storage",
+												"label": "Standard LRS",
 												"value": "Standard_LRS"
 											},
 											{
-												"label": "Standard Zone-Redundant Storage",
+												"label": "Standard ZRS",
 												"value": "Standard_ZRS"
 											}
-										]
-									}
+										],
+										"required": true
+									},
+									"visible": true
 								},
 								{
 									"name": "replicaCount",
 									"type": "Microsoft.Common.Slider",
-									"label": "Image replicas count (per region)",
+									"label": "Default Replica Count",
 									"subLabel": "",
+									"defaultValue": 1,
 									"min": 1,
 									"max": 100,
 									"showStepMarkers": false,
-									"toolTip": "Pick the number of image replicas per region up to 100",
+									"toolTip": "Specify the default replica count per region for this image version. If you don't specify additional replication regions, then this value will be used with the deployment location.",
 									"constraints": {
 										"required": true
 									},									
 									"visible": true
 								},
 								{
-                                    "name": "replicationRegions",
-                                    "type": "Microsoft.Common.DropDown",
-                                    "filter": true,
-                                    "label": "Image Replication Regions",
-									"multiLine": true,
-									"multiselect": true,
-                                    "defaultValue": "[steps('basics').scope.location.displayName]",
-                                    "toolTip": "Select all the regions to where you want the image version to be replicated.",
-                                    "constraints": {
-                                        "allowedValues": "[if(equals(steps('imageDest').imageVersion.storageAccountType, 'Standard_LRS'), map(first(map(filter(steps('basics').computeApi.value, (resourceTypes) => equals(resourceTypes.resourceType, 'galleries/images/versions')), (item) => item.locations)), (item) => parse(concat('{\"label\":\"', item, '\",\"value\":\"', toLower(replace(item, ' ', '')), '\"}'))), map(filter(first(map(filter(steps('basics').storageApi.value, (resourceTypes) => equals(resourceTypes.resourceType, 'storageAccounts')), (item) => item.zoneMappings)), (item) => equals(length(item.zones), 3)), (item) => parse(concat('{\"label\":\"', item.location, '\",\"value\":\"', toLower(replace(item.location, ' ', '')), '\"}'))))]",
-                                        "required": true
-                                    }
-                                }
+									"name": "excludeFromLatest",
+									"type": "Microsoft.Common.DropDown",
+									"label": "Exclude from Latest",
+									"defaultValue": "No",
+									"toolTip": "Select the default value for Exclude from Latest which determines whether this image version will be used when a image resource id uses 'latest' for the version. If you don't specify additional replication regions, then this value will be used with the deployment location.",
+									"constraints": {
+										"allowedValues": [
+											{
+												"label": "No",
+												"value": false
+											},
+											{
+												"label": "Yes",
+												"value": true
+											}
+										],
+										"required": true
+									},
+									"visible": true
+								},
+								{
+									"name": "specifyReplicationRegions",
+									"type": "Microsoft.Common.OptionsGroup",
+									"label": "Specify Additional Replication Regions",
+									"defaultValue": "No",
+									"toolTip": "The image version will be created in the deployment location by default. Select 'Yes' to specify all replication region details.",
+									"constraints": {
+										"allowedValues": [
+											{
+												"label": "Yes",
+												"value": true
+											},
+											{
+												"label": "No",
+												"value": false
+											}
+										],
+										"required": true
+									}
+								},
+								{
+									"name": "repRegionsText",
+									"type": "Microsoft.Common.TextBlock",
+									"visible": "[if(equals(steps('imageDest').imageVersion.specifyReplicationRegions, true), true, false)]",
+									"options": {
+										"text": "Use the grid below to add All replication regions and the associated values. To add rows, toggle one of the drop down boxes."
+									}
+								},
+								{
+									"name": "replicationRegions",
+									"type": "Microsoft.Common.EditableGrid",
+									"ariaLabel": "Replication Regions",
+									"label": "Replication Regions",
+									"visible": "[if(equals(steps('imageDest').imageVersion.specifyReplicationRegions, true), true, false)]",
+									"constraints": {
+										"width": "Full",
+										"rows": {
+											"count": {
+												"min": 0,
+												"max": 10
+											}
+										},
+										"columns": [
+											{
+												"id": "storageAccountType",
+												"header": "Storage account type",
+												"width": "2fr",
+												"element": {
+													"type": "Microsoft.Common.DropDown",
+													"defaultValue": "[steps('imageDest').imageVersion.storageAccountType]",
+													"constraints": {
+														"required": true,
+														"allowedValues": [
+															{
+																"label": "Standard LRS",
+																"value": "Standard_LRS"
+															},
+															{
+																"label": "Standard ZRS",
+																"value": "Standard_ZRS"
+															}
+														]
+													}
+												}
+											},
+											{
+												"id": "regionName",
+												"header": "Replication Region",
+												"width": "2fr",
+												"element": {
+													"type": "Microsoft.Common.DropDown",
+													"defaultValue": "[steps('basics').scope.location.displayName]",
+													"constraints": {
+														"allowedValues": "[if(equals(last(take(steps('imageDest').imageVersion.replicationRegions, $rowIndex)).storageAccountType, 'Standard_LRS'), map(first(map(filter(steps('basics').computeApi.value, (resourceTypes) => equals(resourceTypes.resourceType, 'galleries/images/versions')), (item) => item.locations)), (item) => parse(concat('{\"label\":\"', item, '\",\"value\":\"', toLower(replace(item, ' ', '')), '\"}'))), map(filter(first(map(filter(steps('basics').storageApi.value, (resourceTypes) => equals(resourceTypes.resourceType, 'storageAccounts')), (item) => item.zoneMappings)), (item) => equals(length(item.zones), 3)), (item) => parse(concat('{\"label\":\"', item.location, '\",\"value\":\"', toLower(replace(item.location, ' ', '')), '\"}'))))]",
+														"required": true
+													}
+												}
+											},
+											{
+												"id": "replicaCount",
+												"header": "Replica Count",
+												"width": "1fr",
+												"element": {
+													"type": "Microsoft.Common.TextBox",
+													"defaultValue": "[steps('imageDest').imageVersion.replicaCount]",
+													"constraints": {
+														"validations": [
+															{
+																"regex": "^[1-9]$|^[1-9][0-9]$|^100$",
+																"message": "Only integers are allowed from 1-100"
+															}
+														],
+														"required": true
+													}
+												}
+											},
+											{
+												"id": "excludeFromLatest",
+												"header": "Exclude from Latest",
+												"width": "2fr",
+												"element": {
+													"type": "Microsoft.Common.DropDown",
+													"defaultValue": "[steps('imageDest').imageVersion.excludeFromLatest]",
+													"constraints": {
+														"allowedValues": [
+															{
+																"label": "No",
+																"value": false
+															},
+															{
+																"label": "Yes",
+																"value": true
+															}
+														]
+													}
+												}
+											}
+										]
+									}
+								}
 							]
                         }
 					]
@@ -1357,13 +1481,13 @@
 				"deploymentLocation": "[steps('basics').scope.location.name]",
                 "deploymentPrefix": "[steps('basics').deploymentSpecs.deploymentPrefix]",
                 "envClassification": "[steps('basics').deploymentSpecs.envClassification]",
-				"imageBuildResourceGroupId": "[if(equals(steps('basics').resGroup.useExResGroup, true), steps('basics').resGroup.resourceGroup.id, '')]",
+				"imageBuildResourceGroupId": "[if(equals(steps('basics').resGroup.useExResGroup, true), concat(steps('basics').scope.subscription.id, '/resourceGroups/',steps('basics').resGroup.resourceGroup), '')]",
 				"customBuildResourceGroupName": "[if(equals(steps('basics').resGroup.useExResGroup, false), steps('basics').resGroup.customBuildResourceGroupName, '')]",
 				"computeGalleryResourceId": "[steps('prereqs').gallery.gallery.id]",
 				"storageAccountResourceId": "[steps('prereqs').storage.storageAccount.id]",
 				"containerName": "[first(skip(split(steps('prereqs').storage.container, '/'), 12))]",
 				"userAssignedIdentityResourceId": "[steps('prereqs').storage.managedIdentity.id]",
-				"subnetResourceId": "[steps('prereqs').network.subnet.id]",				
+				"subnetResourceId": "[steps('prereqs').network.subnet]",				
 				"vmSize": "[steps('imageVm').vmProps.vmSize]",
                 "publisher": "[first(split(steps('imageVm').vmProps.osVersion, '_'))]",
                 "offer": "[last(take(split(steps('imageVm').vmProps.osVersion, '_'), 2))]",
@@ -1391,9 +1515,9 @@
                 "vcRedistInstaller": "[if(equals(steps('imageCustomizations').office.installTeams, true), steps('imageCustomizations').office.vcRedistInstaller.blobName,'')]",
                 "msrdcwebrtcsvcInstaller": "[if(equals(steps('imageCustomizations').office.installTeams, true), steps('imageCustomizations').office.msrdcwebrtcsvcInstaller.blobName,'')]",
 				"collectCustomizationLogs": "[steps('imageCustomizations').logging.collectLogs]",
-				"privateEndpointSubnetResourceId": "[if(equals(steps('imageCustomizations').logging.collectLogs, true), steps('imageCustomizations').logging.subnet.id, '')]",
+				"privateEndpointSubnetResourceId": "[if(equals(steps('imageCustomizations').logging.collectLogs, true), steps('imageCustomizations').logging.subnet, '')]",
 				"blobPrivateDnsZoneResourceId": "[if(equals(steps('imageCustomizations').logging.collectLogs, true), steps('imageCustomizations').logging.privateDnsZoneBlobStorageSelector.id, '')]",	
-				"imageDefinitionResourceId": "[if(equals(steps('imageDest').imageDefinition.useExImageDef, true), steps('imageDest').imageDefinition.imageDefinition.id, '')]",
+				"imageDefinitionResourceId": "[if(equals(steps('imageDest').imageDefinition.useExImageDef, true), concat(steps('prereqs').gallery.gallery.id, '/images/', steps('imageDest').imageDefinition.imageDefinition), '')]",
 				"customImageDefinitionName": "[if(equals(steps('imageDest').imageDefinition.useExImageDef, false), steps('imageDest').imageDefinition.customImageDefinitionName, '')]",
 				"imageDefinitionPublisher": "[if(equals(steps('imageDest').imageDefinition.useExImageDef, false), steps('imageDest').imageDefinition.imageDefinitionPublisher, '')]",
 				"imageDefinitionOffer": "[if(equals(steps('imageDest').imageDefinition.useExImageDef, false), steps('imageDest').imageDefinition.imageDefinitionOffer, '')]",
@@ -1401,11 +1525,11 @@
 				"imageMajorVersion": "[if(equals(steps('imageDest').imageVersion.useCustomVersion, true), steps('imageDest').imageVersion.imageMajorVersion, -1)]",
 				"imageMinorVersion": "[if(equals(steps('imageDest').imageVersion.useCustomVersion, true), steps('imageDest').imageVersion.imageMinorVersion, -1)]",
 				"imagePatch": "[if(equals(steps('imageDest').imageVersion.useCustomVersion, true), steps('imageDest').imageVersion.imagePatch, -1)]",
-				"imageVersionEOLinDays": "[int(replace(durationFormat(duration(utcNow(), steps('imageDest').imageVersion.endOfLifeDate), 'dd'), ' days', ''))]",
+				"imageVersionEOLinDays": "[steps('imageDest').imageVersion.eolDaysFromNow]",
 				"imageVersionExcludeFromLatest": "[steps('imageDest').imageVersion.excludeFromLatest]",
-				"imageVersionStorageAccountType": "[steps('imageDest').imageVersion.storageAccountType]",
-				"replicaCount": "[steps('imageDest').imageVersion.replicaCount]",
-				"replicationRegions": "[split(steps('imageDest').imageVersion.replicationRegions, ',')]"
+				"imageVersionDefaultReplicaCount": "[steps('imageDest').imageVersion.replicaCount]",
+				"imageVersionDefaultStorageAccountType": "[steps('imageDest').imageVersion.storageAccountType]",
+				"imageVersionTargetRegions": "[steps('imageDest').imageVersion.replicationRegions]"
             }
         }
     }

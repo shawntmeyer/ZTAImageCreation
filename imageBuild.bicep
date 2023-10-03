@@ -172,22 +172,31 @@ param imagePatch int = -1
 @description('Optional. The number of days from now that the image version will reach end of life.')
 param imageVersionEOLinDays int = 0
 
-@description('Exclude the image version created by this process from the latest version for the image definition.')
-param imageVersionExcludeFromLatest bool = false
+@description('Optional. The default image version replica count per region. This can be overwritten by the regional value.')
+@minValue(1)
+@maxValue(100)
+param imageVersionDefaultReplicaCount int = 1
 
-@sys.description('Optional. Specifies the storage account type to be used to store the image. This property is not updatable.')
+@description('Optional. Specifies the storage account type to be used to store the image. This property is not updatable.')
 @allowed([
   'Premium_LRS'
   'Standard_LRS'
   'Standard_ZRS'
 ])
-param imageVersionStorageAccountType string = 'Standard_LRS'
+param imageVersionDefaultStorageAccountType string = 'Standard_LRS'
 
-@description('Optional. The regions to which the image version will be replicated in addition to the location of the deployment.')
-param replicationRegions array = []
+@description('Optional. Exclude this image version from the latest. This property can be overwritten by the regional value.')
+param imageVersionExcludeFromLatest bool = false
 
-@description('The number of replicas in the primary region of the image version.')
-param replicaCount int
+@description('Optional. The regions to which the image version will be replicated. (Default: deployment location with Standard_LRS storage and 1 replica.)')
+param imageVersionTargetRegions array = [
+  {
+    excludeFromLatest: imageVersionExcludeFromLatest
+    name: deploymentLocation
+    regionalReplicaCount: imageVersionDefaultReplicaCount
+    storageAccountType: imageVersionDefaultStorageAccountType
+  }
+]
 
 @description('Optional. The tags to apply to all resources deployed by this template.')
 param tags object = {}
@@ -223,15 +232,6 @@ var imageDefinitionIsHigherPerformanceSupported = false
 var imageVersionName = imageMajorVersion != -1 && imageMajorVersion != -1 && imagePatch != -1 ? '${imageMajorVersion}.${imageMinorVersion}.${imagePatch}' : autoImageVersionName
 
 var imageVersionEndOfLifeDate = imageVersionEOLinDays != 0 ? dateTimeAdd(imageVersionCreationTime, 'P${imageVersionEOLinDays}D') : ''
-
-var imageRegions = union(['computeLocation'], replicationRegions)
-
-var targetRegions = [for region in imageRegions: {
-  excludeFromLatest: imageVersionExcludeFromLatest
-  name: region
-  regionalReplicaCount: replicaCount
-  storageAccountType: imageVersionStorageAccountType
-}]
 
 var imageVmName = take('vmimg-${uniqueString(timeStamp)}', 15)
 var managementVmName = take('vmmgt-${uniqueString(timeStamp)}', 15)
@@ -556,10 +556,10 @@ module imageVersion 'modules/imageVersion.bicep' = {
     imageName: !empty(imageDefinitionResourceId) ? existingImageDefinition.name : imageDefinition.outputs.name
     endOfLifeDate: imageVersionEndOfLifeDate
     excludeFromLatest: imageVersionExcludeFromLatest
-    replicaCount: replicaCount
-    storageAccountType: imageVersionStorageAccountType
+    replicaCount: imageVersionDefaultReplicaCount
+    storageAccountType: imageVersionDefaultStorageAccountType
     sourceId: imageVm.outputs.resourceId
-    targetRegions: targetRegions
+    targetRegions: imageVersionTargetRegions
     tags: {}
   }
   dependsOn: [
