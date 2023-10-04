@@ -227,8 +227,6 @@ resource applications 'Microsoft.Compute/virtualMachines/runCommands@2023-03-01'
   ]
 }]
 
-
-
 resource office 'Microsoft.Compute/virtualMachines/runCommands@2023-03-01' = if (installAccess || installExcel || installOneDriveForBusiness || installOneNote || installOutlook || installPowerPoint || installPublisher || installSkypeForBusiness || installWord || installVisio || installProject) {
   name: 'office'
   location: location

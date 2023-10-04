@@ -15,8 +15,7 @@
 							"visible": true,
 							"options": {
 								"style": "Info",
-								"text": "PREREQUISITES REQUIRED \n\nThere are prerequisites that must be setup in your Azure environment to successfully deploy this Custom Image Build. Click here to review the prerequisites in the Getting Started guide.",
-								"uri": "https://www.microsoft.com"
+								"text": "PREREQUISITES REQUIRED \n\nThere are prerequisites that must be setup in your Azure environment to successfully deploy this Custom Image Build. The prerequisites are outlined on the 'Prerequisites' page."
 							}
 						},
 						{
@@ -177,6 +176,14 @@
 							}
 						},
 						{
+							"name": "textBlockStorageAndManagedIdentity",
+							"type": "Microsoft.Common.TextBlock",
+							"visible": true,
+							"options": {
+								"text": "Select the storage account and blob container with the build artifacts (scripts and installers) and then the User Assigned Managed Identity that has assigned the 'Storage Blob Data Reader' role the storage account below."
+							}
+						},						
+						{
 							"name": "storage",
 							"type": "Microsoft.Common.Section",
 							"label": "Storage Account",
@@ -226,11 +233,19 @@
 							"label": "Networking",
 							"elements": [
 								{
-									"name": "infoNetwork",
+									"name": "textBlockNetwork",
+									"type": "Microsoft.Common.TextBlock",
+									"visible": true,
+									"options": {
+										"text": "Select the Virtual Network and Subnet to which the image build virtual machine will be attached. The Virtual Network options listed below are based on the region selected under 'Image Build Location' on the 'Deployment Basics' page. If you don't find the desired virtual network, change the region on the 'Basics' page."
+									}									
+								},
+								{
+									"name": "warningNetwork",
 									"type": "Microsoft.Common.InfoBox",
 									"options": {
-										"style":"Info",
-										"text": "The Virtual Network selected below must be located in the region selected under 'Image Build Location' on the 'Deployment Basics' page. If you don't find the desired virtual network, change the region on the 'Basics' page."
+										"style":"Warning",
+										"text": "The subnet selected below must be able to resolve the blob private dns zone and route to the storage account endpoint for the storage account selected above."
 									}
 								},
 								{
@@ -378,7 +393,7 @@
                                     "name": "imageDefinitionFeatureWarning",
                                     "type": "Microsoft.Common.InfoBox",
                                     "options": {
-                                        "text": "If you specify to use an existing Azure Compute Gallery Image Definition on the 'Image Distribution Options' page, then image definition features must be configured with the Security Type and Accelerated Networking set to the appropriate values based on your selections below.<br/><br/>You can determine if the image definition supports the required feature by reviewing the 'Properties' tab on the 'Overview' node of the Gallery Image Definition in the portal. If the image definition does not contain these feature options, then the deployment will fail.<br/><br/>If you chose to create a new image definition, it will be configured automatically.",
+                                        "text": "If you specify to use an existing Azure Compute Gallery Image Definition on the 'Image Distribution Options' page, then image definition features must be configured with the 'SecurityType' and 'Accelerated Networking' set to the appropriate values based on your selections below.<br/><br/>You can determine if the image definition supports the required feature by reviewing the 'Properties' tab on the 'Overview' node of the Gallery Image Definition in the portal. If the image definition does not contain these feature options, then the deployment will fail.<br/><br/>If you chose to create a new image definition, it will be configured automatically.",
                                         "uri": "https://learn.microsoft.com/azure/templates/microsoft.compute/galleries/images?pivots=deployment-language-bicep",
                                         "style": "Warning"
                                     },
@@ -459,7 +474,7 @@
 									"type": "Microsoft.Common.OptionsGroup",
 									"label": "Add Custom Software",
 									"defaultValue": "No",
-									"toolTip": "Select \"Yes\" to add custom software to the image",
+									"toolTip": "Select 'Yes' to add custom software to the image",
 									"constraints": {
 										"allowedValues": [
 											{
@@ -475,6 +490,14 @@
 									},
 									"visible": true
 								},
+								{
+									"name": "customizationText",
+									"type": "Microsoft.Common.TextBlock",
+									"visible": "[steps('imageCustomizations').customSoftware.addCustomSoftware]",
+									"options": {
+										"text": "Enter customizations for your image below. The first column is a free-form text field that can only contain alphanumerics and no spaces. The second column is the blob name and is case-sensitive. The third column is for any arguments."
+									}
+								},								
 								{
 									"name": "customizations",
 									"type": "Microsoft.Common.EditableGrid",
@@ -1117,7 +1140,6 @@
 									"type": "Microsoft.Common.InfoBox",
 									"visible": "[equals(steps('imageDest').imageDefinition.useExImageDef, true)]",
 									"options": {
-										"icon": "None",
 										"style": "Warning",
 										"text": "The image definition you choose below must have the appropriate features selected for the security type and accelerated networking that you picked on the 'Image Virtual Machine' page."
 									}
@@ -1146,10 +1168,17 @@
                                     "visible": "[equals(steps('imageDest').imageDefinition.useExImageDef, true)]"
                                 },
 								{
+									"name": "textBlockImageDefinition",
+									"type": "Microsoft.Common.TextBlock",
+									"visible": "[equals(steps('imageDest').imageDefinition.useExImageDef, false)]",
+									"options": {
+										"text": "Use the first text box below to provide a custom name for the image definition, if desired. If you leave the custom name blank, then the image definition name will be created based on the 'publisher', 'offer', and 'sku' provided below using CAF naming standards."
+									}
+								},
+								{
 									"name": "customImageDefinitionName",
 									"type": "Microsoft.Common.TextBox",
 									"label": "Custom Image Definition Name",
-									"subLabel": "Leave blank if you want to allow this deployment to create an image definition in the Image Gallery chosen on the 'Prerequisites' page with a name based on the selections below.",
 									"placeholder": "vmid-<imagePublisher>-<imageOffer>-<imageSku>-<environment>-<location>",
 									"toolTip": "The name of the image definition to create in the Image Gallery. Leave blank if you want to allow this deployment to create an image definition in the Image Gallery chosen on the 'Prerequisites' page with a name based on the selections below.",
 									"constraints": {
@@ -1169,7 +1198,7 @@
 									"constraints": {
 										"required": true,
 										"regex": "^[a-z0-9A-Z-]{2,20}$",
-										"validationMessage": "The value must contain only valid characters and be between 2 and 20 characters in length."
+										"validationMessage": "The value must contain only valid characters, no spaces, and be between 2 and 20 characters in length."
 									},
 									"visible": "[equals(steps('imageDest').imageDefinition.useExImageDef, false)]"
 								},
@@ -1183,7 +1212,7 @@
 									"constraints": {
 										"required": true,
 										"regex": "^[a-z0-9A-Z-]{2,20}$",
-										"validationMessage": "The value must contain only valid characters and be between 2 and 20 characters in length."
+										"validationMessage": "The value must contain only valid characters, no spaces, and be between 2 and 20 characters in length."
 									},
 									"visible": "[equals(steps('imageDest').imageDefinition.useExImageDef, false)]"
 								},                        
@@ -1197,7 +1226,7 @@
 									"constraints": {
 										"required": true,
 										"regex": "^[a-z0-9A-Z-]{2,20}$",
-										"validationMessage": "The value must contain only valid characters and be between 2 and 20 characters in length."
+										"validationMessage": "The value must contain only valid characters, no spaces, and be between 2 and 20 characters in length."
 									},
 									"visible": "[equals(steps('imageDest').imageDefinition.useExImageDef, false)]"
 								}
