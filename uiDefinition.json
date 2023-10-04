@@ -1163,8 +1163,8 @@
 									"name": "imageDefinitionPublisher",
 									"type": "Microsoft.Common.TextBox",
 									"label": "Image Definition Publisher",
-									"subLabel": "",
-									"defaultValue": "",
+									"subLabel": "",     
+									"defaultValue": "[first(split(steps('imageVm').vmProps.osVersion, '_'))]",
 									"toolTip": "The compute gallery image definition Publisher.",
 									"constraints": {
 										"required": true,
@@ -1178,7 +1178,7 @@
 									"type": "Microsoft.Common.TextBox",
 									"label": "Image Definition Offer",
 									"subLabel": "",
-									"defaultValue": "",
+									"defaultValue": "[last(take(split(steps('imageVm').vmProps.osVersion, '_'), 2))]",
 									"toolTip": "The compute gallery image definition Offer.",
 									"constraints": {
 										"required": true,
@@ -1192,7 +1192,7 @@
 									"type": "Microsoft.Common.TextBox",
 									"label": "Image Definition Sku",
 									"subLabel": "",
-									"defaultValue": "",
+									"defaultValue": "[last(split(steps('imageVm').vmProps.osVersion, '_'))]",
 									"toolTip": "The compute gallery image definition Sku.",
 									"constraints": {
 										"required": true,

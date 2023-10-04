@@ -118,7 +118,7 @@ resource microsoftUpdate 'Microsoft.Compute/virtualMachines/runCommands@2023-03-
                     }
                 
                     If ($AddThisUpdate) {
-                        Write-Output "$($i + 1) > : adding '$($update.Title)'"
+                        Write-Output "$($i + 1) > adding: '$($update.Title)'"
                         $UpdatesToDownload.Add($Update) | out-null
                         $AtLeastOneAdded = $true
                         $ErrorActionPreference = 'SilentlyContinue'
@@ -157,7 +157,7 @@ resource microsoftUpdate 'Microsoft.Compute/virtualMachines/runCommands@2023-03-
                         5 { $Text = "Cancelled" ; $Code = 5}
                         Else { $Text = "Unexpected ($result)" ; $Code = 99 }
                     } 
-                    Write-Output "Installation Result: $text)"
+                    Write-Output "Installation Result: $($Text)"
                     If ($($InstallationResult.GetUpdateResult[$i]).HResult -eq -2145116147) {
                         Write-Output "An updated needed additional downloaded content. Please rerun the script."
                     }

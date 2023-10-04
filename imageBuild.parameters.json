@@ -92,15 +92,6 @@
     "imageVersionExcludeFromLatest": {
       "value": false
     },
-    "imageMajorVersion": {
-      "value": 0
-    },
-    "imageMinorVersion": {
-      "value": 0
-    },
-    "imagePatch": {
-      "value": 0
-    },
     "imageVersionEOLinDays": {
       "value": 30
     },
