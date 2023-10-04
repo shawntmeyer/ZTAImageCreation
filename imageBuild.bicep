@@ -185,18 +185,14 @@ param imageVersionDefaultReplicaCount int = 1
 ])
 param imageVersionDefaultStorageAccountType string = 'Standard_LRS'
 
+@description('Conditional. Specifies the default replication region when imageVersionTargetRegions is not supplied.')
+param imageVersionDefaultRegion string = ''
+
 @description('Optional. Exclude this image version from the latest. This property can be overwritten by the regional value.')
 param imageVersionExcludeFromLatest bool = false
 
 @description('Optional. The regions to which the image version will be replicated. (Default: deployment location with Standard_LRS storage and 1 replica.)')
-param imageVersionTargetRegions array = [
-  {
-    excludeFromLatest: imageVersionExcludeFromLatest
-    name: deploymentLocation
-    regionalReplicaCount: imageVersionDefaultReplicaCount
-    storageAccountType: imageVersionDefaultStorageAccountType
-  }
-]
+param imageVersionTargetRegions array = []
 
 @description('Optional. The tags to apply to all resources deployed by this template.')
 param tags object = {}
@@ -233,6 +229,15 @@ var imageVersionName = imageMajorVersion != -1 && imageMajorVersion != -1 && ima
 
 var imageVersionEndOfLifeDate = imageVersionEOLinDays != 0 ? dateTimeAdd(imageVersionCreationTime, 'P${imageVersionEOLinDays}D') : ''
 
+var imageVersionReplicationRegions = !empty(imageVersionTargetRegions) ? imageVersionTargetRegions : [
+  {
+    excludeFromLatest: imageVersionExcludeFromLatest
+    name: !empty(imageVersionDefaultRegion) ? imageVersionDefaultRegion : deploymentLocation
+    regionalReplicaCount: imageVersionDefaultReplicaCount
+    storageAccountType: imageVersionDefaultStorageAccountType
+  }
+]
+
 var imageVmName = take('vmimg-${uniqueString(timeStamp)}', 15)
 var managementVmName = take('vmmgt-${uniqueString(timeStamp)}', 15)
 
@@ -257,8 +262,9 @@ resource vnet 'Microsoft.Network/virtualNetworks@2023-05-01' existing = {
   name: split(subnetResourceId, '/')[8]
   scope: resourceGroup(split(subnetResourceId, '/')[2], split(subnetResourceId, '/')[4])
 }
+
 module roleAssignment 'carml/authorization/role-assignment/resource-group/main.bicep' = {
-  name: '${depPrefix}roleAssignment-uai-to-rg-${timeStamp}'
+  name: '${depPrefix}roleAssignment-virtualMachineContributor-${timeStamp}'
   scope: resourceGroup(imageBuildRG.name)
   params: {
     principalId: managedIdentity.properties.principalId
@@ -270,7 +276,7 @@ module logsStorageAccount 'carml/storage/storage-account/main.bicep' = if(collec
   name: '${depPrefix}logsStorageAccount-${timeStamp}'
   scope: resourceGroup(imageBuildRG.name)
   params: {
-    name: 'logs${depPrefix}${uniqueString(subscription().id,imageBuildRG.name,depPrefix)}'
+    name: 'sa${deploymentPrefix}log${uniqueString(subscription().id,imageBuildRG.name,depPrefix)}'
     location: computeLocation
     allowCrossTenantReplication: false
     allowSharedKeyAccess: true
@@ -307,7 +313,7 @@ module logsStorageAccount 'carml/storage/storage-account/main.bicep' = if(collec
     ]
     privateEndpoints: [
       {
-        name: 'pe-logs${depPrefix}${uniqueString(subscription().id,imageBuildRG.name,depPrefix)}-blob-${locations[computeLocation].abbreviation}'
+        name: 'pe-sa${deploymentPrefix}log${uniqueString(subscription().id,imageBuildRG.name,depPrefix)}-blob-${locations[computeLocation].abbreviation}'
         privateDnsZoneGroup: {
           privateDNSResourceIds: ['${blobPrivateDnsZoneResourceId}']
         }
@@ -324,12 +330,75 @@ module logsStorageAccount 'carml/storage/storage-account/main.bicep' = if(collec
 }
 
 module logsRoleAssignment 'carml/authorization/role-assignment/resource-group/main.bicep' = if (collectLogs) {
-  name: '${depPrefix}roleassignment-blobwriter-storage-${timeStamp}'
+  name: '${depPrefix}roleAssignment-StorageBlobDataWriter-${timeStamp}'
   scope: resourceGroup(imageBuildRG.name)
   params: {
     principalId: managedIdentity.properties.principalId
     roleDefinitionIdOrName: 'Storage Blob Data Contributor'
   }  
+}
+
+module managementVm 'carml/compute/virtual-machine/main.bicep' = {
+  name: '${depPrefix}managementVM-${timeStamp}'
+  scope: resourceGroup(imageBuildRG.name)
+  params: {
+    location: computeLocation
+    name: managementVmName
+    adminPassword: adminPw
+    adminUsername: adminUserName
+    extensionCustomScriptConfig: {
+      enabled: true
+      fileData: [
+        {
+          uri: '${artifactsContainerUri}PowerShell-Az-Module.zip'
+        }
+        {
+          uri: '${artifactsContainerUri}cse_master_script.ps1'
+        }
+      ]
+    }
+    extensionCustomScriptProtectedSetting: {
+      commandToExecute: 'powershell -ExecutionPolicy Unrestricted -command .\\cse_master_script.ps1'
+      managedIdentity: {clientId: managedIdentity.properties.clientId}
+    }
+
+    imageReference: {
+      publisher: 'MicrosoftWindowsServer'
+      offer: 'WindowsServer'
+      sku: '2019-datacenter-core-g2'
+      version: 'latest'
+    }
+    nicConfigurations: [
+      {
+        deleteOption: 'Delete'
+        ipConfigurations: [
+          {
+            name: 'ipconfig01'
+            subnetResourceId: subnetResourceId
+          }
+        ]
+        nicSuffix: '-nic-01'
+      }
+    ]
+    osDisk: {
+      caching: 'None'
+      createOption: 'fromImage'
+      deleteOption: 'Delete'
+      diskSizeGB: '128'
+      managedDisk: {
+        storageAccountType: 'StandardSSD_LRS'
+      }
+    }
+    osType: 'Windows'
+    securityType: securityType
+    secureBootEnabled: true
+    tags: tags
+    vTpmEnabled: true
+    userAssignedIdentities: {
+      '${userAssignedIdentityResourceId}': {}
+    }
+    vmSize: vmSize
+  }
 }
 
 module imageVm 'carml/compute/virtual-machine/main.bicep' = {
@@ -412,75 +481,12 @@ module customizeImage 'modules/customizeImage.bicep' = {
     teamsInstaller: teamsInstaller
     vcRedistInstaller: vcRedistInstaller
     logBlobClientId: collectLogs ? managedIdentity.properties.clientId : ''
-    logBlobContainerUri: logContainerUri
+    logBlobContainerUri: collectLogs ? logContainerUri : ''
   }
 }
 
-module managementVm 'carml/compute/virtual-machine/main.bicep' = {
-  name: '${depPrefix}managementVM-${timeStamp}'
-  scope: resourceGroup(imageBuildRG.name)
-  params: {
-    location: computeLocation
-    name: managementVmName
-    adminPassword: adminPw
-    adminUsername: adminUserName
-    extensionCustomScriptConfig: {
-      enabled: true
-      fileData: [
-        {
-          uri: '${artifactsContainerUri}PowerShell-Az-Module.zip'
-        }
-        {
-          uri: '${artifactsContainerUri}cse_master_script.ps1'
-        }
-      ]
-    }
-    extensionCustomScriptProtectedSetting: {
-      commandToExecute: 'powershell -ExecutionPolicy Unrestricted -command .\\cse_master_script.ps1'
-      managedIdentity: {clientId: managedIdentity.properties.clientId}
-    }
-
-    imageReference: {
-      publisher: 'MicrosoftWindowsServer'
-      offer: 'WindowsServer'
-      sku: '2019-datacenter-core-g2'
-      version: 'latest'
-    }
-    nicConfigurations: [
-      {
-        deleteOption: 'Delete'
-        ipConfigurations: [
-          {
-            name: 'ipconfig01'
-            subnetResourceId: subnetResourceId
-          }
-        ]
-        nicSuffix: '-nic-01'
-      }
-    ]
-    osDisk: {
-      caching: 'None'
-      createOption: 'fromImage'
-      deleteOption: 'Delete'
-      diskSizeGB: '128'
-      managedDisk: {
-        storageAccountType: 'StandardSSD_LRS'
-      }
-    }
-    osType: 'Windows'
-    securityType: securityType
-    secureBootEnabled: true
-    tags: tags
-    vTpmEnabled: true
-    userAssignedIdentities: {
-      '${userAssignedIdentityResourceId}': {}
-    }
-    vmSize: vmSize
-  }
-}
-
-module restartVM 'modules/restartVM.bicep' = {
-  name: '${depPrefix}restartVM-${timeStamp}'
+module firstImageVmMRestart 'modules/restartVM.bicep' = {
+  name: '${depPrefix}1st-vmRestart-${timeStamp}'
   scope: resourceGroup(imageBuildResourceGroupName)
   params: {
     cloud: cloud
@@ -494,6 +500,36 @@ module restartVM 'modules/restartVM.bicep' = {
   ]
 }
 
+module microsoftUpdates 'modules/runMicrosoftUpdates.bicep' = {
+  name: '${depPrefix}install-microsoftUpdates-${timeStamp}'
+  scope: resourceGroup(imageBuildResourceGroupName)
+  params: {
+    location: computeLocation
+    vmName: imageVm.outputs.name
+    logBlobClientId: collectLogs ? managedIdentity.properties.clientId : ''
+    logBlobContainerUri: collectLogs ? logContainerUri : ''
+  }
+  dependsOn: [
+    firstImageVmMRestart
+  ]
+
+}
+
+module restartVM2 'modules/restartVM.bicep' = {
+  name: '${depPrefix}2nd-vmRestart-${timeStamp}'
+  scope: resourceGroup(imageBuildResourceGroupName)
+  params: {
+    cloud: cloud
+    location: computeLocation
+    imageVmName: imageVm.outputs.name
+    managementVmName: managementVm.outputs.name
+    userAssignedIdentityResourceId: userAssignedIdentityResourceId
+  }
+  dependsOn: [
+    microsoftUpdates
+  ]
+}
+
 module sysprepVM 'modules/sysprepVM.bicep' = {
   name: '${depPrefix}sysprepVM-${timeStamp}'
   scope: resourceGroup(imageBuildResourceGroupName)
@@ -502,7 +538,7 @@ module sysprepVM 'modules/sysprepVM.bicep' = {
     vmName: imageVm.outputs.name
   }
   dependsOn: [
-    restartVM
+    restartVM2
   ]
 }
 
@@ -559,7 +595,7 @@ module imageVersion 'modules/imageVersion.bicep' = {
     replicaCount: imageVersionDefaultReplicaCount
     storageAccountType: imageVersionDefaultStorageAccountType
     sourceId: imageVm.outputs.resourceId
-    targetRegions: imageVersionTargetRegions
+    targetRegions: imageVersionReplicationRegions
     tags: {}
   }
   dependsOn: [

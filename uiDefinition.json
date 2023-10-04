@@ -23,8 +23,8 @@
                             "name": "scope",
                             "type": "Microsoft.Common.ResourceScope",
 							"instanceDetailsLabel": "Image Build Location",
-                            "location": {
-								"label": "Region where temporary Image Build resources are created",
+							"location": {
+								"label": "Region (for Image Build resources)",
                                 "resourceTypes": ["Microsoft.Compute/virtualmachines"]
                             }
                         },
@@ -64,12 +64,8 @@
                                 {
                                     "name": "resourceGroup",
                                     "type": "Microsoft.Common.DropDown",
-                                    "label": "Resource Group into which temporary Image Build resources are created.",
-                                    "multiselect": false,
-                                    "defaultValue": "",
+                                    "label": "Resource Group (for Image Build resources)",
                                     "toolTip": "Select the name of the existing resource group where the image build virtual machines and associated resources will be created.",
-                                    "filterPlaceholder": "",
-                                    "defaultDescription": "",
                                     "constraints": {
                                         "allowedValues": "[map(steps('basics').resGroup.resourceGroupsApi.value, (item) => parse(concat('{\"label\":\"', item.name, '\",\"value\":\"', item.name, '\"}')))]",
                                         "required": true
@@ -204,9 +200,9 @@
 									"name": "container",
 									"type": "Microsoft.Common.DropDown",
 									"visible": true,
-									"label": "Image Assets Container",
+									"label": "Image Artifacts Container",
 									"defaultValue": "",
-									"toolTip": "Select the container which contains the image asset blobs.",
+									"toolTip": "Select the container which contains the software and script blobs.",
 									"constraints": {
 										"required": true,
 										"allowedValues": "[map(steps('prereqs').storage.containerApi.value, (item) => parse(concat('{\"label\":\"', item.name, '\",\"value\":\"', item.id, '\"}')))]"
@@ -216,7 +212,7 @@
 									"name": "managedIdentity",
 									"type": "Microsoft.Solutions.ResourceSelector",
 									"label": "User Assigned Identity",
-									"toolTip": "Select an existing User Assigned Identity with at least 'Storage Blob Data Reader Rights' to the storage account and container selected above.",
+									"toolTip": "Select an existing User Assigned Identity which has been assigned data plane rights of at least 'Storage Blob Data Reader' to the storage account and container selected above.",
 									"resourceType": "Microsoft.ManagedIdentity/userAssignedIdentities",
 									"constraints": {
 										"required": true
@@ -230,6 +226,14 @@
 							"label": "Networking",
 							"elements": [
 								{
+									"name": "infoNetwork",
+									"type": "Microsoft.Common.InfoBox",
+									"options": {
+										"style":"Info",
+										"text": "The Virtual Network selected below must be located in the region selected under 'Image Build Location' on the 'Deployment Basics' page. If you don't find the desired virtual network, change the region on the 'Basics' page."
+									}
+								},
+								{
 									"name": "virtualNetworksApi",
 									"type": "Microsoft.Solutions.ArmApiControl",
 									"request": {
@@ -241,9 +245,9 @@
 									"name": "virtualNetwork",
 									"type": "Microsoft.Common.DropDown",
 									"visible": true,
-									"label": "Virtual Network",
+									"label": "Image Capture Virtual Network",
 									"defaultValue": "",
-									"toolTip": "Select an existing virtual network for image capture. If the desired network isn't available be sure to change the region in the Deployment Details section above.",
+									"toolTip": "Select an existing virtual network to attach the VM for image capture. If the desired network isn't available be sure to change the region in the Deployment Details section above.",
 									"constraints": {
 										"required": true,
 										"allowedValues": "[map(filter(steps('prereqs').network.virtualNetworksApi.value, (item) => equals(item.location, steps('basics').scope.location.name)), (item) => parse(concat('{\"label\":\"', item.name, '\",\"description\":\"Resource group: ', first(skip(split(item.id, '/'), 4)), '\",\"value\":\"', item.id, '\"}')))]"
@@ -261,7 +265,7 @@
 									"name": "subnet",
 									"type": "Microsoft.Common.DropDown",
 									"visible": true,
-									"label": "Subnet",
+									"label": "Image Capture Subnet",
 									"defaultValue": "",
 									"toolTip": "Select an existing subnet for the image capture.",
 									"constraints": {
@@ -527,7 +531,7 @@
 													"constraints": {
 														"allowedValues": [
 															{
-																"label": "Arguments",
+																"label": "arguments",
 																"value": "text"
 															}
 														],
@@ -1282,15 +1286,6 @@
 									"visible": true
 								},
 								{
-									"name": "defaultReplicationText",
-									"type": "Microsoft.Common.InfoBox",
-									"visible": true,
-									"options": {
-										"style": "Info",
-										"text": "By default, the image will be replicated to the deployment location chosen on the basics tab using the values provided below. To customize replication, select 'Yes' for 'Specify Additional Replication Regions'."
-									}
-								},
-								{
 									"name": "storageAccountType",
 									"type": "Microsoft.Common.DropDown",
 									"label": "Default Storage Account Type",
@@ -1350,9 +1345,8 @@
 								{
 									"name": "specifyReplicationRegions",
 									"type": "Microsoft.Common.OptionsGroup",
-									"label": "Specify Additional Replication Regions",
+									"label": "Specify more than one location where the image version should be stored?",
 									"defaultValue": "No",
-									"toolTip": "The image version will be created in the deployment location by default. Select 'Yes' to specify all replication region details.",
 									"constraints": {
 										"allowedValues": [
 											{
@@ -1366,6 +1360,19 @@
 										],
 										"required": true
 									}
+								},
+								{
+									"name": "defaultReplicationRegion",
+									"type": "Microsoft.Common.DropDown",
+									"label": "Default Image Location",
+									"placeholder": "",
+									"defaultValue": "[steps('basics').scope.location.displayName]",
+									"toolTip": "",
+									"constraints": {
+										"allowedValues": "[if(equals(steps('imageDest').imageVersion.storageAccountType, 'Standard_LRS'), map(first(map(filter(steps('basics').computeApi.value, (resourceTypes) => equals(resourceTypes.resourceType, 'galleries/images/versions')), (item) => item.locations)), (item) => parse(concat('{\"label\":\"', item, '\",\"value\":\"', toLower(replace(item, ' ', '')), '\"}'))), map(filter(first(map(filter(steps('basics').storageApi.value, (resourceTypes) => equals(resourceTypes.resourceType, 'storageAccounts')), (item) => item.zoneMappings)), (item) => equals(length(item.zones), 3)), (item) => parse(concat('{\"label\":\"', item.location, '\",\"value\":\"', toLower(replace(item.location, ' ', '')), '\"}'))))]",
+										"required": true
+									},
+									"visible": "[if(equals(steps('imageDest').imageVersion.specifyReplicationRegions, true), false, true)]"
 								},
 								{
 									"name": "repRegionsText",
@@ -1396,7 +1403,6 @@
 												"width": "2fr",
 												"element": {
 													"type": "Microsoft.Common.DropDown",
-													"defaultValue": "[steps('imageDest').imageVersion.storageAccountType]",
 													"constraints": {
 														"required": true,
 														"allowedValues": [
@@ -1413,12 +1419,11 @@
 												}
 											},
 											{
-												"id": "regionName",
-												"header": "Replication Region",
+												"id": "name",
+												"header": "Region",
 												"width": "2fr",
 												"element": {
 													"type": "Microsoft.Common.DropDown",
-													"defaultValue": "[steps('basics').scope.location.displayName]",
 													"constraints": {
 														"allowedValues": "[if(equals(last(take(steps('imageDest').imageVersion.replicationRegions, $rowIndex)).storageAccountType, 'Standard_LRS'), map(first(map(filter(steps('basics').computeApi.value, (resourceTypes) => equals(resourceTypes.resourceType, 'galleries/images/versions')), (item) => item.locations)), (item) => parse(concat('{\"label\":\"', item, '\",\"value\":\"', toLower(replace(item, ' ', '')), '\"}'))), map(filter(first(map(filter(steps('basics').storageApi.value, (resourceTypes) => equals(resourceTypes.resourceType, 'storageAccounts')), (item) => item.zoneMappings)), (item) => equals(length(item.zones), 3)), (item) => parse(concat('{\"label\":\"', item.location, '\",\"value\":\"', toLower(replace(item.location, ' ', '')), '\"}'))))]",
 														"required": true
@@ -1426,12 +1431,11 @@
 												}
 											},
 											{
-												"id": "replicaCount",
+												"id": "regionalReplicaCount",
 												"header": "Replica Count",
 												"width": "1fr",
 												"element": {
 													"type": "Microsoft.Common.TextBox",
-													"defaultValue": "[steps('imageDest').imageVersion.replicaCount]",
 													"constraints": {
 														"validations": [
 															{
@@ -1449,7 +1453,6 @@
 												"width": "2fr",
 												"element": {
 													"type": "Microsoft.Common.DropDown",
-													"defaultValue": "[steps('imageDest').imageVersion.excludeFromLatest]",
 													"constraints": {
 														"allowedValues": [
 															{
@@ -1459,8 +1462,9 @@
 															{
 																"label": "Yes",
 																"value": true
-															}
-														]
+															}															
+														],
+														"required": true
 													}
 												}
 											}
@@ -1529,7 +1533,8 @@
 				"imageVersionExcludeFromLatest": "[steps('imageDest').imageVersion.excludeFromLatest]",
 				"imageVersionDefaultReplicaCount": "[steps('imageDest').imageVersion.replicaCount]",
 				"imageVersionDefaultStorageAccountType": "[steps('imageDest').imageVersion.storageAccountType]",
-				"imageVersionTargetRegions": "[steps('imageDest').imageVersion.replicationRegions]"
+				"imageVersionDefaultRegion": "[if(equals(steps('imageDest').imageVersion.specifyReplicationRegions, false), steps('imageDest').imageVersion.defaultReplicationRegion, '')]",
+				"imageVersionTargetRegions": "[if(equals(steps('imageDest').imageVersion.specifyReplicationRegions, true), steps('imageDest').imageVersion.replicationRegions, parse('[]'))]"
             }
         }
     }

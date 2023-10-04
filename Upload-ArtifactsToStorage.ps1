@@ -39,7 +39,7 @@ param(
     [string]$SubscriptionId,
     # Determines whether or not to deploy/redeploy the storage account using BICEP and the parameter file contained in the storageAccount folder
     [Parameter(ParameterSetName='Deploy')]
-    [switch]$DeployStorageAccount,
+    [switch]$DeployPrerequisites,
     # The Location where the AVD Management Resources are being deployed.
     [Parameter(Mandatory=$true, ParameterSetName='Deploy')]
     [string]$Location,
@@ -60,9 +60,9 @@ param(
 
 $Time = Get-Date -Format 'yyyyMMddhhmmss'
 $FunctionsPath = Join-Path -Path $PSScriptRoot -ChildPath 'sharedPowerShellFunctions'
-$BicepPath = Join-Path -Path $PSScriptRoot -ChildPath 'artifactsStorageAccount'
-$storageTemplate = Join-Path -Path $BicepPath -ChildPath 'storage.bicep'
-$storageParameters = Join-Path -Path $BicepPath -ChildPath 'storage.parameters.json'
+$BicepPath = Join-Path -Path $PSScriptRoot -ChildPath 'resourcePrereqs'
+$Template = Join-Path -Path $BicepPath -ChildPath 'prereqs.bicep'
+$TemplateParameters = Join-Path -Path $BicepPath -ChildPath 'prereqs.parameters.json'
 
 #endregion Variables
 
@@ -80,11 +80,12 @@ Write-Verbose "#################################################################
 Write-Verbose "## 1 - Deploy/Update Storage Account and gather variables                ##"
 Write-Verbose "###########################################################################"
 
-If ($DeployStorageAccount) {   
-    Write-Output "Deploying/Updating Storage Account using BICEP template and parameter file." 
-    New-AzDeployment -Name "AssetsStorageAccount-$Time" -Location $Location -TemplateFile $storageTemplate -TemplateParameterFile $storageParameters -verbose
+If ($DeployPrerequisites) {   
+    Write-Output "Deploying/Updating prerequisite resources using BICEP template and parameter file." 
+    New-AzDeployment -Name "ZTAImageBuild-Prereqs-$Time" -Location $Location -TemplateFile $Template -TemplateParameterFile $TemplateParameters -verbose
 
-    $DeploymentOutputs = (Get-AzSubscriptionDeployment -Name "AssetsStorageAccount-$Time").Outputs
+    $DeploymentOutputs = (Get-AzSubscriptionDeployment -Name "ZTAImageBuild-Prereqs-$Time").Outputs
+    $ComputeGalleryResourceId = $DeploymentOutputs.computeGalleryResourceId.value
     $StorageAccountResourceId = $DeploymentOutputs.storageAccountResourceId.value
     $ManagedIdentityResourceId = $DeploymentOutputs.managedIdentityResourceId.value
     $ArtifactsContainerName = $DeploymentOutputs.blobContainerName.value
@@ -266,10 +267,11 @@ Get-ChildItem -Path $TempDir -Recurse -Force | Remove-Item -Recurse -Force -Erro
 
 #region Dynamically Update Parameters file
 If ($UpdateParameters) {
-    $ParametersFile = (Get-Item -Path "$PSScriptRoot\parameters.json").FullName
+    $ParametersFile = (Get-Item -Path "$PSScriptRoot\imageBuild.parameters.json").FullName
     $JSON = Get-Content -Path $ParametersFile | ConvertFrom-Json
-    $JSON.parameters.ArtifactsLocation.value = $ArtifactsContainerUrl
-    $JSON.parameters.ArtifactsUserAssignedIdentityResourceId.value = $ManagedIdentityResourceId
+    $JSON.parameters.computeGalleryResourceId.value = $ComputeGalleryResourceId
+    $JSON.parameters.storageAccountResourceId.value = $StorageAccountResourceId
+    $JSON.parameters.userAssignedIdentityResourceId.value = $ManagedIdentityResourceId
     $JSON | ConvertTo-Json -Depth 32 | Out-File $ParametersFile
 }
 #endregion

@@ -5,31 +5,30 @@
     "BlobContainerName": {
       "value": "artifacts"
     },
-    "Kind": {
+    "StorageKind": {
       "value": "StorageV2"
     },
-    "SkuName": {
+    "StorageSkuName": {
       "value": "Standard_LRS"
     },
-    "AccessTier": {
+    "StorageAccessTier": {
       "value": "Hot"
     },
     "AzureBlobPrivateDnsZoneResourceId": {
       "value": "/subscriptions/6dc4ed51-16b9-4494-a406-4fb7a8330d95/resourceGroups/rg-networking-lab-eus/providers/Microsoft.Network/privateDnsZones/privatelink.blob.core.windows.net"
     },
-    "PublicNetworkAccess": {
+    "StoragePublicNetworkAccess": {
       "value": "Enabled"
-    },
-    "CreatePrivateEndpoint": {
-      "value": true
     },
     "PrivateEndpointSubnetResourceId": {
       "value": "/subscriptions/6dc4ed51-16b9-4494-a406-4fb7a8330d95/resourceGroups/rg-avd-networking-eastus/providers/Microsoft.Network/virtualNetworks/vnet-avd-eastus/subnets/PrivateEndpoints"
     },
-    "PermittedIPs": {
-      "value": []
+    "StoragePermittedIPs": {
+      "value": [
+        "71.179.183.121"
+      ]
     },
-    "ServiceEndpointSubnetResourceIds": {
+    "StorageServiceEndpointSubnetResourceIds": {
       "value": []
     },
     "TagsPrivateEndpoints": {
@@ -38,10 +37,10 @@
     "TagsStorageAccounts": {
       "value": {}
     },
-    "AllowSharedKeyAccess": {
+    "StorageAllowSharedKeyAccess": {
       "value": true
     },
-    "SASExpirationPeriod": {
+    "StorageSASExpirationPeriod": {
       "value": "180.00:00:00"
     }
   }

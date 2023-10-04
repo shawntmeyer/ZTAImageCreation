@@ -1,14 +1,3 @@
-[CmdletBinding(SupportsShouldProcess = $true)]
-param (
-    [Parameter(Mandatory = $false)]
-    [Hashtable] $DynParameters
-)
-[string]$LogDir = "$env:SystemRoot\Logs\Software"
-[string]$ScriptName = "Install-FSLogix"
-[string]$Log = Join-Path -Path $LogDir -ChildPath "$ScriptName.log"
-[string]$tempDir = Join-Path -Path $env:Temp -ChildPath $ScriptName
-[uri]$FSLogixUrl = "https://aka.ms/fslogix_download"
-
 #region Functions
 
 Function Get-InternetFile {
@@ -248,24 +237,110 @@ Function Get-InstalledApplication {
         Write-Output -InputObject $installedApplication
     }
 }
+
+#region functions
+function Write-Log {
+
+    <#
+    .SYNOPSIS
+    Creates a log file and stores logs based on categories with tab seperation
+
+    .PARAMETER category
+    Category to put into the trace
+
+    .PARAMETER message
+    Message to be loged
+
+    .EXAMPLE
+    Log 'Info' 'Message'
+
+    #>
+
+    Param (
+        [Parameter(Mandatory=$false, Position=0)]
+        [ValidateSet("Info","Warning","Error")]
+        $category = 'Info',
+        [Parameter(Mandatory=$true, Position=1)]
+        $message
+    )
+
+    $date = get-date
+    $content = "[$date]`t$category`t`t$message`n"
+    if ($Verbose) {
+        Write-Verbose $content -verbose
+    } Else { Write-Output $content }
+    if (! $script:Log) {
+        $File = Join-Path $env:TEMP "log.log"
+        Write-Error "Log file not found, create new $File"
+        $script:Log = $File
+    }
+    else {
+        $File = $script:Log
+    }
+    Add-Content $File $content -ErrorAction Stop
+}
+
+function New-Log {
+    <#
+    .SYNOPSIS
+    Sets default log file and stores in a script accessible variable $script:Log
+    Log File name "packageExecution_$date.log"
+
+    .PARAMETER Path
+    Path to the log file
+
+    .EXAMPLE
+    New-Log c:\Windows\Logs
+    Create a new log file in c:\Windows\Logs
+    #>
+
+    Param (
+        [Parameter(Mandatory = $true, Position=0)]
+        [string] $Path
+    )
+
+    # Create central log file with given date
+
+    $date = Get-Date -UFormat "%Y-%m-%d %H-%M-%S"
+    Set-Variable logFile -Scope Script
+    $script:logFile = "$Script:Name-$date.log"
+
+    if ((Test-Path $path ) -eq $false) {
+        $null = New-Item -Path $path -type directory
+    }
+
+    $script:Log = Join-Path $path $logfile
+
+    Add-Content $script:Log "Date`t`t`tCategory`t`tDetails"
+}
 #endregion Functions
 
-If (-not (Test-Path $env:SystemRoot\Logs)) { New-Item -Path "$env:SystemRoot\Logs" -ItemType Directory -Force }
-If (-not (Test-Path $LogDir)) { New-Item -Path $LogDir -ItemType Directory -Force }
+#region Initialization
+$Script:Name = [System.IO.Path]::GetFileNameWithoutExtension($PSCommandPath)
+[string]$LogDir = "$env:SystemRoot\Logs\Software"
+[string]$tempDir = Join-Path -Path $env:Temp -ChildPath $Script:Name
+[uri]$FSLogixUrl = "https://aka.ms/fslogix_download"
+
+New-Log $logDir
+Write-Log -category Info -message "Starting '$PSCommandPath'."
+#endregion
+
 If (Test-Path $TempDir) {
     Remove-Item -Path $TempDir -Recurse -Force
 }
-New-Item -Path "$env:Temp" -Name $ScriptName -ItemType Directory -Force | Out-Null
+New-Item -Path "$env:Temp" -Name $Script:Name -ItemType Directory -Force | Out-Null
 
-Start-Transcript -Path $Log -Force
+$FSLogixZip = (Get-ChildItem -Path $PSScriptRoot -file -filter '*.zip').FullName
 
-Write-Output "Downloading the FSLogix Installer"     
-$FSLogixDownload = Get-InternetFile -url $FSLogixUrl -OutputDirectory $TempDir -OutputFileName 'FsLogix.zip'
-Expand-Archive $FSLogixDownload -DestinationPath $TempDir -Force
+If (!$FSLogixZip) {
+    Write-Log -message "Downloading the FSLogix Installer"     
+    $FSLogixZip = Get-InternetFile -url $FSLogixUrl -OutputDirectory $TempDir -OutputFileName 'FsLogix.zip'
+}
+Expand-Archive -Path "$FSLogixZip" -DestinationPath $TempDir -Force
 $Installer = Get-ChildItem -Path $TempDir -File -Recurse -Filter 'FSLogixAppsSetup.exe' | Where-Object { $_.FullName -like '*x64*' }
 If ($Installer) {
     $Installer = $Installer.FullName
-    Write-Output "Installation File: '$Installer' successfully extracted."
+    Write-Log -message "Installation File: '$Installer' successfully extracted."
 }
 Else {
     Write-Error "Installation File not found. Exiting."
@@ -274,24 +349,24 @@ Else {
 $Installed = Get-InstalledApplication -Name 'Microsoft FSLogix Apps'
 If ($Installed) {
     If ($Installed.DisplayVersion -ge $Installer.VersionInfo.ProductVersion) {
-        $BlockInstall = $true
-        Write-Output "Latest version of FSLogix Agent already installed."
+        Write-Log -message "Latest version of FSLogix Agent already installed. Quiting Script."
+        Remove-Item -Path $TempDir -Recurse -Force -ErrorAction SilentlyContinue
+        Exit
     }
 }
 
-If (-not ($BlockInstall)) {
-    $Install = Start-Process -FilePath $Installer -ArgumentList "/install /quiet /norestart" -Wait -PassThru
-    If ($($Install.ExitCode) -eq 0) {
-        Write-Output "'$SoftwareDisplayName' installed successfully."
-    }
-    Else {
-        Write-Error "The Install exit code is $($Install.ExitCode)"
-    }
+$Install = Start-Process -FilePath $Installer -ArgumentList "/install /quiet /norestart" -Wait -PassThru
+If ($($Install.ExitCode) -eq 0) {
+    Write-Log -message "'Microsoft FSLogix Apps' installed successfully."
+}
+Else {
+    Write-Error "The Install exit code is $($Install.ExitCode)"
 }
 
-Write-Output "Copying the FSLogix ADMX and ADML files to the PolicyDefinitions folders."
+Write-Log -message "Copying the FSLogix ADMX and ADML files to the PolicyDefinitions folders."
 Get-ChildItem -Path "$TempDir" -File -Recurse -Filter '*.admx' | ForEach-Object { Write-Output "Copying $($_.Name)"; Copy-Item -Path $_.FullName -Destination "$env:WINDIR\PolicyDefinitions\" -Force }
 Get-ChildItem -Path "$TempDir" -File -Recurse -Filter '*.adml' | ForEach-Object { Write-Output "Copying $($_.Name)"; Copy-Item -Path $_.FullName -Destination "$env:WINDIR\PolicyDefinitions\en-us\" -Force }
 
 Remove-Item -Path $TempDir -Recurse -Force -ErrorAction SilentlyContinue
-Stop-Transcript
+Write-Log -Message "Ending '$PSCommandPath'."
+Exit $($Install.ExitCode)

@@ -129,7 +129,7 @@ var resGroupName = ResourceGroupName != 'none' ? ResourceGroupName : !empty(Envi
 var storageName = StorageAccountName != 'none' ? StorageAccountName : StorageAccountNamePrefix != 'none' ? '${StorageAccountNamePrefix}${guid(StorageAccountNamePrefix, resGroupName, SubscriptionId)}' : !empty(Environment) ? '${ResourceAbbreviations.storageAccounts}imageassets${Environment}${locations[Location].abbreviation}' : '${ResourceAbbreviations.storageAccounts}imageassets${locations[Location].abbreviation}'
 var identityName = ManagedIdentityName != 'none' ? ManagedIdentityName : !empty(Environment) ? '${ResourceAbbreviations.userAssignedIdentities}-image-management-${Environment}-${locations[Location].abbreviation}' : '${ResourceAbbreviations.userAssignedIdentities}-image-management-${locations[Location].abbreviation}'
 var blobContainerName = replace(replace(toLower(BlobContainerName), '_', '-'), ' ', '-')
-var computeGalleryName = !empty(CustomComputeGalleryName) ? CustomComputeGalleryName : !empty(Environment) ? '${ResourceAbbreviations.computeGallery}-avd-${Environment}-${locations[Location].abbreviation}' : '${ResourceAbbreviations.computeGallery}-avd-${locations[Location].abbreviation}'
+var computeGalleryName = !empty(CustomComputeGalleryName) ? CustomComputeGalleryName : !empty(Environment) ? '${ResourceAbbreviations.computeGallery}_avd_${Environment}_${locations[Location].abbreviation}' : '${ResourceAbbreviations.computeGallery}_avd_${locations[Location].abbreviation}'
 var logAnalyticsWorkspaceName = empty(LogAnalyticsWorspaceResourceId) ? !empty(CustomLogAnalyticsWorkspaceName) ? CustomLogAnalyticsWorkspaceName : '${ResourceAbbreviations.logAnalyticsWorkspaces}-avd-${Environment}-${locations[Location].abbreviation}' : '${ResourceAbbreviations.logAnalyticsWorkspaces}-avd-${locations[Location].abbreviation}'
 
 var IPRules = [for IP in StoragePermittedIPs: {
@@ -142,13 +142,9 @@ var VirtualNetworkRules = [for SubnetId in StorageServiceEndpointSubnetResourceI
   action: 'Allow'
 }]
 
-module resourceGroup '../carml/resources/resource-group/main.bicep' = {
-  scope: subscription(SubscriptionId)
-  name: 'RG-SharedServices-${Timestamp}'
-  params: {
-    name: resGroupName
-    location: Location
-  }
+resource resourceGroup 'Microsoft.Resources/resourceGroups@2023-07-01' = {
+  name: resGroupName
+  location: Location
 }
 
 module computeGallery '../carml/compute/gallery/main.bicep' = if(DeployComputeGallery) {
@@ -213,7 +209,7 @@ module storageAccount '../carml/storage/storage-account/main.bicep' = {
     } : {}
     privateEndpoints: !empty(PrivateEndpointSubnetResourceId) ? [
       {
-        name: 'pe-${StorageAccountName}-blob-${locations[Location].abbreviation}'
+        name: 'pe-${storageName}-blob-${locations[Location].abbreviation}'
         privateDnsZoneGroup: {
           privateDNSResourceIds: ['${AzureBlobPrivateDnsZoneResourceId}']
         }
@@ -238,8 +234,8 @@ module storageBlobReaderAssignment '../carml/authorization/role-assignment/resou
   }
 }
 
+output computeGalleryResourceId string    = computeGallery.outputs.resourceId
 output storageAccountResourceId string    = storageAccount.outputs.resourceId
 output blobContainerName string           = blobContainerName
 output managedIdentityClientId string     = managedIdentity.outputs.clientId
 output managedIdentityResourceId string   = managedIdentity.outputs.resourceId
-

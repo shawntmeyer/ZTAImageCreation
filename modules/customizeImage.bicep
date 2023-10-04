@@ -50,7 +50,11 @@ var installSkypeForBusinessVar = '${installSkypeForBusiness}installSkypeForBusin
 var installVisioVar = '${installVisio}installVisio'
 var installWordVar = '${installWord}installWord'
 
-var installers = customizations
+var installers = [for customization in customizations: {
+  name: customization.name
+  blobName: customization.blobName
+  arguments: contains(customization, 'arguments') ? customization.arguments : ''
+} ]
 
 resource vm 'Microsoft.Compute/virtualMachines@2022-11-01' existing = {
   name: vmName
@@ -130,74 +134,90 @@ resource applications 'Microsoft.Compute/virtualMachines/runCommands@2023-03-01'
     ]
     source: {
       script: '''
-      param(
-        [string]$BuildDir,
-        [string]$UserAssignedIdentityObjectId,
-        [string]$StorageAccountName,
-        [string]$ContainerName,
-        [string]$StorageEndpoint,
-        [string]$BlobName,
-        [string]$Installer,
-        [string]$Arguments
-      )
-      $UserAssignedIdentityObjectId = $UserAssignedIdentityObjectId
-      $StorageAccountName = $StorageAccountName
-      $ContainerName = $ContainerName
-      $BlobName = $BlobName
-      $StorageAccountUrl = $StorageEndpoint
-      $TokenUri = "http://169.254.169.254/metadata/identity/oauth2/token?api-version=2018-02-01&resource=$StorageAccountUrl&object_id=$UserAssignedIdentityObjectId"
-      $AccessToken = ((Invoke-WebRequest -Headers @{Metadata=$true} -Uri $TokenUri -UseBasicParsing).Content | ConvertFrom-Json).access_token
-      New-Item -Path $BuildDir -Name $Installer -ItemType Directory -Force | Out-Null
-      Invoke-WebRequest -Headers @{"x-ms-version"="2017-11-09"; Authorization ="Bearer $AccessToken"} -Uri "$StorageAccountUrl$ContainerName/$BlobName" -OutFile $BuildDir\$Installer\$Blobname
-      Start-Sleep -Seconds 10
-      Set-Location -Path $BuildDir\$Installer
-      if($Blobname -like ("*.exe"))
-      {
-        Start-Process -FilePath $BuildDir\$Installer\$Blobname -ArgumentList $Arguments -NoNewWindow -Wait -PassThru
-        $status = Get-WmiObject -Class Win32_Product | Where-Object Name -like "*$($installer)*"
-        if($status)
+        param(
+          [string]$BuildDir,
+          [string]$UserAssignedIdentityObjectId,
+          [string]$StorageAccountName,
+          [string]$ContainerName,
+          [string]$StorageEndpoint,
+          [string]$BlobName,
+          [string]$Installer,
+          [string]$Arguments
+        )
+        If ($Arguments -eq '') {$Arguments = $null}
+        $UserAssignedIdentityObjectId = $UserAssignedIdentityObjectId
+        $StorageAccountName = $StorageAccountName
+        $ContainerName = $ContainerName
+        $BlobName = $BlobName
+        $StorageAccountUrl = $StorageEndpoint
+        $TokenUri = "http://169.254.169.254/metadata/identity/oauth2/token?api-version=2018-02-01&resource=$StorageAccountUrl&object_id=$UserAssignedIdentityObjectId"
+        $AccessToken = ((Invoke-WebRequest -Headers @{Metadata=$true} -Uri $TokenUri -UseBasicParsing).Content | ConvertFrom-Json).access_token
+        New-Item -Path $BuildDir -Name $Installer -ItemType Directory -Force | Out-Null
+        Invoke-WebRequest -Headers @{"x-ms-version"="2017-11-09"; Authorization ="Bearer $AccessToken"} -Uri "$StorageAccountUrl$ContainerName/$BlobName" -OutFile $BuildDir\$Installer\$Blobname
+        Start-Sleep -Seconds 10
+        Set-Location -Path $BuildDir\$Installer
+        if($Blobname -like ("*.exe"))
         {
-          Write-Host $status.Name "is installed"
+          If ($Arguments) {
+            Start-Process -FilePath $BuildDir\$Installer\$Blobname -ArgumentList $Arguments -NoNewWindow -Wait -PassThru
+          } Else {
+            Start-Process -FilePath $BuildDir\$Installer\$Blobname -NoNewWindow -Wait -PassThru
+          }
+          $status = Get-WmiObject -Class Win32_Product | Where-Object Name -like "*$($installer)*"
+          if($status)
+          {
+            Write-Host $status.Name "is installed"
+          }
+          else
+          {
+            Write-host $Installer "did not install properly, please check arguments"
+          }
         }
-        else
+        if($Blobname -like ("*.msi"))
         {
-          Write-host $Installer "did not install properly, please check arguments"
+          If ($Arguments) {
+            If ($Arguments -notcontains $Blobname) {$Arguments = "/i $Blobname $Arguments"}
+            Start-Process -FilePath msiexec.exe -ArgumentList $Arguments -Wait
+          } Else {
+            Start-Process -FilePath msiexec.exe -ArgumentList "/i $BlobName /qn" -Wait
+          }
+          $status = Get-WmiObject -Class Win32_Product | Where-Object Name -like "*$($installer)*"
+          if($status)
+          {
+            Write-Host $status.Name "is installed"
+          }
+          else
+          {
+            Write-host $Installer "did not install properly, please check arguments"
+          }
         }
-      }
-      if($Blobname -like ("*.msi"))
-      {
-        If ($Arguments -notcontains $Blobname) {$Arguments = "/i $Blobname $Arguments"}
-        Start-Process -FilePath msiexec.exe -ArgumentList $Arguments -Wait
-        $status = Get-WmiObject -Class Win32_Product | Where-Object Name -like "*$($installer)*"
-        if($status)
+        if($Blobname -like ("*.bat"))
         {
-          Write-Host $status.Name "is installed"
+          If ($Arguments) {
+            Start-Process -FilePath cmd.exe -ArgumentList "$BlobName $Arguments" -Wait
+          } Else {
+            Start-Process -FilePath cmd.exe -ArgumentList "$BlobName" -Wait
+          }
         }
-        else
+        if($Blobname -like '*.ps1') {
+          If ($Arguments) {
+            & $BlobName $Arguments
+          } Else {
+            & $BlobName
+          }
+        }
+        if($Blobname -like ("*.zip"))
         {
-          Write-host $Installer "did not install properly, please check arguments"
+          $destinationPath = Join-Path -Path "$BuildDir\$Installer" -ChildPath [System.IO.Path]::GetFileNameWithoutExtension($Blobname)
+          Expand-Archive -Path $BuildDir\$Installer\$Blobname -DestinationPath $destinationPath -Force
+          $PSScript = (Get-ChildItem -Path $destinationPath -filter '*.ps1').FullName
+          If ($PSScript.count -gt 1) { $PSScript = $PSScript[0] }
+          If ($Arguments) {
+            & $PSScript $Arguments
+          } Else {          
+            & $PSScript
+          }
         }
-      }
-      if($Blobname -like ("*.bat"))
-      {
-        Start-Process -FilePath cmd.exe -ArgumentList "$BlobName $Arguments" -Wait
-      }
-      if($Blobname -like ("*.ps1"))
-      {
-        & $BlobName $Arguments
-      }
-      if($Blobname -like ("*.zip"))
-      {
-        $destinationPath = "$BuildDir\$Installer\$($Blobname.BaseName)"
-        Expand-Archive -Path $BuildDir\$Installer\$Blobname -DestinationPath $destinationPath -Force
-        $PSScript = (Get-ChildItem -Path $destinationPath -filter '*.ps1').FullName
-        If ($PSScript.count -gt 1) { $PSScript = $PSScript[0] }
-        If ($Arguments -ne "") {
-          & $PSScript $Arguments
-        } Else {          
-          & $PSScript
-        }
-      }
       '''
     }
   }
@@ -572,181 +592,6 @@ resource teams 'Microsoft.Compute/virtualMachines/runCommands@2023-03-01' = if (
   ]
 }
 
-resource microsoftUpdate 'Microsoft.Compute/virtualMachines/runCommands@2023-03-01' = {
-  name: 'microsoftUpdate'
-  location: location
-  parent: vm
-  properties: {
-    asyncExecution: false
-    errorBlobManagedIdentity: empty(logBlobClientId) ? {} : {
-      clientId: logBlobClientId
-    }
-    errorBlobUri: empty(logBlobContainerUri) ? null : '${logBlobContainerUri}MicrosoftUpdate-error-${timeStamp}.log' 
-    outputBlobManagedIdentity: empty(logBlobClientId) ? {} : {
-      clientId: logBlobClientId
-    }
-    outputBlobUri: empty(logBlobContainerUri) ? null : '${logBlobContainerUri}MicrosoftUpdate-output-${timeStamp}.log'
-    parameters: []
-    source: {
-      script: '''
-        param (
-          # The App Name to pass to the WUA API as the calling application.
-          [Parameter()]
-          [String]$AppName = "Windows Update API Script",
-          # The search criteria to be used.
-          [Parameter()]
-          [String]$Criteria = "IsInstalled=0 and Type='Software' and IsHidden=0",
-          [Parameter()]
-          [bool]$ExcludePreviewUpdates = $true,
-          # Default service (WSUS if machine is configured to use it, or MU if opted in, or WU otherwise.)
-          [Parameter()]
-          [string]$Service = 'MU'
-      )
-      
-      $ExitCode = 0
-      
-      Switch ($Service.ToUpper()) {
-          'WU' { $ServerSelection = 2 }
-          'MU' { $ServerSelection = 3; $ServiceId = "7971f918-a847-4430-9279-4a52d1efe18d" }
-          'WSUS' { $ServerSelection = 1 }
-          'DCAT' { $ServerSelection = 3; $ServiceId = "855E8A7C-ECB4-4CA3-B045-1DFA50104289" }
-          'STORE' { $serverSelection = 3; $ServiceId = "117cab2d-82b1-4b5a-a08c-4d62dbee7782" }
-          Else { $ServerSelection = 3; $ServiceId = $Service }
-      }
-      
-      If ($Service -eq 'MU') {
-          $UpdateServiceManager = New-Object -ComObject Microsoft.Update.ServiceManager
-          $UpdateServiceManager.ClientApplicationID = $AppName
-          $UpdateServiceManager.AddService2("7971f918-a847-4430-9279-4a52d1efe18d", 7, "")
-          $null = cmd /c reg.exe ADD "HKLM\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU" /v AllowMUUpdateService /t REG_DWORD /d 1 /f '2>&1'
-          Write-Output "Added Registry entry to configure Microsoft Update. Exit Code: [$LastExitCode]"
-      }
-      
-      $UpdateSession = New-Object -ComObject Microsoft.Update.Session
-      $updateSession.ClientApplicationID = $AppName
-          
-      $UpdateSearcher = $UpdateSession.CreateUpdateSearcher()
-      $UpdateSearcher.ServerSelection = $ServerSelection
-      If ($ServerSelection -eq 3) {
-          $UpdateSearcher.ServiceId = $ServiceId
-      }
-      
-      Write-Output "Searching for Updates..."
-      
-      $SearchResult = $UpdateSearcher.Search($Criteria)
-      If ($SearchResult.Updates.Count -eq 0) {
-          Write-Output "There are no applicable updates."
-          Write-Output "Now Exiting"
-          Exit $ExitCode
-      }
-      
-      Write-Output "List of applicable items found for this computer:"
-      
-      For ($i = 0; $i -lt $SearchResult.Updates.Count; $i++) {
-          $Update = $($SearchResult.Updates)[$i]
-          Write-Output "$($i + 1) > $($update.Title)"
-      }
-      
-      $AtLeastOneAdded = $false
-      $ExclusiveAdded = $false   
-      $UpdatesToDownload = New-Object -ComObject Microsoft.Update.UpdateColl
-      Write-Output "Checking search results:"
-      For ($i = 0; $i -lt $SearchResult.Updates.Count; $i++) {
-          $Update = $($SearchResult.Updates)[$i]
-          $AddThisUpdate = $false
-      
-          If ($ExclusiveAdded) {
-              Write-Output "$($i + 1) > skipping: '$($update.Title)' because an exclusive update has already been selected."
-          } Else {
-              $AddThisUpdate = $true
-          }
-      
-          if ($ExcludePreviewUpdates -and $update.Title -like '*Preview*') {
-              Write-Output "$($i + 1) > Skipping: '$($update.Title)' because it is a preview update."
-              $AddThisUpdate = $false
-          }
-      
-          If ($AddThisUpdate) {
-              $PropertyTest = 0
-              $ErrorActionPreference = 'SilentlyContinue'
-              $PropertyTest = $Update.InstallationBehavior.Impact
-              $ErrorActionPreference = 'Stop'
-              If ($PropertyTest -eq 2) {
-                  If ($AtLeastOneAdded) {
-                      Write-Output "$($i + 1) > skipping: '$($update.Title)' because it is exclusive and other updates are being installed first."
-                      $AddThisUpdate = $false
-                  }
-              }
-          }
-      
-          If ($AddThisUpdate) {
-              Write-Output "$($i + 1) > : adding '$($update.Title)'"
-              $UpdatesToDownload.Add($Update) | out-null
-              $AtLeastOneAdded = $true
-              $ErrorActionPreference = 'SilentlyContinue'
-              $PropertyTest = $Update.InstallationBehavior.Impact
-              $ErrorActionPreference = 'Stop'
-              If ($PropertyTest -eq 2) {
-                  Write-Output "This update is exclusive; skipping remaining updates"
-                  $ExclusiveAdded = $true
-              }
-          }
-      }
-      
-      $UpdatesToInstall = New-Object -ComObject Microsoft.Update.UpdateColl
-      Write-Output "Downloading updates..."
-      $Downloader = $UpdateSession.CreateUpdateDownloader()
-      $Downloader.Updates = $UpdatesToDownload
-      $Downloader.Download()
-      Write-Output "Successfully downloaded updates:"
-      
-      For ($i = 0; $i -lt $UpdatesToDownload.Count; $i++) {
-          $Update = $UpdatesToDownload[$i]
-          If ($Update.IsDownloaded -eq $true) {
-              Write-Output "$($i + 1) > $($update.title)"
-              $UpdatesToInstall.Add($Update) | out-null
-          }
-      }
-      
-      If ($UpdatesToInstall.Count -gt 0) {
-          $Installer = $UpdateSession.CreateUpdateInstaller()
-          $Installer.Updates = $UpdatesToInstall
-          $InstallationResult = $Installer.Install()
-          Switch ($InstallationResult) {
-              2 { $Text = "Succeeded" ; $Code = 0 }
-              3 { $Text = "Succeeded with errors" ; $Code = 3 }
-              4 { $Text = "Failed" ; $Code = 4 }
-              5 { $Text = "Cancelled" ; $Code = 5}
-              Else { $Text = "Unexpected ($result)" ; $Code = 99 }
-          } 
-          Write-Output "Installation Result: $text)"
-          If ($($InstallationResult.GetUpdateResult[$i]).HResult -eq -2145116147) {
-              Write-Output "An updated needed additional downloaded content. Please rerun the script."
-          }
-      
-          If ($InstallationResult.RebootRequired) {
-              $ExitCode = 1641
-          }
-      
-          If ($ExitCode -ne 1641 -and $ExitCode -ne 4) {
-              $ExitCode = $Code
-          }
-      }
-      If ($service -eq 'MU') {
-          Reg.exe DELETE "HKLM\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU" /v AllowMUUpdateService /f
-      }
-      Exit $ExitCode
-      '''
-    }
-  }
-  dependsOn: [
-    createBuildDir
-    applications
-    office
-    teams
-  ]
-}
-
 resource removeBuildDir 'Microsoft.Compute/virtualMachines/runCommands@2023-03-01' = {
   name: 'remove-BuildDir'
   location: location
@@ -773,7 +618,6 @@ resource removeBuildDir 'Microsoft.Compute/virtualMachines/runCommands@2023-03-0
     applications
     office
     teams
-    microsoftUpdate
   ]
 }
 

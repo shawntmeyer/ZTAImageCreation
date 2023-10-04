@@ -3,7 +3,7 @@
   "contentVersion": "1.0.0.0",
   "parameters": {
     "computeGalleryResourceId": {
-      "value": "/subscriptions/6dc4ed51-16b9-4494-a406-4fb7a8330d95/resourceGroups/rg-image-management-use/providers/Microsoft.Compute/galleries/cg_avd_use"
+      "value": "/subscriptions/6dc4ed51-16b9-4494-a406-4fb7a8330d95/resourceGroups/rg-image-management-use/providers/Microsoft.Compute/galleries/gal_avd_use"
     },
     "deploymentLocation": {
       "value": "EastUS"
@@ -18,7 +18,7 @@
       "value": "/subscriptions/6dc4ed51-16b9-4494-a406-4fb7a8330d95/resourceGroups/rg-avd-networking-eastus/providers/Microsoft.Network/virtualNetworks/vnet-avd-eastus/subnets/default"
     },
     "userAssignedIdentityResourceId": {
-      "value": "/subscriptions/6dc4ed51-16b9-4494-a406-4fb7a8330d95/resourcegroups/rg-image-management-use/providers/Microsoft.ManagedIdentity/userAssignedIdentities/uai-image-management-use"
+      "value": "/subscriptions/6dc4ed51-16b9-4494-a406-4fb7a8330d95/resourceGroups/rg-image-management-use/providers/Microsoft.ManagedIdentity/userAssignedIdentities/uai-image-management-use"
     },
     "envClassification": {
       "value": ""
@@ -119,13 +119,13 @@
       ]
     },
     "collectCustomizationLogs": {
-        "value": true
+      "value": true
     },
     "privateEndpointSubnetResourceId": {
-        "value": "/subscriptions/6dc4ed51-16b9-4494-a406-4fb7a8330d95/resourceGroups/rg-avd-networking-eastus/providers/Microsoft.Network/virtualNetworks/vnet-avd-eastus/subnets/PrivateEndpoints"
+      "value": "/subscriptions/6dc4ed51-16b9-4494-a406-4fb7a8330d95/resourceGroups/rg-avd-networking-eastus/providers/Microsoft.Network/virtualNetworks/vnet-avd-eastus/subnets/PrivateEndpoints"
     },
     "blobPrivateDnsZoneResourceId": {
-        "value": "/subscriptions/6dc4ed51-16b9-4494-a406-4fb7a8330d95/resourceGroups/rg-networking-lab-eus/providers/Microsoft.Network/privateDnsZones/privatelink.blob.core.windows.net"
+      "value": "/subscriptions/6dc4ed51-16b9-4494-a406-4fb7a8330d95/resourceGroups/rg-networking-lab-eus/providers/Microsoft.Network/privateDnsZones/privatelink.blob.core.windows.net"
     },
     "imageDefinitionOffer": {
       "value": "office-365"
@@ -136,16 +136,8 @@
     "imageDefinitionSku": {
       "value": "win11-avd"
     },
-    "replicaCount": {
-      "value": 1
-    },
-    "replicationRegions": {
-      "value": [
-        "EastUS"
-      ]
-    },
     "enableAcceleratedNetworking": {
-        "value": true
+      "value": true
     },
     "securityType": {
       "value": "TrustedLaunch"
