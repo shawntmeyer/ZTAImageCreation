@@ -77,22 +77,15 @@ param hyperVGeneration string = ''
   'TrustedLaunchSupported'
   'ConfidentialVM'
   'ConfidentialVMSupported'
+  'TrustedLaunchAndConfidentialVMSupported'
 ])
 param securityType string = 'Standard'
 
 @sys.description('Optional. The image will support hibernation.')
-@allowed([
-  'true'
-  'false'
-])
-param isHibernateSupported string = 'false'
+param isHibernateSupported bool = false
 
 @sys.description('Optional. The image supports accelerated networking.</p>Accelerated networking enables single root I/O virtualization (SR-IOV) to a VM, greatly improving its networking performance.</p>This high-performance path bypasses the host from the data path, which reduces latency, jitter, and CPU utilization for the most demanding network workloads on supported VM types.')
-@allowed([
-  'true'
-  'false'
-])
-param isAcceleratedNetworkSupported string = 'false'
+param isAcceleratedNetworkSupported bool = false
 
 @sys.description('Optional. The image supports Higher Storage Performance with NVMe.')
 param isHigherStoragePerformanceSupported bool = false
@@ -127,10 +120,13 @@ param excludedDiskTypes array = []
 @sys.description('Optional. Tags for all resources.')
 param tags object = {}
 
+var hibernateSupported = isHibernateSupported ? 'true' : 'false'
+var acceleratedNetworkSupported = isAcceleratedNetworkSupported ? 'true' : 'false'
+
 var diskControllerTypes = isHigherStoragePerformanceSupported ? [
   {
-  name: 'DiskControllerTypes'
-  value: 'SCSI, NVMe'
+    name: 'DiskControllerTypes'
+    value: 'SCSI, NVMe'
   }
  ] : []
 
@@ -141,20 +137,20 @@ var gaFeatures = !empty(securityType) && securityType != 'Standard' ? [
   }
   {
     name: 'IsAcceleratedNetworkSupported'
-    value: isAcceleratedNetworkSupported
+    value: acceleratedNetworkSupported
   }
   {
     name: 'IsHibernateSupported'
-    value: isHibernateSupported
+    value: hibernateSupported
   }
 ] : [
   {
     name: 'IsAcceleratedNetworkSupported'
-    value: isAcceleratedNetworkSupported
+    value: acceleratedNetworkSupported
   }
   {
     name: 'IsHibernateSupported'
-    value: isHibernateSupported
+    value: hibernateSupported
   }
 ]
 

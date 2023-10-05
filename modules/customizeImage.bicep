@@ -15,9 +15,8 @@ param installVirtualDesktopOptimizationTool bool
 param installVisio bool
 param installWord bool
 param location string = resourceGroup().location
-param logBlobClientId string
+param userAssignedIdentityClientId string
 param logBlobContainerUri string
-param storageAccountName string
 param storageEndpoint string
 param vmName string
 @allowed([
@@ -27,7 +26,6 @@ param vmName string
   'GovernmentCommunityCloudHigh'
 ])
 param tenantType string
-param userAssignedIdentityObjectId string
 param customizations array
 param vDotInstaller string
 param officeInstaller string
@@ -90,12 +88,12 @@ resource applications 'Microsoft.Compute/virtualMachines/runCommands@2023-03-01'
   parent: vm
   properties: {
     treatFailureAsDeploymentFailure: true
-    errorBlobManagedIdentity: empty(logBlobClientId) ? {} : {
-      clientId: logBlobClientId
+    errorBlobManagedIdentity: empty(logBlobContainerUri) ? {} : {
+      clientId: userAssignedIdentityClientId
     }
     errorBlobUri: empty(logBlobContainerUri) ? null : '${logBlobContainerUri}${installer.name}-error-${timeStamp}.log' 
-    outputBlobManagedIdentity: empty(logBlobClientId) ? {} : {
-      clientId: logBlobClientId
+    outputBlobManagedIdentity: empty(logBlobContainerUri) ? {} : {
+      clientId: userAssignedIdentityClientId
     }
     outputBlobUri: empty(logBlobContainerUri) ? null : '${logBlobContainerUri}${installer.name}-output-${timeStamp}.log'
     parameters: [
@@ -104,12 +102,8 @@ resource applications 'Microsoft.Compute/virtualMachines/runCommands@2023-03-01'
         value: buildDir
       }
       {
-        name: 'UserAssignedIdentityObjectId'
-        value: userAssignedIdentityObjectId
-      }
-      {
-        name: 'StorageAccountName'
-        value: storageAccountName
+        name: 'userAssignedIdentityClientId'
+        value: userAssignedIdentityClientId
       }
       {
         name: 'ContainerName'
@@ -136,8 +130,7 @@ resource applications 'Microsoft.Compute/virtualMachines/runCommands@2023-03-01'
       script: '''
         param(
           [string]$BuildDir,
-          [string]$UserAssignedIdentityObjectId,
-          [string]$StorageAccountName,
+          [string]$UserAssignedIdentityClientId,
           [string]$ContainerName,
           [string]$StorageEndpoint,
           [string]$BlobName,
@@ -145,12 +138,11 @@ resource applications 'Microsoft.Compute/virtualMachines/runCommands@2023-03-01'
           [string]$Arguments
         )
         If ($Arguments -eq '') {$Arguments = $null}
-        $UserAssignedIdentityObjectId = $UserAssignedIdentityObjectId
-        $StorageAccountName = $StorageAccountName
+        $UserAssignedIdentityClientId = $UserAssignedIdentityClientId
         $ContainerName = $ContainerName
         $BlobName = $BlobName
         $StorageAccountUrl = $StorageEndpoint
-        $TokenUri = "http://169.254.169.254/metadata/identity/oauth2/token?api-version=2018-02-01&resource=$StorageAccountUrl&object_id=$UserAssignedIdentityObjectId"
+        $TokenUri = "http://169.254.169.254/metadata/identity/oauth2/token?api-version=2018-02-01&resource=$StorageAccountUrl&client_id=$UserAssignedIdentityClientId"
         $AccessToken = ((Invoke-WebRequest -Headers @{Metadata=$true} -Uri $TokenUri -UseBasicParsing).Content | ConvertFrom-Json).access_token
         $InstallDir = Join-Path $BuildDir -ChildPath $Installer
         New-Item -Path $InstallDir -ItemType Directory -Force | Out-Null
@@ -232,12 +224,12 @@ resource office 'Microsoft.Compute/virtualMachines/runCommands@2023-03-01' = if 
   location: location
   parent: vm
   properties: {
-    errorBlobManagedIdentity: empty(logBlobClientId) ? {} : {
-      clientId: logBlobClientId
+    errorBlobManagedIdentity: empty(logBlobContainerUri) ? {} : {
+      clientId: userAssignedIdentityClientId
     }
     errorBlobUri: empty(logBlobContainerUri) ? null : '${logBlobContainerUri}Office-error-${timeStamp}.log' 
-    outputBlobManagedIdentity: empty(logBlobClientId) ? {} : {
-      clientId: logBlobClientId
+    outputBlobManagedIdentity: empty(logBlobContainerUri) ? {} : {
+      clientId: userAssignedIdentityClientId
     }
     outputBlobUri: empty(logBlobContainerUri) ? null : '${logBlobContainerUri}Office-output-${timeStamp}.log'
     parameters: [
@@ -290,12 +282,8 @@ resource office 'Microsoft.Compute/virtualMachines/runCommands@2023-03-01' = if 
         value: installVisioVar
       }
       {
-        name: 'UserAssignedIdentityObjectId'
-        value: userAssignedIdentityObjectId
-      }
-      {
-        name: 'StorageAccountName'
-        value: storageAccountName
+        name: 'userAssignedIdentityClientId'
+        value: userAssignedIdentityClientId
       }
       {
         name: 'ContainerName'
@@ -325,18 +313,16 @@ resource office 'Microsoft.Compute/virtualMachines/runCommands@2023-03-01' = if 
         [string]$InstallWord,
         [string]$InstallOneNote,
         [string]$InstallPowerPoint,
-        [string]$UserAssignedIdentityObjectId,
-        [string]$StorageAccountName,
+        [string]$UserAssignedIdentityClientId,
         [string]$ContainerName,
         [string]$StorageEndpoint,
         [string]$BlobName
       )
-      $UserAssignedIdentityObjectId = $UserAssignedIdentityObjectId
-      $StorageAccountName = $StorageAccountName
+      $UserAssignedIdentityClientId = $UserAssignedIdentityClientId
       $ContainerName = $ContainerName
       $BlobName = $BlobName
       $StorageAccountUrl = $StorageEndpoint
-      $TokenUri = "http://169.254.169.254/metadata/identity/oauth2/token?api-version=2018-02-01&resource=$StorageAccountUrl&object_id=$UserAssignedIdentityObjectId"
+      $TokenUri = "http://169.254.169.254/metadata/identity/oauth2/token?api-version=2018-02-01&resource=$StorageAccountUrl&client_id=$UserAssignedIdentityClientId"
       $AccessToken = ((Invoke-WebRequest -Headers @{Metadata = $true } -Uri $TokenUri -UseBasicParsing).Content | ConvertFrom-Json).access_token
       $sku = (Get-ComputerInfo).OsName
       $appDir = Join-Path -Path $BuildDir -ChildPath 'Office365'
@@ -412,13 +398,10 @@ resource vdot 'Microsoft.Compute/virtualMachines/runCommands@2023-03-01' = if (i
   properties: {
     parameters: [
       {
-        name: 'UserAssignedIdentityObjectId'
-        value: userAssignedIdentityObjectId
+        name: 'userAssignedIdentityClientId'
+        value: userAssignedIdentityClientId
       }
-      {
-        name: 'StorageAccountName'
-        value: storageAccountName
-      }
+
       {
         name: 'ContainerName'
         value: containerName
@@ -435,18 +418,16 @@ resource vdot 'Microsoft.Compute/virtualMachines/runCommands@2023-03-01' = if (i
     source: {
       script: '''
       param(
-        [string]$UserAssignedIdentityObjectId,
-        [string]$StorageAccountName,
+        [string]$UserAssignedIdentityClientId,
         [string]$ContainerName,
         [string]$StorageEndpoint,
         [string]$BlobName
         )
-        $UserAssignedIdentityObjectId = $UserAssignedIdentityObjectId
-        $StorageAccountName = $StorageAccountName
+        $UserAssignedIdentityClientId = $UserAssignedIdentityClientId
         $ContainerName = $ContainerName
         $BlobName = $BlobName
         $StorageAccountUrl = $StorageEndpoint
-        $TokenUri = "http://169.254.169.254/metadata/identity/oauth2/token?api-version=2018-02-01&resource=$StorageAccountUrl&object_id=$UserAssignedIdentityObjectId"
+        $TokenUri = "http://169.254.169.254/metadata/identity/oauth2/token?api-version=2018-02-01&resource=$StorageAccountUrl&client_id=$UserAssignedIdentityClientId"
         $AccessToken = ((Invoke-WebRequest -Headers @{Metadata=$true} -Uri $TokenUri -UseBasicParsing).Content | ConvertFrom-Json).access_token
         $ZIP = "$env:windir\temp\VDOT.zip"
         Invoke-WebRequest -Headers @{"x-ms-version"="2017-11-09"; Authorization ="Bearer $AccessToken"} -Uri "$StorageAccountUrl$ContainerName/$BlobName" -OutFile $ZIP
@@ -488,13 +469,10 @@ resource teams 'Microsoft.Compute/virtualMachines/runCommands@2023-03-01' = if (
         value: tenantType
       }
       {
-        name: 'UserAssignedIdentityObjectId'
-        value: userAssignedIdentityObjectId
+        name: 'userAssignedIdentityClientId'
+        value: userAssignedIdentityClientId
       }
-      {
-        name: 'StorageAccountName'
-        value: storageAccountName
-      }
+
       {
         name: 'ContainerName'
         value: containerName
@@ -520,8 +498,7 @@ resource teams 'Microsoft.Compute/virtualMachines/runCommands@2023-03-01' = if (
       script: '''
       param(
         [string]$tenantType,
-        [string]$UserAssignedIdentityObjectId,
-        [string]$StorageAccountName,
+        [string]$UserAssignedIdentityClientId,
         [string]$ContainerName,
         [string]$StorageEndpoint,
         [string]$BlobName,
@@ -545,12 +522,11 @@ resource teams 'Microsoft.Compute/virtualMachines/runCommands@2023-03-01' = if (
         $TeamsUrl = "https://gov.teams.microsoft.us/downloads/desktopurl?env=production&plat=windows&arch=x64&managedInstaller=true&download=true"
       }
       Write-Host $($TeamsUrl)
-      $UserAssignedIdentityObjectId = $UserAssignedIdentityObjectId
-      $StorageAccountName = $StorageAccountName
+      $UserAssignedIdentityClientId = $UserAssignedIdentityClientId
       $ContainerName = $ContainerName
       $BlobName = $BlobName
       $StorageAccountUrl = $StorageEndpoint
-      $TokenUri = "http://169.254.169.254/metadata/identity/oauth2/token?api-version=2018-02-01&resource=$StorageAccountUrl&object_id=$UserAssignedIdentityObjectId"
+      $TokenUri = "http://169.254.169.254/metadata/identity/oauth2/token?api-version=2018-02-01&resource=$StorageAccountUrl&client_id=$UserAssignedIdentityClientId"
       $AccessToken = ((Invoke-WebRequest -Headers @{Metadata=$true} -Uri $TokenUri -UseBasicParsing).Content | ConvertFrom-Json).access_token
       $vcRedistFile = "$env:windir\temp\vc_redist.x64.exe"
       $webSocketFile = "$env:windir\temp\webSocketSvc.msi"

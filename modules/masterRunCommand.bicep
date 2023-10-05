@@ -16,6 +16,13 @@ resource vm 'Microsoft.Compute/virtualMachines@2023-07-01' existing = {
   name: vmName
 }
 
+var installer = [for customization in customizations: {
+  name: customization.name
+  blobName: customization.blobName
+  arguments: contains(customization, 'arguments') ? customization.arguments : ''
+}]
+
+
 resource runCommand 'Microsoft.Compute/virtualMachines/runCommands@2023-03-01' = {
   name: 'app-${name}'
   location: location

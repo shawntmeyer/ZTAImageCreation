@@ -61,16 +61,6 @@ param sku string
 @description('The size of the Image build and Management VMs.')
 param vmSize string
 
-@allowed([
-  'Standard'
-  'ConfidentialVM'
-  'TrustedLaunch'
-])
-param securityType string = 'Standard'
-
-@description('Optional. Specifies whether the network interface is accelerated networking-enabled.')
-param enableAcceleratedNetworking bool = false
-
 // Image customizers
 
 @allowed([
@@ -148,6 +138,25 @@ param imageDefinitionOffer string = ''
 @description('Conditional. The compute gallery image definition Sku.')
 param imageDefinitionSku string = ''
 
+@description('Optional. Specifies whether the image definition supports the deployment of virtual machines with accelerated networking enabled.')
+param imageDefinitionIsAcceleratedNetworkSupported bool = false
+
+@description('Optional. Specifies whether the image definition supports creating VMs with support for hibernation.')
+param imageDefinitionIsHibernateSupported bool = false
+
+@description('Optional. Specifies whether the image definition supports capturing images of NVMe disks or Virtual Machines.')
+param imageDefinitionIsHigherStoragePerformanceSupported bool = false
+
+@allowed([
+  'Standard'
+  'ConfidentialVM'
+  'ConfidentialVMSupported'
+  'TrustedLaunch'
+  'TrustedLaunchSupported'
+  'TrustedLaunchAndConfidentialVMSupported'
+])
+param imageDefinitionSecurityType string = 'Standard'
+
 @description('Automatically generated Image Version name.')
 param autoImageVersionName string = utcNow('yy.MMdd.hhmm')
 
@@ -205,6 +214,7 @@ var depPrefix = !empty(deploymentPrefix) ? '${deploymentPrefix}-' : ''
 var adminPw = '${toUpper(uniqueString(subscription().id))}-${guidValue}'
 var adminUserName = 'xadmin'
 var cloud = environment().name
+var securityType = imageDefinitionSecurityType == 'TrustedLaunch' || imageDefinitionSecurityType == 'ConfidentialVM' ? imageDefinitionSecurityType : 'Standard'
 var artifactsContainerUri = '${artifactsStorageAccount.properties.primaryEndpoints.blob}${containerName}/'
 
 var locations = loadJsonContent('data/locations.json')
@@ -220,10 +230,6 @@ var galleryImageDefinitionHyperVGeneration = endsWith(sku, 'g2') || startsWith(s
 
 var imageBuildResourceGroupName = empty(imageBuildResourceGroupId) ? (empty(customBuildResourceGroupName) ? (!empty(envClassification) ? '${resourceAbbreviations.resourceGroups}-image-builder-${envClassification}-${locations[deploymentLocation].abbreviation}' : '${resourceAbbreviations.resourceGroups}-image-builder-${locations[deploymentLocation].abbreviation}') : customBuildResourceGroupName) : last(split(imageBuildResourceGroupId, '/'))
 var imageDefinitionName = empty(imageDefinitionResourceId) ? (empty(customImageDefinitionName) ? '${replace('${resourceAbbreviations.imageDefinitions}-${replace(galleryImageDefinitionPublisher, '-', '')}-${replace(galleryImageDefinitionOffer, '-', '')}-${replace(galleryImageDefinitionSku, '-', '')}', ' ', '')}' : customImageDefinitionName) : last(split(imageDefinitionResourceId, '/'))
-
-var imageDefinitionIsHybernateSupported = 'true'
-var imageDefinitionIsAcceleratedNetworkSupported = enableAcceleratedNetworking ? 'true' : 'false'
-var imageDefinitionIsHigherPerformanceSupported = false
 
 var imageVersionName = imageMajorVersion != -1 && imageMajorVersion != -1 && imagePatch != -1 ? '${imageMajorVersion}.${imageMinorVersion}.${imagePatch}' : autoImageVersionName
 
@@ -359,7 +365,9 @@ module managementVm 'carml/compute/virtual-machine/main.bicep' = {
     }
     extensionCustomScriptProtectedSetting: {
       commandToExecute: 'powershell -ExecutionPolicy Unrestricted -command .\\cse_master_script.ps1'
-      managedIdentity: {clientId: managedIdentity.properties.clientId}
+      managedIdentity: {
+        clientId: managedIdentity.properties.clientId
+      }
     }
 
     imageReference: {
@@ -390,10 +398,7 @@ module managementVm 'carml/compute/virtual-machine/main.bicep' = {
       }
     }
     osType: 'Windows'
-    securityType: securityType
-    secureBootEnabled: true
     tags: tags
-    vTpmEnabled: true
     userAssignedIdentities: {
       '${userAssignedIdentityResourceId}': {}
     }
@@ -418,7 +423,7 @@ module imageVm 'carml/compute/virtual-machine/main.bicep' = {
     }
     nicConfigurations: [
       {
-        enabledAcceleratedNetworking: enableAcceleratedNetworking
+        enabledAcceleratedNetworking: imageDefinitionIsAcceleratedNetworkSupported
         deleteOption: 'Delete'
         ipConfigurations: [
           {
@@ -440,9 +445,9 @@ module imageVm 'carml/compute/virtual-machine/main.bicep' = {
     }
     osType: 'Windows'
     securityType: securityType
+    secureBootEnabled: securityType == 'TrustedLaunch' ? true : false
+    vTpmEnabled: securityType == 'TrustedLaunch' ? true : false
     tags: tags
-    vTpmEnabled: true
-    secureBootEnabled: true
     userAssignedIdentities: {
       '${userAssignedIdentityResourceId}': {}
     }
@@ -470,17 +475,15 @@ module customizeImage 'modules/customizeImage.bicep' = {
     installVirtualDesktopOptimizationTool: installVirtualDesktopOptimizationTool
     installVisio: installVisio
     installWord: installWord
-    storageAccountName: artifactsStorageAccount.name
     storageEndpoint: artifactsStorageAccount.properties.primaryEndpoints.blob
     tenantType: tenantType
-    userAssignedIdentityObjectId: managedIdentity.properties.principalId
+    userAssignedIdentityClientId: managedIdentity.properties.clientId
     vmName: imageVm.outputs.name
     vDotInstaller: vDotInstaller
     officeInstaller: officeInstaller
     msrdcwebrtcsvcInstaller: msrdcwebrtcsvcInstaller
     teamsInstaller: teamsInstaller
     vcRedistInstaller: vcRedistInstaller
-    logBlobClientId: collectLogs ? managedIdentity.properties.clientId : ''
     logBlobContainerUri: collectLogs ? logContainerUri : ''
   }
 }
@@ -570,10 +573,10 @@ module imageDefinition 'carml/compute/gallery/image/main.bicep' = if(empty(image
     galleryName: last(split(computeGalleryResourceId,'/'))
     name: imageDefinitionName
     hyperVGeneration: galleryImageDefinitionHyperVGeneration
-    isHibernateSupported: imageDefinitionIsHybernateSupported
+    isHibernateSupported: imageDefinitionIsHibernateSupported
     isAcceleratedNetworkSupported: imageDefinitionIsAcceleratedNetworkSupported
-    isHigherStoragePerformanceSupported: imageDefinitionIsHigherPerformanceSupported
-    securityType: securityType
+    isHigherStoragePerformanceSupported: imageDefinitionIsHigherStoragePerformanceSupported
+    securityType: imageDefinitionSecurityType
     osType: 'Windows'
     osState: 'Generalized'
     publisher: galleryImageDefinitionPublisher

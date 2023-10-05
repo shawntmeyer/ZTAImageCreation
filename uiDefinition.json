@@ -388,63 +388,6 @@
                                             }
                                         ]
                                     }
-                                },
-								{
-                                    "name": "imageDefinitionFeatureWarning",
-                                    "type": "Microsoft.Common.InfoBox",
-                                    "options": {
-                                        "text": "If you specify to use an existing Azure Compute Gallery Image Definition on the 'Image Distribution Options' page, then image definition features must be configured with the 'SecurityType' and 'Accelerated Networking' set to the appropriate values based on your selections below.<br/><br/>You can determine if the image definition supports the required feature by reviewing the 'Properties' tab on the 'Overview' node of the Gallery Image Definition in the portal. If the image definition does not contain these feature options, then the deployment will fail.<br/><br/>If you chose to create a new image definition, it will be configured automatically.",
-                                        "uri": "https://learn.microsoft.com/azure/templates/microsoft.compute/galleries/images?pivots=deployment-language-bicep",
-                                        "style": "Warning"
-                                    },
-									"visible": true
-                                },
-								{
-									"name": "enableAcceleratedNetworking",
-									"type": "Microsoft.Common.OptionsGroup",
-									"label": "Enable Accelerated Networking",
-									"defaultValue": "Yes",
-									"toolTip": "",
-									"constraints": {
-										"allowedValues": [
-											{
-												"label": "Yes",
-												"value": true
-											},
-											{
-												"label": "No",
-												"value": false
-											}
-										],
-										"required": true
-									},
-									"visible": true
-								},
-                                {
-                                    "name": "securityType",
-                                    "type": "Microsoft.Common.DropDown",
-                                    "label": "Security type",
-                                    "filter": true,
-                                    "defaultValue": "Trusted Launch Virtual Machines",
-                                    "toolTip": "Choose a type of security that matches your needs: Standard includes basic protections at no additional cost. Trusted launch virtual machines provide additional security features on Gen2 virtual machines to protect against persistent and advanced attacks.",
-                                    "constraints": {
-                                        "required": true,
-                                        "allowedValues": [
-                                            {
-                                                "label": "Standard",
-                                                "value": "Standard"
-                                            },
-                                            {
-                                                "label": "Trusted Launch Virtual Machines",
-                                                "value": "TrustedLaunch"
-                                            },
-                                            {
-                                                "label": "Confidential Virtual Machines",
-                                                "value": "ConfidentialVM"
-                                            }
-                                        ]
-                                    },
-									"visible": "[or(contains(steps('imageVm').vmProps.osVersion, 'g2'), contains(steps('imageVm').vmProps.osVersion, 'win11'))]"
                                 }
 							]							
 						}						
@@ -1229,7 +1172,107 @@
 										"validationMessage": "The value must contain only valid characters, no spaces, and be between 2 and 20 characters in length."
 									},
 									"visible": "[equals(steps('imageDest').imageDefinition.useExImageDef, false)]"
-								}
+								},
+								{
+									"name": "isAcceleratedNetworkSupported",
+									"type": "Microsoft.Common.DropDown",
+									"label": "Accelerated Networking Supported (Preview)",
+									"defaultValue": "Yes",
+									"toolTip": "Set to 'Yes' to allow Virtual Machines deployed from the image to use Accelerated Networking. When set to 'Yes' on the Image definition, capturing VMs that don't support accelerated networking is not supported.",
+									"constraints": {
+										"allowedValues": [
+											{
+												"label": "Yes",
+												"value": true
+											},
+											{
+												"label": "No",
+												"value": false
+											}
+										],
+										"required": true
+									},
+									"visible": "[equals(steps('imageDest').imageDefinition.useExImageDef, false)]"
+								},
+								{
+                                    "name": "isHibernateSupported",
+                                    "type": "Microsoft.Common.DropDown",
+                                    "label": "Hibernation Supported (preview)",
+                                    "defaultValue": "No",
+                                    "toolTip": "Set this to 'Yes' to enable Virtual Machines to be deployed from this image definition that support hibernation.",
+                                    "constraints": {
+                                        "required": true,
+                                        "allowedValues": [
+                                            {
+                                                "label": "Yes",
+                                                "value": true
+                                            },
+                                            {
+                                                "label": "No",
+                                                "value": false
+                                            }
+                                        ]
+                                    },
+									"visible": "[and(equals(steps('imageDest').imageDefinition.useExImageDef, false),or(contains(steps('imageVm').vmProps.osVersion, 'g2'), contains(steps('imageVm').vmProps.osVersion, 'win11')))]"
+                                },
+								{
+                                    "name": "securityType",
+                                    "type": "Microsoft.Common.DropDown",
+                                    "label": "Security type",
+                                    "defaultValue": "Trusted Launch Supported",
+                                    "toolTip": "Choose a type of security that matches your needs: Standard includes basic protections at no additional cost. Trusted launch virtual machines provide additional security features on Gen2 virtual machines to protect against persistent and advanced attacks.",
+                                    "constraints": {
+                                        "required": true,
+                                        "allowedValues": [
+                                            {
+                                                "label": "Standard",
+                                                "value": "Standard"
+                                            },
+                                            {
+                                                "label": "Trusted Launch",
+                                                "value": "TrustedLaunch"
+                                            },
+											{
+                                                "label": "Trusted Launch Supported",
+                                                "value": "TrustedLaunchSupported"
+                                            },
+                                            {
+                                                "label": "Confidential VM",
+                                                "value": "ConfidentialVM"
+                                            },
+											{
+                                                "label": "Confidential VM Supported",
+                                                "value": "ConfidentialVMSupported"
+                                            },
+											{
+												"label": "Trusted Launch and Confidential VM Supported",
+												"value": "TrustedLaunchAndConfidentialVmSupported"
+											}
+                                        ]
+                                    },
+									"visible": "[and(equals(steps('imageDest').imageDefinition.useExImageDef, false),or(contains(steps('imageVm').vmProps.osVersion, 'g2'), contains(steps('imageVm').vmProps.osVersion, 'win11')))]"
+                                },
+								{
+                                    "name": "isNVMeSupported",
+                                    "type": "Microsoft.Common.DropDown",
+                                    "label": "Higher storage performance with NVMe (preview)",
+                                    "defaultValue": "No",
+                                    "toolTip": "Set this to 'Yes' to enable the capture of VMs and disks on NVMe storage.",
+                                    "constraints": {
+                                        "required": true,
+                                        "allowedValues": [
+                                            {
+                                                "label": "Yes",
+                                                "value": true
+                                            },
+                                            {
+                                                "label": "No",
+                                                "value": false
+                                            }
+                                        ]
+                                    },
+									"visible": "[and(equals(steps('imageDest').imageDefinition.useExImageDef, false),or(contains(steps('imageVm').vmProps.osVersion, 'g2'), contains(steps('imageVm').vmProps.osVersion, 'win11')))]"
+                                }
 							]
 						
 						},
@@ -1525,8 +1568,6 @@
                 "publisher": "[first(split(steps('imageVm').vmProps.osVersion, '_'))]",
                 "offer": "[last(take(split(steps('imageVm').vmProps.osVersion, '_'), 2))]",
                 "sku": "[last(split(steps('imageVm').vmProps.osVersion, '_'))]",
-				"enableAcceleratedNetworking": "[steps('imageVm').vmProps.enableAcceleratedNetworking]",
-				"securityType": "[steps('imageVm').vmProps.securityType]",
 				"customizations": "[if(equals(steps('imageCustomizations').customSoftware.addCustomSoftware, true), steps('imageCustomizations').customSoftware.customizations, '')]",
 				"installAccess": "[if(equals(steps('imageCustomizations').office.installOffice, true), steps('imageCustomizations').office.installAccess,'false')]",
                 "installExcel": "[if(equals(steps('imageCustomizations').office.installOffice, true), steps('imageCustomizations').office.installExcel,'false')]",
@@ -1555,6 +1596,10 @@
 				"imageDefinitionPublisher": "[if(equals(steps('imageDest').imageDefinition.useExImageDef, false), steps('imageDest').imageDefinition.imageDefinitionPublisher, '')]",
 				"imageDefinitionOffer": "[if(equals(steps('imageDest').imageDefinition.useExImageDef, false), steps('imageDest').imageDefinition.imageDefinitionOffer, '')]",
 				"imageDefinitionSku": "[if(equals(steps('imageDest').imageDefinition.useExImageDef, false), steps('imageDest').imageDefinition.imageDefinitionSku, '')]",
+				"imageDefinitionIsAcceleratedNetworkSupported": "[if(equals(steps('imageDest').imageDefinition.useExImageDef, false), steps('imageDest').imageDefinition.isAcceleratedNetworkSupported, false)]",
+				"imageDefinitionIsHibernateSupported": "[if(equals(steps('imageDest').imageDefinition.useExImageDef, false), steps('imageDest').imageDefinition.isHibernateSupported, false)]",
+				"imageDefinitionSecurityType": "[if(equals(steps('imageDest').imageDefinition.useExImageDef, false), steps('imageDest').imageDefinition.securityType, 'Standard')]",
+				"imageDefinitionIsHigherStoragePerformanceSupported": "[if(equals(steps('imageDest').imageDefinition.useExImageDef, false), steps('imageDest').imageDefinition.isNVMeSupported, false)]",
 				"imageMajorVersion": "[if(equals(steps('imageDest').imageVersion.useCustomVersion, true), steps('imageDest').imageVersion.imageMajorVersion, -1)]",
 				"imageMinorVersion": "[if(equals(steps('imageDest').imageVersion.useCustomVersion, true), steps('imageDest').imageVersion.imageMinorVersion, -1)]",
 				"imagePatch": "[if(equals(steps('imageDest').imageVersion.useCustomVersion, true), steps('imageDest').imageVersion.imagePatch, -1)]",

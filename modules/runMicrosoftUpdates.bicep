@@ -38,8 +38,30 @@ resource microsoftUpdate 'Microsoft.Compute/virtualMachines/runCommands@2023-03-
                     [bool]$ExcludePreviewUpdates = $true,
                     # Default service (WSUS if machine is configured to use it, or MU if opted in, or WU otherwise.)
                     [Parameter()]
-                    [string]$Service = 'MU'
+                    [ValidateSet("WU","MU","WSUS","DCAT","STORE","OTHER")]
+                    [string]$Service = 'MU',
+                    # The http/https fqdn for the Windows Server Update Server
+                    [Parameter()]
+                    [string]$WSUSServer
                 )
+                
+                Function ConvertFrom-InstallationResult {
+                [CmdletBinding()]
+                    param (
+                        [Parameter()]
+                        [int]$Result
+                    )
+                
+                    switch ($Result) {
+                        2 { $Text = 'Succeeded' }
+                        3 { $Text = 'Succeeded with errors' }
+                        4 { $Text = 'Failed' }
+                        5 { $Text = 'Cancelled' }
+                        Default { $Text = "Unexpected ($Result)"}
+                    }
+                
+                    Return $Text
+                }
                 
                 $ExitCode = 0
                 
@@ -49,7 +71,7 @@ resource microsoftUpdate 'Microsoft.Compute/virtualMachines/runCommands@2023-03-
                     'WSUS' { $ServerSelection = 1 }
                     'DCAT' { $ServerSelection = 3; $ServiceId = "855E8A7C-ECB4-4CA3-B045-1DFA50104289" }
                     'STORE' { $serverSelection = 3; $ServiceId = "117cab2d-82b1-4b5a-a08c-4d62dbee7782" }
-                    Else { $ServerSelection = 3; $ServiceId = $Service }
+                    'OTHER' { $ServerSelection = 3; $ServiceId = $Service }
                 }
                 
                 If ($Service -eq 'MU') {
@@ -58,6 +80,10 @@ resource microsoftUpdate 'Microsoft.Compute/virtualMachines/runCommands@2023-03-
                     $UpdateServiceManager.AddService2("7971f918-a847-4430-9279-4a52d1efe18d", 7, "")
                     $null = cmd /c reg.exe ADD "HKLM\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU" /v AllowMUUpdateService /t REG_DWORD /d 1 /f '2>&1'
                     Write-Output "Added Registry entry to configure Microsoft Update. Exit Code: [$LastExitCode]"
+                } Elseif ($Service -eq 'WSUS' -and $WSUSServer) {
+                    $null = cmd /c reg.exe ADD "HKLM\Software\Policies\Microsoft\Windows\WindowsUpdate" /v WUServer /t REG_SZ /d $WSUSServer /f '2>&1'
+                    $null = cmd /c reg.exe ADD "HKLM\Software\Policies\Microsoft\Windows\WindowsUpdate" /v WUStatusServer /t REG_SZ /d $WSUSServer /f '2>&1'
+                    Write-Output "Added Registry entry to configure WSUS Server. Exit Code: [$LastExitCode]"
                 }
                 
                 $UpdateSession = New-Object -ComObject Microsoft.Update.Session
@@ -81,7 +107,7 @@ resource microsoftUpdate 'Microsoft.Compute/virtualMachines/runCommands@2023-03-
                 Write-Output "List of applicable items found for this computer:"
                 
                 For ($i = 0; $i -lt $SearchResult.Updates.Count; $i++) {
-                    $Update = $($SearchResult.Updates)[$i]
+                    $Update = $SearchResult.Updates[$i]
                     Write-Output "$($i + 1) > $($update.Title)"
                 }
                 
@@ -90,7 +116,7 @@ resource microsoftUpdate 'Microsoft.Compute/virtualMachines/runCommands@2023-03-
                 $UpdatesToDownload = New-Object -ComObject Microsoft.Update.UpdateColl
                 Write-Output "Checking search results:"
                 For ($i = 0; $i -lt $SearchResult.Updates.Count; $i++) {
-                    $Update = $($SearchResult.Updates)[$i]
+                    $Update = $SearchResult.Updates[$i]
                     $AddThisUpdate = $false
                 
                     If ($ExclusiveAdded) {
@@ -150,20 +176,19 @@ resource microsoftUpdate 'Microsoft.Compute/virtualMachines/runCommands@2023-03-
                     $Installer = $UpdateSession.CreateUpdateInstaller()
                     $Installer.Updates = $UpdatesToInstall
                     $InstallationResult = $Installer.Install()
-                    Switch ($InstallationResult) {
-                        2 { $Text = "Succeeded" ; $Code = 0 }
-                        3 { $Text = "Succeeded with errors" ; $Code = 3 }
-                        4 { $Text = "Failed" ; $Code = 4 }
-                        5 { $Text = "Cancelled" ; $Code = 5}
-                        Else { $Text = "Unexpected ($result)" ; $Code = 99 }
+                    $Text = ConvertFrom-InstallationResult -Result $InstallationResult.ResultCode
+                    Switch ($InstallationResult.ResultCode) {
+                        2 { $Code = 0 }
+                        3 { $Code = 3 }
+                        4 { $Code = 4 }
+                        5 { $Code = 5}
+                        Else { $Code = 99 }
                     } 
                     Write-Output "Installation Result: $($Text)"
-                    If ($($InstallationResult.GetUpdateResult[$i]).HResult -eq -2145116147) {
-                        Write-Output "An updated needed additional downloaded content. Please rerun the script."
-                    }
                 
                     If ($InstallationResult.RebootRequired) {
                         $ExitCode = 1641
+                        Write-Output "Atleast one update requires a reboot to complete the installation."
                     }
                 
                     If ($ExitCode -ne 1641 -and $ExitCode -ne 4) {
@@ -172,8 +197,11 @@ resource microsoftUpdate 'Microsoft.Compute/virtualMachines/runCommands@2023-03-
                 }
                 If ($service -eq 'MU') {
                     Reg.exe DELETE "HKLM\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU" /v AllowMUUpdateService /f
+                } Elseif ($Service -eq 'WSUS' -and $WSUSServer) {
+                    reg.exe DELETE "HKLM\Software\Policies\Microsoft\Windows\WindowsUpdate" /v WUServer /f
+                    reg.exe DELETE "HKLM\Software\Policies\Microsoft\Windows\WindowsUpdate" /v WUStatusServer /f
                 }
-                Exit $ExitCode
+                Exit $ExitCode    
             '''
         }
     }
