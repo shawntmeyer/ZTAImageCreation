@@ -409,7 +409,6 @@ resource teams 'Microsoft.Compute/virtualMachines/runCommands@2023-03-01' = if (
         name: 'userAssignedIdentityClientId'
         value: userAssignedIdentityClientId
       }
-
       {
         name: 'ContainerName'
         value: containerName
@@ -595,10 +594,10 @@ resource removeBuildDir 'Microsoft.Compute/virtualMachines/runCommands@2023-03-0
     ]
     source: {
       script: '''
-      param(
-        [string]$BuildDir
-      )
-      Remove-Item -Path $BuildDir -Recurse -Force | Out-Null
+        param(
+          [string]$BuildDir
+        )
+        Remove-Item -Path $BuildDir -Recurse -Force | Out-Null
       '''
     }
   }
