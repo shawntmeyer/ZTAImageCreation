@@ -190,9 +190,8 @@ try
     If ($ImageDefinitionResourceId) {
 
         $Output = [pscustomobject][ordered]@{
-            hyperVGeneration = $HyperVGeneration
-            OsState = $OsState 
-            Architecture = $Architecture
+            HyperVGeneration = $HyperVGeneration
+            OsState = $OsState
             DiskControllerTypes = $DiskControllerTypes
             IsAcceleratedNetworkSupported = $IsAcceleratedNetworkSupported
             IsHibernateSupported = $IsHibernateSupported

@@ -88,11 +88,11 @@ resource applications 'Microsoft.Compute/virtualMachines/runCommands@2023-03-01'
   parent: vm
   properties: {
     treatFailureAsDeploymentFailure: true
-    errorBlobManagedIdentity: empty(logBlobContainerUri) ? {} : {
+    errorBlobManagedIdentity: empty(logBlobContainerUri) ? null : {
       clientId: userAssignedIdentityClientId
     }
     errorBlobUri: empty(logBlobContainerUri) ? null : '${logBlobContainerUri}${installer.name}-error-${timeStamp}.log' 
-    outputBlobManagedIdentity: empty(logBlobContainerUri) ? {} : {
+    outputBlobManagedIdentity: empty(logBlobContainerUri) ? null : {
       clientId: userAssignedIdentityClientId
     }
     outputBlobUri: empty(logBlobContainerUri) ? null : '${logBlobContainerUri}${installer.name}-output-${timeStamp}.log'
@@ -391,69 +391,6 @@ resource office 'Microsoft.Compute/virtualMachines/runCommands@2023-03-01' = if 
   ]
 }
 
-resource vdot 'Microsoft.Compute/virtualMachines/runCommands@2023-03-01' = if (installVirtualDesktopOptimizationTool) {
-  name: 'vdot'
-  location: location
-  parent: vm
-  properties: {
-    parameters: [
-      {
-        name: 'userAssignedIdentityClientId'
-        value: userAssignedIdentityClientId
-      }
-
-      {
-        name: 'ContainerName'
-        value: containerName
-      }
-      {
-        name: 'StorageEndpoint'
-        value: storageEndpoint
-      }
-      {
-        name: 'BlobName'
-        value: vDotInstaller
-      }
-    ]
-    source: {
-      script: '''
-      param(
-        [string]$UserAssignedIdentityClientId,
-        [string]$ContainerName,
-        [string]$StorageEndpoint,
-        [string]$BlobName
-        )
-        $UserAssignedIdentityClientId = $UserAssignedIdentityClientId
-        $ContainerName = $ContainerName
-        $BlobName = $BlobName
-        $StorageAccountUrl = $StorageEndpoint
-        $TokenUri = "http://169.254.169.254/metadata/identity/oauth2/token?api-version=2018-02-01&resource=$StorageAccountUrl&client_id=$UserAssignedIdentityClientId"
-        $AccessToken = ((Invoke-WebRequest -Headers @{Metadata=$true} -Uri $TokenUri -UseBasicParsing).Content | ConvertFrom-Json).access_token
-        $ZIP = "$env:windir\temp\VDOT.zip"
-        Invoke-WebRequest -Headers @{"x-ms-version"="2017-11-09"; Authorization ="Bearer $AccessToken"} -Uri "$StorageAccountUrl$ContainerName/$BlobName" -OutFile $ZIP
-        Start-Sleep -Seconds 30
-        Set-Location -Path $env:windir\temp
-        $ErrorActionPreference = "Stop"
-        Unblock-File -Path $ZIP
-        Expand-Archive -LiteralPath $ZIP -DestinationPath "$env:windir\temp" -Force
-        $Path = (Get-ChildItem -Path "$env:windir\temp" -Recurse | Where-Object {$_.Name -eq "Windows_VDOT.ps1"}).FullName
-        $Script = Get-Content -Path $Path
-        $ScriptUpdate = $Script.Replace("Set-NetAdapterAdvancedProperty","#Set-NetAdapterAdvancedProperty")
-        $ScriptUpdate | Set-Content -Path $Path
-        & $Path -Optimizations @("AppxPackages","Autologgers","DefaultUserSettings","LGPO";"NetworkOptimizations","ScheduledTasks","Services","WindowsMediaPlayer") -AdvancedOptimizations "All" -AcceptEULA
-        Write-Host "Optimized the operating system using the Virtual Desktop Optimization Tool"
-      '''
-    }
-    timeoutInSeconds: 640
-  }
-  dependsOn: [
-    createBuildDir
-    teams
-    applications
-    office
-  ]
-}
-
 resource teams 'Microsoft.Compute/virtualMachines/runCommands@2023-03-01' = if (installTeams) {
   name: 'teams'
   location: location
@@ -569,6 +506,81 @@ resource teams 'Microsoft.Compute/virtualMachines/runCommands@2023-03-01' = if (
   ]
 }
 
+resource vdot 'Microsoft.Compute/virtualMachines/runCommands@2023-03-01' = if (installVirtualDesktopOptimizationTool) {
+  name: 'vdot'
+  location: location
+  parent: vm
+  properties: {
+    treatFailureAsDeploymentFailure: true
+    errorBlobManagedIdentity: empty(logBlobContainerUri) ? null : {
+      clientId: userAssignedIdentityClientId
+    }
+    errorBlobUri: empty(logBlobContainerUri) ? null : '${logBlobContainerUri}vdot-error-${timeStamp}.log' 
+    outputBlobManagedIdentity: empty(logBlobContainerUri) ? null : {
+      clientId: userAssignedIdentityClientId
+    }
+    outputBlobUri: empty(logBlobContainerUri) ? null : '${logBlobContainerUri}vdot-output-${timeStamp}.log'
+    parameters: [
+      {
+        name: 'userAssignedIdentityClientId'
+        value: userAssignedIdentityClientId
+      }
+
+      {
+        name: 'ContainerName'
+        value: containerName
+      }
+      {
+        name: 'StorageEndpoint'
+        value: storageEndpoint
+      }
+      {
+        name: 'BlobName'
+        value: vDotInstaller
+      }
+      {
+        name: 'BuildDir'
+        value: buildDir
+      }
+    ]
+    source: {
+      script: '''
+        param(
+          [string]$UserAssignedIdentityClientId,
+          [string]$ContainerName,
+          [string]$StorageEndpoint,
+          [string]$BlobName,
+          [string]$BuildDir    
+        )
+        $StorageAccountUrl = $StorageEndpoint
+        $TokenUri = "http://169.254.169.254/metadata/identity/oauth2/token?api-version=2018-02-01&resource=$StorageAccountUrl&client_id=$UserAssignedIdentityClientId"
+        $AccessToken = ((Invoke-WebRequest -Headers @{Metadata=$true} -Uri $TokenUri -UseBasicParsing).Content | ConvertFrom-Json).access_token
+        $ZIP = Join-Path -Path $BuildDir -ChildPath 'VDOT.zip'
+        Invoke-WebRequest -Headers @{"x-ms-version"="2017-11-09"; Authorization ="Bearer $AccessToken"} -Uri "$StorageAccountUrl$ContainerName/$BlobName" -OutFile $ZIP
+        Set-Location -Path $BuildDir
+        $ErrorActionPreference = "Stop"
+        Do {Start-Sleep -seconds 5} Until (Test-Path -Path $ZIP)
+        Unblock-File -Path $ZIP
+        $VDOTDir = Join-Path -Path $BuildDir -ChildPath 'VDOT'
+        Expand-Archive -LiteralPath $ZIP -DestinationPath $VDOTDir -Force
+        $Path = (Get-ChildItem -Path $VDOTDir -Recurse | Where-Object {$_.Name -eq "Windows_VDOT.ps1"}).FullName
+        $Script = Get-Content -Path $Path
+        $ScriptUpdate = $Script.Replace("Set-NetAdapterAdvancedProperty","#Set-NetAdapterAdvancedProperty")
+        $ScriptUpdate | Set-Content -Path $Path
+        & $Path -Optimizations @("AppxPackages","Autologgers","DefaultUserSettings","LGPO";"NetworkOptimizations","ScheduledTasks","Services","WindowsMediaPlayer") -AdvancedOptimizations @("Edge","RemoveLegacyIE") -AcceptEULA
+        Write-Output "Optimized the operating system using the Virtual Desktop Optimization Tool"
+      '''
+    }
+    timeoutInSeconds: 640
+  }
+  dependsOn: [
+    createBuildDir
+    teams
+    applications
+    office
+  ]
+}
+
 resource removeBuildDir 'Microsoft.Compute/virtualMachines/runCommands@2023-03-01' = {
   name: 'remove-BuildDir'
   location: location
@@ -595,6 +607,7 @@ resource removeBuildDir 'Microsoft.Compute/virtualMachines/runCommands@2023-03-0
     applications
     office
     teams
+    vdot
   ]
 }
 

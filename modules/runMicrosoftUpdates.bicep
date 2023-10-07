@@ -16,11 +16,11 @@ resource microsoftUpdate 'Microsoft.Compute/virtualMachines/runCommands@2023-03-
     parent: vm
     properties: {
         asyncExecution: false
-        errorBlobManagedIdentity: empty(logBlobClientId) ? {} : {
+        errorBlobManagedIdentity: empty(logBlobClientId) ? null : {
             clientId: logBlobClientId
         }
         errorBlobUri: empty(logBlobContainerUri) ? null : '${logBlobContainerUri}MicrosoftUpdate-error-${timeStamp}.log' 
-        outputBlobManagedIdentity: empty(logBlobClientId) ? {} : {
+        outputBlobManagedIdentity: empty(logBlobClientId) ? null : {
             clientId: logBlobClientId
         }
         outputBlobUri: empty(logBlobContainerUri) ? null : '${logBlobContainerUri}MicrosoftUpdate-output-${timeStamp}.log'

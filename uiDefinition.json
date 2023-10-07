@@ -135,7 +135,7 @@
 									"type": "Microsoft.Common.DropDown",
 									"label": "Env Classification",
 									"defaultValue": "Not Defined",
-									"toolTip": "Select the type of environment (Development (Dev), Test (Test), Production (Prod)) for which this solution is being deployed. This information will be use as part of the resources naming. Select (or leave the value as) \"Not Specified\" to omit this option.",
+									"toolTip": "Select the type of environment (Development (dev), Test (test), Production (prod)) for which this solution is being deployed. This information will be use as part of the resources naming. Select (or leave the value as) \"Not Specified\" to omit this option.",
 									"constraints": {
 										"required": false,
 										"allowedValues": [
@@ -145,15 +145,15 @@
 											},
 											{
 												"label": "Development",
-												"value": "Dev"
+												"value": "dev"
 											},
 											{
 												"label": "Test",
-												"value": "Test"
+												"value": "test"
 											},
 											{
 												"label": "Production",
-												"value": "Prod"
+												"value": "prod"
 											}
 										]
 									}
@@ -180,7 +180,7 @@
 							"type": "Microsoft.Common.TextBlock",
 							"visible": true,
 							"options": {
-								"text": "Select the storage account and blob container with the build artifacts (scripts and installers) and then the User Assigned Managed Identity that has assigned the 'Storage Blob Data Reader' role the storage account below."
+								"text": "Select the storage account and blob container with the build artifacts (scripts and installers) and the User Assigned Managed Identity that has been assigned the 'Storage Blob Data Reader' role the storage account.<br/><br/>The User Assigned Identity will be assigned the Contributor and Storage Blob Data Contributor roles on the Build Resource Group."
 							}
 						},						
 						{

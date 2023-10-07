@@ -1,1 +1,1 @@
-DownloadUrl = https://msedge.sf.dl.delivery.mp.microsoft.com/filestreamingservice/files/0e97c542-6efe-486a-bd79-c9a183c37c59/MicrosoftEdgePolicyTemplates.cab
+DownloadUrl = https://msedge.sf.dl.delivery.mp.microsoft.com/filestreamingservice/files/468785eb-b1bf-4663-8d8f-0765af0f70ee/MicrosoftEdgePolicyTemplates.cab

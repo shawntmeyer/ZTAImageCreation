@@ -16,9 +16,9 @@ param imageVersionCreationTime string = utcNow()
 param guidValue string = newGuid()
 
 @allowed([
-  'Dev'
-  'Test'
-  'Prod'
+  'dev'
+  'test'
+  'prod'
   ''
 ])
 @description('Optional. The environment for which the images are being created.')
@@ -84,7 +84,7 @@ param installTeams bool = false
 param installVirtualDesktopOptimizationTool bool = false
 param installVisio bool = false
 param installWord bool = false
-param vDotInstaller string = 'VDOT'
+param vDotInstaller string = 'Virtual-Desktop-Optimization-Tool.zip'
 param officeInstaller string = 'Office365-Install.zip'
 param teamsInstaller string = 'teams.exe'
 param msrdcwebrtcsvcInstaller string = 'string'
@@ -228,7 +228,6 @@ var validationScriptCommonParameters = '-environment ${cloud} -subscription ${su
 var validationScriptExDefParameters = '${validationScriptCommonParameters} -imageDefinitionResourceId ${imageDefinitionResourceId} -SourceSku ${sku}'
 var validationScriptNewDefParameters = '${validationScriptCommonParameters} -imageGalleryResourceId ${computeGalleryResourceId} -imageName ${galleryImageDefinitionName} -ImageHyperVGeneration ${galleryImageDefinitionHyperVGeneration} -ImageSecurityType ${imageDefinitionSecurityType} -ImageIsHibernateSupported ${imageDefinitionIsHibernateSupported} -ImageIsAcceleratedNetworkSupported ${imageDefinitionIsAcceleratedNetworkSupported} -ImageIsHigherStoragePerformanceSupported ${imageDefinitionIsHigherStoragePerformanceSupported} -imagePublisher ${galleryImageDefinitionPublisher} -imageOffer ${galleryImageDefinitionOffer} -imageSku ${galleryImageDefinitionSku}'
 
-
 var collectLogs = collectCustomizationLogs && !empty(privateEndpointSubnetResourceId) && !empty(blobPrivateDnsZoneResourceId) ? true : false
 var logContainerName = 'image-customization-logs'
 var logContainerUri = collectLogs ? '${logsStorageAccount.outputs.primaryBlobEndpoint}${logContainerName}/' : ''
@@ -278,17 +277,17 @@ resource vnet 'Microsoft.Network/virtualNetworks@2023-05-01' existing = {
   scope: resourceGroup(split(subnetResourceId, '/')[2], split(subnetResourceId, '/')[4])
 }
 
-module roleAssignmentVMCImageBuildRg 'carml/authorization/role-assignment/resource-group/main.bicep' = {
-  name: '${depPrefix}roleAssign-mi-virtualMachineContributor-${timeStamp}'
+module roleAssignmentContributorBuildRg 'carml/authorization/role-assignment/resource-group/main.bicep' = {
+  name: '${depPrefix}roleAssign-mi-Contributor-BuildRG-${timeStamp}'
   scope: resourceGroup(imageBuildRg.name)
   params: {
     principalId: managedIdentity.properties.principalId
-    roleDefinitionIdOrName: 'Virtual Machine Contributor'
+    roleDefinitionIdOrName: 'Contributor'
   }
 }
 
 module roleAssignmentReaderGalleryRg 'carml/authorization/role-assignment/resource-group/main.bicep' = {
-  name: '${depPrefix}roleAssign-mi-reader-${timeStamp}'
+  name: '${depPrefix}roleAssign-mi-Reader-GalleryRG-${timeStamp}'
   scope: resourceGroup(split(computeGalleryResourceId, '/')[2], split(computeGalleryResourceId, '/')[4])
   params: {
     principalId: managedIdentity.properties.principalId
@@ -440,7 +439,7 @@ module logsStorageAccount 'carml/storage/storage-account/main.bicep' = if(collec
 }
 
 module roleAssignmentBlobDataContributorBuilderRg 'carml/authorization/role-assignment/resource-group/main.bicep' = if (collectLogs) {
-  name: '${depPrefix}roleAssign-mi-storageBlobDataContr-${timeStamp}'
+  name: '${depPrefix}roleAssign-mi-stgeBlobDataContr-BuildRg-${timeStamp}'
   scope: resourceGroup(imageBuildRg.name)
   params: {
     principalId: managedIdentity.properties.principalId
@@ -666,7 +665,7 @@ module imageVersion 'modules/imageVersion.bicep' = {
 }
 
 module removeImageBuildResources 'modules/removeImageBuildResources.bicep' = {
-  name: '${depPrefix}removeVms-${timeStamp}'
+  name: '${depPrefix}remove-buildResources-${timeStamp}'
   scope: resourceGroup(imageBuildResourceGroupName)
   params: {
     cloud: cloud
