@@ -187,7 +187,7 @@ try
 
     Disconnect-AzAccount | Out-Null
 
-    If ($ImageDefinitionResoureId) {
+    If ($ImageDefinitionResourceId) {
 
         $Output = [pscustomobject][ordered]@{
             hyperVGeneration = $HyperVGeneration
