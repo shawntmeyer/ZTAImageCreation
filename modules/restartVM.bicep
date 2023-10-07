@@ -2,12 +2,7 @@ param cloud string
 param location string = resourceGroup().location
 param imageVmName string
 param managementVmName string
-param userAssignedIdentityResourceId string
-
-resource managedIdentity 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-01-31' existing = {
-  scope: resourceGroup(split(userAssignedIdentityResourceId, '/')[2], split(userAssignedIdentityResourceId, '/')[4])
-  name: last(split(userAssignedIdentityResourceId, '/'))
-}
+param userAssignedIdentityClientId string
 
 resource imageVm 'Microsoft.Compute/virtualMachines@2022-03-01' existing = {
   name: imageVmName
@@ -27,7 +22,7 @@ resource restartVm 'Microsoft.Compute/virtualMachines/runCommands@2023-03-01' = 
     parameters: [
       {
         name: 'miClientId'
-        value: managedIdentity.properties.clientId
+        value: userAssignedIdentityClientId
       }
       {
         name: 'imageVmRg'
