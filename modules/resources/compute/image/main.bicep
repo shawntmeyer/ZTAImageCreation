@@ -8,17 +8,17 @@ param name string
 @description('Optional. Location for all resources.')
 param location string = resourceGroup().location
 
-@description('Required. The Virtual Hard Disk.')
-param osDiskBlobUri string
+@description('Optional. The Virtual Hard Disk.')
+param osDiskBlobUri string = ''
 
-@description('Required. This property allows you to specify the type of the OS that is included in the disk if creating a VM from a custom image. - Windows or Linux.')
-param osType string
+@description('Optional. This property allows you to specify the type of the OS that is included in the disk if creating a VM from a custom image. - Windows or Linux.')
+param osType string = ''
 
 @description('Optional. Specifies the caching requirements. Default: None for Standard storage. ReadOnly for Premium storage. - None, ReadOnly, ReadWrite.')
-param osDiskCaching string
+param osDiskCaching string = ''
 
 @description('Optional. Specifies the storage account type for the managed disk. NOTE: UltraSSD_LRS can only be used with data disks, it cannot be used with OS Disk. - Standard_LRS, Premium_LRS, StandardSSD_LRS, UltraSSD_LRS.')
-param osAccountType string
+param osAccountType string = ''
 
 @description('Optional. Default is false. Specifies whether an image is zone resilient or not. Zone resilient images can be created only in regions that provide Zone Redundant Storage (ZRS).')
 param zoneResilient bool = false
@@ -57,7 +57,7 @@ param snapshotResourceId string = ''
 @description('Optional. Specifies the parameters that are used to add a data disk to a virtual machine.')
 param dataDisks array = []
 
-resource image 'Microsoft.Compute/images@2022-11-01' = {
+resource image 'Microsoft.Compute/images@2023-03-01' = {
   name: name
   location: location
   tags: tags

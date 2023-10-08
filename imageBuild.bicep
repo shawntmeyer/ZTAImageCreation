@@ -577,7 +577,9 @@ module imageDefinition 'modules/resources/compute/gallery/image/main.bicep' = if
   ]
 }
 
-module managedImage 'modules/imageBuild/managedImage.bicep' = {
+// Image Definitions with Security Type = 'TrustedLaunchSupported', 'ConfidentialVMSupported', or TrustedLaunchConfidentialVMSupported' do not
+// support capture directly from a VM. Must create a legacy managed image first.
+module managedImage 'modules/imageBuild/managedImage.bicep' = if(contains(imageDefinitionSecurityType, 'Supported')) {
   name: '${depPrefix}managed-image-${timeStamp}'
   scope: resourceGroup(imageBuildRg.name)
   params: {
@@ -603,7 +605,7 @@ module imageVersion 'modules/resources/compute/gallery/image/version/main.bicep'
     excludeFromLatest: imageVersionExcludeFromLatest
     replicaCount: imageVersionDefaultReplicaCount
     storageAccountType: imageVersionDefaultStorageAccountType
-    sourceId: managedImage.outputs.resourceId
+    sourceId: contains(imageDefinitionSecurityType, 'Supported') ? managedImage.outputs.resourceId : imageVm.outputs.resourceId
     targetRegions: imageVersionReplicationRegions
     tags: {}
   }
@@ -615,7 +617,7 @@ module removeImageBuildResources 'modules/imageBuild/removeImageBuildResources.b
   params: {
     cloud: cloud
     location: computeLocation
-    imageResourceId: managedImage.outputs.resourceId
+    imageResourceId: contains(imageDefinitionSecurityType, 'Supported') ? managedImage.outputs.resourceId : ''
     imageVmName: imageVm.outputs.name
     managementVmName: managementVm.outputs.name
     userAssignedIdentityClientId: managedIdentity.properties.clientId

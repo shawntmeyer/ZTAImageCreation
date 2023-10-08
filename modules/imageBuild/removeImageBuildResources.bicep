@@ -55,7 +55,9 @@ resource removeVm 'Microsoft.Compute/virtualMachines/runCommands@2023-03-01' = {
         # Connect to Azure
         Connect-AzAccount -Identity -AccountId $miId -Environment $Environment # Run on the virtual machine
         # Remove Image VM and Management VM
-        Remove-AzImage -Name $imageName -ResourceGroupName $ResourceGroupName -Force
+        If ($imageName -ne '') {
+          Remove-AzImage -Name $imageName -ResourceGroupName $ResourceGroupName -Force
+        }
         Remove-AzVM -Name $imageVmName -ResourceGroupName $ResourceGroupName -ForceDeletion $true -Force
         Remove-AzVM -Name $managementVmName -ResourceGroupName $ResourceGroupName -NoWait -ForceDeletion $true -Force -AsJob
       '''
