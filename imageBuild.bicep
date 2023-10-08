@@ -523,7 +523,7 @@ module customizeImage 'modules/imageBuild/customizeImage.bicep' = {
     storageEndpoint: artifactsStorageAccount.properties.primaryEndpoints.blob
     tenantType: tenantType
     userAssignedIdentityClientId: managedIdentity.properties.clientId
-    managementVMName: managementVm.outputs.name
+    managementVmName: managementVm.outputs.name
     imageVmName: imageVm.outputs.name
     vDotInstaller: vDotInstaller
     officeInstaller: officeInstaller

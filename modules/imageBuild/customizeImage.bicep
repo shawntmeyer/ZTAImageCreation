@@ -6,7 +6,7 @@ param userAssignedIdentityClientId string
 param logBlobContainerUri string
 param storageEndpoint string
 param containerName string
-param managementVMName string
+param managementVmName string
 param imageVmName string
 param installAccess bool
 param installExcel bool
@@ -52,6 +52,10 @@ var installers = [for customization in customizations: {
 
 resource imageVm 'Microsoft.Compute/virtualMachines@2022-11-01' existing = {
   name: imageVmName
+}
+
+resource managementVm 'Microsoft.Compute/virtualMachines@2022-03-01' existing = {
+  name: managementVmName
 }
 
 resource createBuildDir 'Microsoft.Compute/virtualMachines/runCommands@2023-03-01' = {
@@ -123,91 +127,7 @@ resource applications 'Microsoft.Compute/virtualMachines/runCommands@2023-03-01'
       }
     ]
     source: {
-      script: '''
-        param(
-          [string]$BuildDir,
-          [string]$UserAssignedIdentityClientId,
-          [string]$ContainerName,
-          [string]$StorageEndpoint,
-          [string]$BlobName,
-          [string]$Installer,
-          [string]$Arguments
-        )
-        If ($Arguments -eq '') {$Arguments = $null}
-        $UserAssignedIdentityClientId = $UserAssignedIdentityClientId
-        $ContainerName = $ContainerName
-        $BlobName = $BlobName
-        $StorageAccountUrl = $StorageEndpoint
-        $TokenUri = "http://169.254.169.254/metadata/identity/oauth2/token?api-version=2018-02-01&resource=$StorageAccountUrl&client_id=$UserAssignedIdentityClientId"
-        $AccessToken = ((Invoke-WebRequest -Headers @{Metadata=$true} -Uri $TokenUri -UseBasicParsing).Content | ConvertFrom-Json).access_token
-        $InstallDir = Join-Path $BuildDir -ChildPath $Installer
-        New-Item -Path $InstallDir -ItemType Directory -Force | Out-Null
-        Invoke-WebRequest -Headers @{"x-ms-version"="2017-11-09"; Authorization ="Bearer $AccessToken"} -Uri "$StorageAccountUrl$ContainerName/$BlobName" -OutFile $InstallDir\$Blobname
-        Start-Sleep -Seconds 10        
-        Set-Location -Path $InstallDir
-        if($Blobname -like ("*.exe"))
-        {
-          If ($Arguments) {
-            Start-Process -FilePath $InstallDir\$Blobname -ArgumentList $Arguments -NoNewWindow -Wait -PassThru
-          } Else {
-            Start-Process -FilePath $InstallDir\$Blobname -NoNewWindow -Wait -PassThru
-          }
-          $status = Get-WmiObject -Class Win32_Product | Where-Object Name -like "*$($installer)*"
-          if($status)
-          {
-            Write-Host $status.Name "is installed"
-          }
-          else
-          {
-            Write-host $Installer "did not install properly, please check arguments"
-          }
-        }
-        if($Blobname -like ("*.msi"))
-        {
-          If ($Arguments) {
-            If ($Arguments -notcontains $Blobname) {$Arguments = "/i $Blobname $Arguments"}
-            Start-Process -FilePath msiexec.exe -ArgumentList $Arguments -Wait
-          } Else {
-            Start-Process -FilePath msiexec.exe -ArgumentList "/i $BlobName /qn" -Wait
-          }
-          $status = Get-WmiObject -Class Win32_Product | Where-Object Name -like "*$($installer)*"
-          if($status)
-          {
-            Write-Host $status.Name "is installed"
-          }
-          else
-          {
-            Write-host $Installer "did not install properly, please check arguments"
-          }
-        }
-        if($Blobname -like ("*.bat"))
-        {
-          If ($Arguments) {
-            Start-Process -FilePath cmd.exe -ArgumentList "$BlobName $Arguments" -Wait
-          } Else {
-            Start-Process -FilePath cmd.exe -ArgumentList "$BlobName" -Wait
-          }
-        }
-        if($Blobname -like '*.ps1') {
-          If ($Arguments) {
-            & $BlobName $Arguments
-          } Else {
-            & $BlobName
-          }
-        }
-        if($Blobname -like ("*.zip"))
-        {
-          $destinationPath = Join-Path -Path $InstallDir -ChildPath $([System.IO.Path]::GetFileNameWithoutExtension($Blobname))
-          Expand-Archive -Path $InstallDir\$Blobname -DestinationPath $destinationPath -Force
-          $PSScript = (Get-ChildItem -Path $destinationPath -filter '*.ps1').FullName
-          If ($PSScript.count -gt 1) { $PSScript = $PSScript[0] }
-          If ($Arguments) {
-            & $PSScript $Arguments
-          } Else {          
-            & $PSScript
-          }
-        }
-      '''
+      script: loadTextContent('../../data/Invoke-AppInstall.ps1', 'utf-8')
     }
   }
   dependsOn: [
@@ -295,90 +215,7 @@ resource office 'Microsoft.Compute/virtualMachines/runCommands@2023-03-01' = if 
       }
     ]
     source: {
-      script: '''
-      param(
-        [string]$BuildDir,
-        [string]$InstallAccess,
-        [string]$InstallExcel,
-        [string]$InstallOneDriveForBusiness,
-        [string]$InstallOutlook,
-        [string]$InstallProject,
-        [string]$InstallPublisher,
-        [string]$InstallSkypeForBusiness,
-        [string]$InstallVisio,
-        [string]$InstallWord,
-        [string]$InstallOneNote,
-        [string]$InstallPowerPoint,
-        [string]$UserAssignedIdentityClientId,
-        [string]$ContainerName,
-        [string]$StorageEndpoint,
-        [string]$BlobName
-      )
-      $UserAssignedIdentityClientId = $UserAssignedIdentityClientId
-      $ContainerName = $ContainerName
-      $BlobName = $BlobName
-      $StorageAccountUrl = $StorageEndpoint
-      $TokenUri = "http://169.254.169.254/metadata/identity/oauth2/token?api-version=2018-02-01&resource=$StorageAccountUrl&client_id=$UserAssignedIdentityClientId"
-      $AccessToken = ((Invoke-WebRequest -Headers @{Metadata = $true } -Uri $TokenUri -UseBasicParsing).Content | ConvertFrom-Json).access_token
-      $sku = (Get-ComputerInfo).OsName
-      $appDir = Join-Path -Path $BuildDir -ChildPath 'Office365'
-      New-Item -Path $appDir -ItemType Directory -Force | Out-Null
-      $configFile = Join-Path -Path $appDir -ChildPath 'office365x64.xml'
-      $null =  Set-Content $configFile '<Configuration><Add OfficeClientEdition="64" Channel="Current">'
-      $null = Add-Content $configFile '<Product ID="O365ProPlusRetail"><Language ID="en-us" /><ExcludeApp ID="Teams"/>'
-      if ($InstallAccess -notlike '*true*') {
-          $null = Add-Content $configFile '<ExcludeApp ID="Access" />'
-      }
-      if ($InstallExcel -notlike '*true*') {
-          $null= Add-Content $configFile '<ExcludeApp ID="Excel" />'
-      }
-      if ($InstallOneDriveForBusiness -notlike '*true*') {
-          $null = Add-Content $configFile '<ExcludeApp ID="Groove" />'
-      }
-      if ($InstallOneDriveForBusiness -notlike '*true*') {
-          $null = Add-Content $configFile '<ExcludeApp ID="Groove" />'
-      }
-      if ($InstallOneNote -notlike '*true*') {
-          $null = Add-Content $configFile '<ExcludeApp ID="OneNote" />'
-      }
-      if ($InstallOutlook -notlike '*true*') {
-          $null = Add-Content $configFile '<ExcludeApp ID="Outlook" />'
-      }
-      if ($InstallPowerPoint -notlike '*true*') {
-          $null = Add-Content $configFile '<ExcludeApp ID="PowerPoint" />'
-      }
-      if ($InstallPublisher -notlike '*true*') {
-          $null = Add-Content $configFile '<ExcludeApp ID="Publisher" />'
-      }
-      if ($InstallSkypeForBusiness -notlike '*true*') {
-          $null = Add-Content $configFile '<ExcludeApp ID="Lync" />'
-      }
-      if ($InstallWord -notlike '*true*') {
-          $null = Add-Content $configFile '<ExcludeApp ID="Word" />'
-      }
-      $null = Add-Content $configFile '</Product>'
-      if ($InstallProject -like '*true*') {
-          $null = Add-Content $configFile '<Product ID="ProjectProRetail"><Language ID="en-us" /></Product>'
-      }
-      if ($InstallVisio -like '*true*') {
-          $null = Add-Content $configFile '<Product ID="VisioProRetail"><Language ID="en-us" /></Product>'
-      }
-      $null = Add-Content $configFile '</Add><Updates Enabled="FALSE" /><Display Level="None" AcceptEULA="TRUE" /><Property Name="FORCEAPPSHUTDOWN" Value="TRUE"/>'
-      if (($Sku).Contains("multi") -eq "true") {
-          $null = Add-Content $configFile '<Property Name="SharedComputerLicensing" Value="1"/>'
-      }
-      $null = Add-Content $configFile '</Configuration>'
-      $ErrorActionPreference = "Stop"
-      $destFile = Join-Path -Path $appDir -ChildPath 'office.zip'
-      Invoke-WebRequest -Headers @{"x-ms-version" = "2017-11-09"; Authorization = "Bearer $AccessToken" } -Uri "$StorageAccountUrl$ContainerName/$BlobName" -OutFile $destFile
-      Expand-Archive -Path $destFile -DestinationPath "$appDir\Temp" -Force
-      $DeploymentTool = (Get-ChildItem -Path $appDir\Temp -Filter '*.exe' -Recurse -File).FullName
-      Start-Process -FilePath $DeploymentTool -ArgumentList "/extract:`"$appDir\ODT`" /quiet /passive /norestart" -Wait -PassThru | Out-Null
-      Write-Host "Downloaded & extracted the Office 365 Deployment Toolkit"
-      $setup = (Get-ChildItem -Path "$appDir\ODT" -Filter '*setup*.exe').FullName
-      Start-Process -FilePath $setup -ArgumentList "/configure `"$configFile`"" -Wait -PassThru -ErrorAction "Stop" | Out-Null
-      Write-Host "Installed the selected Office365 applications"
-      '''
+      script: loadTextContent('../../data/Invoke-OfficeInstall.ps1')
     }
   }
   dependsOn: [
@@ -427,77 +264,108 @@ resource teams 'Microsoft.Compute/virtualMachines/runCommands@2023-03-01' = if (
       }
     ]
     source: {
-      script: '''
-      param(
-        [string]$tenantType,
-        [string]$UserAssignedIdentityClientId,
-        [string]$ContainerName,
-        [string]$StorageEndpoint,
-        [string]$BlobName,
-        [string]$BlobName2,
-        [string]$BlobName3
-        )
-      If($tenantType -eq "Commercial")
-      {
-        $TeamsUrl = "https://teams.microsoft.com/downloads/desktopurl?env=production&plat=windows&arch=x64&managedInstaller=true&download=true"
-      }
-      If($tenantType -eq "DepartmentOfDefense")
-      {
-        $TeamsUrl = "https://dod.teams.microsoft.us/downloads/desktopurl?env=production&plat=windows&arch=x64&managedInstaller=true&download=true"
-      }
-      If($tenantType -eq "GovernmentCommunityCloud")
-      {
-        $TeamsUrl = "https://teams.microsoft.com/downloads/desktopurl?env=production&plat=windows&arch=x64&managedInstaller=true&ring=general_gcc&download=true"
-      }
-      If($tenantType -eq "GovernmentCommunityCloudHigh")
-      {
-        $TeamsUrl = "https://gov.teams.microsoft.us/downloads/desktopurl?env=production&plat=windows&arch=x64&managedInstaller=true&download=true"
-      }
-      Write-Host $($TeamsUrl)
-      $UserAssignedIdentityClientId = $UserAssignedIdentityClientId
-      $ContainerName = $ContainerName
-      $BlobName = $BlobName
-      $StorageAccountUrl = $StorageEndpoint
-      $TokenUri = "http://169.254.169.254/metadata/identity/oauth2/token?api-version=2018-02-01&resource=$StorageAccountUrl&client_id=$UserAssignedIdentityClientId"
-      $AccessToken = ((Invoke-WebRequest -Headers @{Metadata=$true} -Uri $TokenUri -UseBasicParsing).Content | ConvertFrom-Json).access_token
-      $vcRedistFile = "$env:windir\temp\vc_redist.x64.exe"
-      $webSocketFile = "$env:windir\temp\webSocketSvc.msi"
-      $teamsFile = "$env:windir\temp\teams.msi"
-      Invoke-WebRequest -Headers @{"x-ms-version"="2017-11-09"; Authorization ="Bearer $AccessToken"} -Uri "$StorageAccountUrl$ContainerName/$BlobName" -OutFile $teamsFile
-      Invoke-WebRequest -Headers @{"x-ms-version"="2017-11-09"; Authorization ="Bearer $AccessToken"} -Uri "$StorageAccountUrl$ContainerName/$BlobName2" -OutFile $vcRedistFile
-      Invoke-WebRequest -Headers @{"x-ms-version"="2017-11-09"; Authorization ="Bearer $AccessToken"} -Uri "$StorageAccountUrl$ContainerName/$BlobName3" -OutFile  $webSocketFile
-
-      # Enable media optimizations for Team
-      Start-Process "reg" -ArgumentList "add HKLM\SOFTWARE\Microsoft\Teams /v IsWVDEnvironment /t REG_DWORD /d 1 /f" -Wait -PassThru -ErrorAction "Stop"
-      Write-Host "Enabled media optimizations for Teams"
-      # Download & install the latest version of Microsoft Visual C++ Redistributable
-      $ErrorActionPreference = "Stop"
-      #$File = "$env:windir\temp\vc_redist.x64.exe"
-      #Invoke-WebRequest -Uri "https://aka.ms/vs/16/release/vc_redist.x64.exe" -OutFile $File
-      Start-Process -FilePath  $vcRedistFile -Args "/install /quiet /norestart /log vcdist.log" -Wait -PassThru | Out-Null
-      Write-Host "Installed the latest version of Microsoft Visual C++ Redistributable"
-      # Download & install the Remote Desktop WebRTC Redirector Service
-      $ErrorActionPreference = "Stop"
-      #$File = "$env:windir\temp\webSocketSvc.msi"
-      #Invoke-WebRequest -Uri "https://aka.ms/msrdcwebrtcsvc/msi" -OutFile $File
-      Start-Process -FilePath msiexec.exe -Args "/i  $webSocketFile /quiet /qn /norestart /passive /log webSocket.log" -Wait -PassThru | Out-Null
-      Write-Host "Installed the Remote Desktop WebRTC Redirector Service"
-      # Install Teams
-      $ErrorActionPreference = "Stop"
-      #$File = "$env:windir\temp\teams.msi"
-      #Write-host $($TeamsUrl)
-      #Invoke-WebRequest -Uri "$TeamsUrl" -OutFile $File
-      $sku = (Get-ComputerInfo).OsName
-      $PerMachineConfiguration = if(($Sku).Contains("multi") -eq "true"){"ALLUSER=1"}else{""}
-      Start-Process -FilePath msiexec.exe -Args "/i $teamsFile /quiet /qn /norestart /passive /log teams.log $PerMachineConfiguration ALLUSERS=1" -Wait -PassThru | Out-Null
-      Write-Host "Installed Teams"
-      '''
+      script: loadTextContent('../../data/Invoke-TeamsInstall.ps1', 'utf-8')
     }
   }
   dependsOn: [
     createBuildDir
     applications
     office
+  ]
+}
+
+resource firstImageVmRestart 'Microsoft.Compute/virtualMachines/runCommands@2023-03-01' = {
+  name: 'restart-vm-1'
+  location: location
+  parent: managementVm
+  properties: {
+    treatFailureAsDeploymentFailure: false
+    asyncExecution: false
+    parameters: [
+      {
+        name: 'miClientId'
+        value: userAssignedIdentityClientId
+      }
+      {
+        name: 'imageVmRg'
+        value: split(imageVm.id, '/')[4]
+      }
+      {
+        name: 'imageVmName'
+        value: imageVm.name
+      }
+      {
+        name: 'Environment'
+        value: cloud
+      }
+    ]
+    source: {
+      script: loadTextContent('../../data/Restart-Vm.ps1')
+    }
+  }
+  dependsOn: [
+    createBuildDir
+    applications
+    office
+    teams
+  ]
+}
+
+resource microsoftUpdates 'Microsoft.Compute/virtualMachines/runCommands@2023-03-01' = {
+  name: 'install-microsoft-updates'
+  location: location
+  parent: imageVm
+  properties: {
+    asyncExecution: false
+    errorBlobManagedIdentity: empty(logBlobContainerUri) ? null : {
+      clientId: userAssignedIdentityClientId
+    }
+    errorBlobUri: empty(logBlobContainerUri) ? null : '${logBlobContainerUri}vdot-error-${timeStamp}.log' 
+    outputBlobManagedIdentity: empty(logBlobContainerUri) ? null : {
+      clientId: userAssignedIdentityClientId
+    }
+    outputBlobUri: empty(logBlobContainerUri) ? null : '${logBlobContainerUri}vdot-output-${timeStamp}.log'
+    treatFailureAsDeploymentFailure: true
+    source: {
+      script: loadTextContent('../../data/Invoke-MicrosoftUpdate.ps1', 'utf-8')
+    }
+  }
+  dependsOn: [
+    firstImageVmRestart
+  ]
+}
+
+resource secondImageVmRestart 'Microsoft.Compute/virtualMachines/runCommands@2023-03-01' = {
+  name: 'restart-vm-2'
+  location: location
+  parent: managementVm
+  properties: {
+    treatFailureAsDeploymentFailure: false
+    asyncExecution: false
+    parameters: [
+      {
+        name: 'miClientId'
+        value: userAssignedIdentityClientId
+      }
+      {
+        name: 'imageVmRg'
+        value: split(imageVm.id, '/')[4]
+      }
+      {
+        name: 'imageVmName'
+        value: imageVm.name
+      }
+      {
+        name: 'Environment'
+        value: cloud
+      }
+    ]
+    source: {
+      script: loadTextContent('../../data/Restart-Vm.ps1')
+    }
+  }
+  dependsOn: [
+    microsoftUpdates
   ]
 }
 
@@ -539,40 +407,12 @@ resource vdot 'Microsoft.Compute/virtualMachines/runCommands@2023-03-01' = if (i
       }
     ]
     source: {
-      script: '''
-        param(
-          [string]$UserAssignedIdentityClientId,
-          [string]$ContainerName,
-          [string]$StorageEndpoint,
-          [string]$BlobName,
-          [string]$BuildDir    
-        )
-        $StorageAccountUrl = $StorageEndpoint
-        $TokenUri = "http://169.254.169.254/metadata/identity/oauth2/token?api-version=2018-02-01&resource=$StorageAccountUrl&client_id=$UserAssignedIdentityClientId"
-        $AccessToken = ((Invoke-WebRequest -Headers @{Metadata=$true} -Uri $TokenUri -UseBasicParsing).Content | ConvertFrom-Json).access_token
-        $ZIP = Join-Path -Path $BuildDir -ChildPath 'VDOT.zip'
-        Invoke-WebRequest -Headers @{"x-ms-version"="2017-11-09"; Authorization ="Bearer $AccessToken"} -Uri "$StorageAccountUrl$ContainerName/$BlobName" -OutFile $ZIP
-        Set-Location -Path $BuildDir
-        $ErrorActionPreference = "Stop"
-        Do {Start-Sleep -seconds 5} Until (Test-Path -Path $ZIP)
-        Unblock-File -Path $ZIP
-        $VDOTDir = Join-Path -Path $BuildDir -ChildPath 'VDOT'
-        Expand-Archive -LiteralPath $ZIP -DestinationPath $VDOTDir -Force
-        $Path = (Get-ChildItem -Path $VDOTDir -Recurse | Where-Object {$_.Name -eq "Windows_VDOT.ps1"}).FullName
-        $Script = Get-Content -Path $Path
-        $ScriptUpdate = $Script.Replace("Set-NetAdapterAdvancedProperty","#Set-NetAdapterAdvancedProperty")
-        $ScriptUpdate | Set-Content -Path $Path
-        & $Path -Optimizations @("AppxPackages","Autologgers","DefaultUserSettings","LGPO","NetworkOptimizations","ScheduledTasks","Services","WindowsMediaPlayer") -AdvancedOptimizations @("Edge","RemoveLegacyIE") -AcceptEULA
-        Write-Output "Optimized the operating system using the Virtual Desktop Optimization Tool"
-      '''
+      script: loadTextContent('../../data/Invoke-VDOT.ps1')
     }
     timeoutInSeconds: 640
   }
   dependsOn: [
-    createBuildDir
-    applications
-    office
-    teams
+    secondImageVmRestart
   ]
 }
 
@@ -598,64 +438,65 @@ resource removeBuildDir 'Microsoft.Compute/virtualMachines/runCommands@2023-03-0
     }
   }
   dependsOn: [
-    createBuildDir
-    applications
-    office
-    teams
+    secondImageVmRestart
     vdot
   ]
 }
 
-module firstImageVmMRestart 'restartVM.bicep' = {
-  name: 'restart-post-customizations'
-  params: {
-    cloud: cloud
-    location: location
-    imageVmName: imageVmName
-    managementVmName: managementVMName
-    userAssignedIdentityClientId: userAssignedIdentityClientId
+resource thirdImageVmRestart 'Microsoft.Compute/virtualMachines/runCommands@2023-03-01' = if (installVirtualDesktopOptimizationTool) {
+  name: 'restart-vm-3'
+  location: location
+  parent: managementVm
+  properties: {
+    treatFailureAsDeploymentFailure: false
+    asyncExecution: false
+    parameters: [
+      {
+        name: 'miClientId'
+        value: userAssignedIdentityClientId
+      }
+      {
+        name: 'imageVmRg'
+        value: split(imageVm.id, '/')[4]
+      }
+      {
+        name: 'imageVmName'
+        value: imageVm.name
+      }
+      {
+        name: 'Environment'
+        value: cloud
+      }
+    ]
+    source: {
+      script: loadTextContent('../../data/Restart-Vm.ps1')
+    }
   }
   dependsOn: [
     removeBuildDir
   ]
 }
 
-module microsoftUpdates 'runMicrosoftUpdates.bicep' = {
-  name: 'install-microsoft-updates'
-  params: {
-    location: location
-    vmName: imageVmName
-    logBlobClientId: userAssignedIdentityClientId
-    logBlobContainerUri: logBlobContainerUri
-  }
-  dependsOn: [
-    firstImageVmMRestart
-  ]
-}
-
-module secondImageVmMRestart 'restartVM.bicep' = {
-  name: 'restart-post-updates'
-  params: {
-    cloud: cloud
-    location: location
-    imageVmName: imageVmName
-    managementVmName: managementVMName
-    userAssignedIdentityClientId: userAssignedIdentityClientId
-  }
-  dependsOn: [
-    microsoftUpdates
-  ]
-}
-
-module sysprep 'sysprepVM.bicep' = {
+resource sysprep 'Microsoft.Compute/virtualMachines/runCommands@2023-03-01' = {
   name: 'sysprep'
-  params: {
-    location: location
-    vmName: imageVmName
-    logBlobClientId: userAssignedIdentityClientId
-    logBlobContainerUri: logBlobContainerUri
+  location: location
+  parent: imageVm
+  properties: {
+    asyncExecution: false
+    errorBlobManagedIdentity: empty(userAssignedIdentityClientId) ? null : {
+        clientId: userAssignedIdentityClientId
+    }
+    errorBlobUri: empty(logBlobContainerUri) ? null : '${logBlobContainerUri}MicrosoftUpdate-error-${timeStamp}.log' 
+    outputBlobManagedIdentity: empty(userAssignedIdentityClientId) ? null : {
+        clientId: userAssignedIdentityClientId
+    }
+    outputBlobUri: empty(logBlobContainerUri) ? null : '${logBlobContainerUri}MicrosoftUpdate-output-${timeStamp}.log'
+    source: {
+      script: loadTextContent('../../data/Invoke-Sysprep.ps1')
+    }
   }
   dependsOn: [
-    secondImageVmMRestart
+    removeBuildDir
+    thirdImageVmRestart
   ]
 }

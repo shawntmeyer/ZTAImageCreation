@@ -88,12 +88,12 @@ resource runCommand 'Microsoft.Compute/virtualMachines/runCommands@2023-03-01' =
   parent: virtualMachine
   properties: {
     asyncExecution: asyncExecution
-    errorBlobManagedIdentity: errorBlobManagedIdentity
+    errorBlobManagedIdentity: !empty(errorBlobManagedIdentity) ? errorBlobManagedIdentity : null
     errorBlobUri: !empty(errorBlobContainerUri) ? '${toLower(errorBlobContainerUri)}${name}-error.log' : null
-    outputBlobManagedIdentity: outputBlobManagedIdentity
+    outputBlobManagedIdentity: !empty(outputBlobManagedIdentity) ? outputBlobManagedIdentity : null
     outputBlobUri: !empty(outputBlobContainerUri) ? '${toLower(outputBlobContainerUri)}${name}-output.log' : null
-    parameters: parameters
-    protectedParameters: protectedParameters
+    parameters: !empty(parameters) ? parameters : null
+    protectedParameters: !empty(protectedParameters) ? protectedParameters : null
     runAsPassword: !empty(runAsPassword) ? runAsPassword : null
     runAsUser: !empty(runAsUser) ? runAsUser : null
     source: {
@@ -102,7 +102,7 @@ resource runCommand 'Microsoft.Compute/virtualMachines/runCommands@2023-03-01' =
       scriptUri: !empty(scriptUri) ? scriptUri : null
       scriptUriManagedIdentity: !empty(scriptUriManagedIdentity) ? scriptUriManagedIdentity : null
     }
-    timeoutInSeconds: timeoutInSeconds
+    timeoutInSeconds: timeoutInSeconds != -1 ? timeoutInSeconds : null
     treatFailureAsDeploymentFailure: treatFailureAsDeploymentFailure
   }
 }
