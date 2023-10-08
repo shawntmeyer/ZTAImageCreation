@@ -1,6 +1,13 @@
 targetScope = 'resourceGroup'
 
+param cloud string
+param location string = resourceGroup().location
+param userAssignedIdentityClientId string
+param logBlobContainerUri string
+param storageEndpoint string
 param containerName string
+param managementVMName string
+param imageVmName string
 param installAccess bool
 param installExcel bool
 param installOneDriveForBusiness bool
@@ -14,17 +21,6 @@ param installTeams bool
 param installVirtualDesktopOptimizationTool bool
 param installVisio bool
 param installWord bool
-param location string = resourceGroup().location
-param userAssignedIdentityClientId string
-param logBlobContainerUri string
-param storageEndpoint string
-param vmName string
-@allowed([
-  'Commercial'
-  'DepartmentOfDefense'
-  'GovernmentCommunityCloud'
-  'GovernmentCommunityCloudHigh'
-])
 param tenantType string
 param customizations array
 param vDotInstaller string
@@ -54,14 +50,14 @@ var installers = [for customization in customizations: {
   arguments: contains(customization, 'arguments') ? customization.arguments : ''
 } ]
 
-resource vm 'Microsoft.Compute/virtualMachines@2022-11-01' existing = {
-  name: vmName
+resource imageVm 'Microsoft.Compute/virtualMachines@2022-11-01' existing = {
+  name: imageVmName
 }
 
 resource createBuildDir 'Microsoft.Compute/virtualMachines/runCommands@2023-03-01' = {
   name: 'create-BuildDir'
   location: location
-  parent: vm
+  parent: imageVm
   properties: {
     treatFailureAsDeploymentFailure: true
     parameters: [
@@ -72,10 +68,10 @@ resource createBuildDir 'Microsoft.Compute/virtualMachines/runCommands@2023-03-0
     ]
     source: {
       script: '''
-      param(
-        [string]$BuildDir
-      )
-      New-Item -Path $BuildDir -ItemType Directory -Force | Out-Null
+        param(
+          [string]$BuildDir
+        )
+        New-Item -Path $BuildDir -ItemType Directory -Force | Out-Null
       '''
     }
   }
@@ -85,7 +81,7 @@ resource createBuildDir 'Microsoft.Compute/virtualMachines/runCommands@2023-03-0
 resource applications 'Microsoft.Compute/virtualMachines/runCommands@2023-03-01' = [for installer in installers: {
   name: 'app-${installer.name}'
   location: location
-  parent: vm
+  parent: imageVm
   properties: {
     treatFailureAsDeploymentFailure: true
     errorBlobManagedIdentity: empty(logBlobContainerUri) ? null : {
@@ -222,7 +218,7 @@ resource applications 'Microsoft.Compute/virtualMachines/runCommands@2023-03-01'
 resource office 'Microsoft.Compute/virtualMachines/runCommands@2023-03-01' = if (installAccess || installExcel || installOneDriveForBusiness || installOneNote || installOutlook || installPowerPoint || installPublisher || installSkypeForBusiness || installWord || installVisio || installProject) {
   name: 'office'
   location: location
-  parent: vm
+  parent: imageVm
   properties: {
     errorBlobManagedIdentity: empty(logBlobContainerUri) ? null : {
       clientId: userAssignedIdentityClientId
@@ -394,7 +390,7 @@ resource office 'Microsoft.Compute/virtualMachines/runCommands@2023-03-01' = if 
 resource teams 'Microsoft.Compute/virtualMachines/runCommands@2023-03-01' = if (installTeams) {
   name: 'teams'
   location: location
-  parent: vm
+  parent: imageVm
   properties: {
     parameters: [
       {
@@ -508,7 +504,7 @@ resource teams 'Microsoft.Compute/virtualMachines/runCommands@2023-03-01' = if (
 resource vdot 'Microsoft.Compute/virtualMachines/runCommands@2023-03-01' = if (installVirtualDesktopOptimizationTool) {
   name: 'vdot'
   location: location
-  parent: vm
+  parent: imageVm
   properties: {
     treatFailureAsDeploymentFailure: true
     errorBlobManagedIdentity: empty(logBlobContainerUri) ? null : {
@@ -574,16 +570,16 @@ resource vdot 'Microsoft.Compute/virtualMachines/runCommands@2023-03-01' = if (i
   }
   dependsOn: [
     createBuildDir
-    teams
     applications
     office
+    teams
   ]
 }
 
 resource removeBuildDir 'Microsoft.Compute/virtualMachines/runCommands@2023-03-01' = {
   name: 'remove-BuildDir'
   location: location
-  parent: vm
+  parent: imageVm
   properties: {
     treatFailureAsDeploymentFailure: true
     parameters: [
@@ -610,4 +606,56 @@ resource removeBuildDir 'Microsoft.Compute/virtualMachines/runCommands@2023-03-0
   ]
 }
 
-output tenantType string = tenantType
+module firstImageVmMRestart 'restartVM.bicep' = {
+  name: '1st-vmRestart-${timeStamp}'
+  params: {
+    cloud: cloud
+    location: location
+    imageVmName: imageVmName
+    managementVmName: managementVMName
+    userAssignedIdentityClientId: userAssignedIdentityClientId
+  }
+  dependsOn: [
+    removeBuildDir
+  ]
+}
+
+module microsoftUpdates 'runMicrosoftUpdates.bicep' = {
+  name: 'install-microsoftUpdates-${timeStamp}'
+  params: {
+    location: location
+    vmName: imageVmName
+    logBlobClientId: userAssignedIdentityClientId
+    logBlobContainerUri: logBlobContainerUri
+  }
+  dependsOn: [
+    firstImageVmMRestart
+  ]
+}
+
+module secondImageVmMRestart 'restartVM.bicep' = {
+  name: '2nd-vmRestart-${timeStamp}'
+  params: {
+    cloud: cloud
+    location: location
+    imageVmName: imageVmName
+    managementVmName: managementVMName
+    userAssignedIdentityClientId: userAssignedIdentityClientId
+  }
+  dependsOn: [
+    microsoftUpdates
+  ]
+}
+
+module sysprep 'sysprepVM.bicep' = {
+  name: 'sysprep-vm-${timeStamp}'
+  params: {
+    location: location
+    vmName: imageVmName
+    logBlobClientId: userAssignedIdentityClientId
+    logBlobContainerUri: logBlobContainerUri
+  }
+  dependsOn: [
+    secondImageVmMRestart
+  ]
+}

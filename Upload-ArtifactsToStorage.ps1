@@ -60,9 +60,9 @@ param(
 
 $Time = Get-Date -Format 'yyyyMMddhhmmss'
 $FunctionsPath = Join-Path -Path $PSScriptRoot -ChildPath 'sharedPowerShellFunctions'
-$BicepPath = Join-Path -Path $PSScriptRoot -ChildPath 'resourcePrereqs'
-$Template = Join-Path -Path $BicepPath -ChildPath 'prereqs.bicep'
-$TemplateParameters = Join-Path -Path $BicepPath -ChildPath 'prereqs.parameters.json'
+$BicepPath = Join-Path -Path $PSScriptRoot -ChildPath 'imageManagementResources'
+$Template = Join-Path -Path $BicepPath -ChildPath 'imageManagement.bicep'
+$TemplateParameters = Join-Path -Path $BicepPath -ChildPath 'imageManagement.parameters.json'
 
 #endregion Variables
 
@@ -82,9 +82,9 @@ Write-Verbose "#################################################################
 
 If ($DeployPrerequisites) {   
     Write-Output "Deploying/Updating prerequisite resources using BICEP template and parameter file." 
-    New-AzDeployment -Name "ZTAImageBuild-Prereqs-$Time" -Location $Location -TemplateFile $Template -TemplateParameterFile $TemplateParameters -verbose
+    New-AzDeployment -Name "ImageManagement-Prereqs-$Time" -Location $Location -TemplateFile $Template -TemplateParameterFile $TemplateParameters -verbose
 
-    $DeploymentOutputs = (Get-AzSubscriptionDeployment -Name "ZTAImageBuild-Prereqs-$Time").Outputs
+    $DeploymentOutputs = (Get-AzSubscriptionDeployment -Name "ImageManagement-Prereqs-$Time").Outputs
     $ComputeGalleryResourceId = $DeploymentOutputs.computeGalleryResourceId.value
     $StorageAccountResourceId = $DeploymentOutputs.storageAccountResourceId.value
     $ManagedIdentityResourceId = $DeploymentOutputs.managedIdentityResourceId.value

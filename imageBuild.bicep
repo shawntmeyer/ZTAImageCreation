@@ -277,7 +277,7 @@ resource vnet 'Microsoft.Network/virtualNetworks@2023-05-01' existing = {
   scope: resourceGroup(split(subnetResourceId, '/')[2], split(subnetResourceId, '/')[4])
 }
 
-module roleAssignmentContributorBuildRg 'carml/authorization/role-assignment/resource-group/main.bicep' = {
+module roleAssignmentContributorBuildRg 'modules/resources/authorization/role-assignment/resource-group/main.bicep' = {
   name: '${depPrefix}roleAssign-mi-Contributor-BuildRG-${timeStamp}'
   scope: resourceGroup(imageBuildRg.name)
   params: {
@@ -286,7 +286,7 @@ module roleAssignmentContributorBuildRg 'carml/authorization/role-assignment/res
   }
 }
 
-module roleAssignmentReaderGalleryRg 'carml/authorization/role-assignment/resource-group/main.bicep' = {
+module roleAssignmentReaderGalleryRg 'modules/resources/authorization/role-assignment/resource-group/main.bicep' = {
   name: '${depPrefix}roleAssign-mi-Reader-GalleryRG-${timeStamp}'
   scope: resourceGroup(split(computeGalleryResourceId, '/')[2], split(computeGalleryResourceId, '/')[4])
   params: {
@@ -295,7 +295,7 @@ module roleAssignmentReaderGalleryRg 'carml/authorization/role-assignment/resour
   }
 }
 
-module managementVm 'carml/compute/virtual-machine/main.bicep' = {
+module managementVm 'modules/resources/compute/virtual-machine/main.bicep' = {
   name: '${depPrefix}managementVM-${timeStamp}'
   scope: resourceGroup(imageBuildRg.name)
   params: {
@@ -357,7 +357,7 @@ module managementVm 'carml/compute/virtual-machine/main.bicep' = {
   }
 }
 
-module imageDefinitionValidation 'modules/customScriptExtensionWithOutput.bicep' = {
+module imageDefinitionValidation 'modules/imageBuild/customScriptExtensionWithOutput.bicep' = {
   name: '${depPrefix}imageDefValidation-${timeStamp}'
   scope: resourceGroup(imageBuildRg.name)
   params: {
@@ -378,7 +378,7 @@ module imageDefinitionValidation 'modules/customScriptExtensionWithOutput.bicep'
   ]
 }
 
-module logsStorageAccount 'carml/storage/storage-account/main.bicep' = if(collectLogs) {
+module logsStorageAccount 'modules/resources/storage/storage-account/main.bicep' = if(collectLogs) {
   name: '${depPrefix}logsStorageAccount-${timeStamp}'
   scope: resourceGroup(imageBuildRg.name)
   params: {
@@ -438,8 +438,8 @@ module logsStorageAccount 'carml/storage/storage-account/main.bicep' = if(collec
   ]
 }
 
-module roleAssignmentBlobDataContributorBuilderRg 'carml/authorization/role-assignment/resource-group/main.bicep' = if (collectLogs) {
-  name: '${depPrefix}roleAssign-mi-stgeBlobDataContr-BuildRg-${timeStamp}'
+module roleAssignmentBlobDataContributorBuilderRg 'modules/resources/authorization/role-assignment/resource-group/main.bicep' = if (collectLogs) {
+  name: '${depPrefix}roleAssign-mi-BlobDataContr-BuildRG-${timeStamp}'
   scope: resourceGroup(imageBuildRg.name)
   params: {
     principalId: managedIdentity.properties.principalId
@@ -447,7 +447,7 @@ module roleAssignmentBlobDataContributorBuilderRg 'carml/authorization/role-assi
   }  
 }
 
-module imageVm 'carml/compute/virtual-machine/main.bicep' = {
+module imageVm 'modules/resources/compute/virtual-machine/main.bicep' = {
   name: '${depPrefix}imageVM-${timeStamp}'
   scope: resourceGroup(imageBuildRg.name)
   params: {
@@ -499,10 +499,11 @@ module imageVm 'carml/compute/virtual-machine/main.bicep' = {
   ]
 }
 
-module customizeImage 'modules/customizeImage.bicep' = {
+module customizeImage 'modules/imageBuild/customizeImage.bicep' = {
   name: '${depPrefix}customizeImage-${timeStamp}'
   scope: resourceGroup(imageBuildRg.name)
   params: {
+    cloud: cloud
     location: computeLocation
     containerName: containerName
     customizations: customizations
@@ -522,7 +523,8 @@ module customizeImage 'modules/customizeImage.bicep' = {
     storageEndpoint: artifactsStorageAccount.properties.primaryEndpoints.blob
     tenantType: tenantType
     userAssignedIdentityClientId: managedIdentity.properties.clientId
-    vmName: imageVm.outputs.name
+    managementVMName: managementVm.outputs.name
+    imageVmName: imageVm.outputs.name
     vDotInstaller: vDotInstaller
     officeInstaller: officeInstaller
     msrdcwebrtcsvcInstaller: msrdcwebrtcsvcInstaller
@@ -532,8 +534,8 @@ module customizeImage 'modules/customizeImage.bicep' = {
   }
 }
 
-module firstImageVmMRestart 'modules/restartVM.bicep' = {
-  name: '${depPrefix}1st-vmRestart-${timeStamp}'
+module generalizeVm 'modules/imageBuild/generalizeVM.bicep' = {
+  name: '${depPrefix}generalizeVM-${timeStamp}'
   scope: resourceGroup(imageBuildResourceGroupName)
   params: {
     cloud: cloud
@@ -547,69 +549,12 @@ module firstImageVmMRestart 'modules/restartVM.bicep' = {
   ]
 }
 
-module microsoftUpdates 'modules/runMicrosoftUpdates.bicep' = {
-  name: '${depPrefix}install-microsoftUpdates-${timeStamp}'
-  scope: resourceGroup(imageBuildResourceGroupName)
-  params: {
-    location: computeLocation
-    vmName: imageVm.outputs.name
-    logBlobClientId: collectLogs ? managedIdentity.properties.clientId : ''
-    logBlobContainerUri: collectLogs ? logContainerUri : ''
-  }
-  dependsOn: [
-    firstImageVmMRestart
-  ]
-
-}
-
-module restartVM2 'modules/restartVM.bicep' = {
-  name: '${depPrefix}2nd-vmRestart-${timeStamp}'
-  scope: resourceGroup(imageBuildResourceGroupName)
-  params: {
-    cloud: cloud
-    location: computeLocation
-    imageVmName: imageVm.outputs.name
-    managementVmName: managementVm.outputs.name
-    userAssignedIdentityClientId: managedIdentity.properties.clientId
-  }
-  dependsOn: [
-    microsoftUpdates
-  ]
-}
-
-module sysprepVM 'modules/sysprepVM.bicep' = {
-  name: '${depPrefix}sysprepVM-${timeStamp}'
-  scope: resourceGroup(imageBuildResourceGroupName)
-  params: {
-    location: computeLocation
-    vmName: imageVm.outputs.name
-  }
-  dependsOn: [
-    restartVM2
-  ]
-}
-
-module generalizeVm 'modules/generalizeVM.bicep' = {
-  name: '${depPrefix}generalizeVM-${timeStamp}'
-  scope: resourceGroup(imageBuildResourceGroupName)
-  params: {
-    cloud: cloud
-    location: computeLocation
-    imageVmName: imageVm.outputs.name
-    managementVmName: managementVm.outputs.name
-    userAssignedIdentityClientId: managedIdentity.properties.clientId
-  }
-  dependsOn: [
-    sysprepVM
-  ]
-}
-
 resource existingImageDefinition 'Microsoft.Compute/galleries/images@2022-03-03' existing = if (!empty(imageDefinitionResourceId)) {
   name: last(split(imageDefinitionResourceId, '/'))
   scope: resourceGroup(split(imageDefinitionResourceId, '/')[2], split(imageDefinitionResourceId, '/')[4])  
 }
 
-module imageDefinition 'carml/compute/gallery/image/main.bicep' = if(empty(imageDefinitionResourceId)) {
+module imageDefinition 'modules/resources/compute/gallery/image/main.bicep' = if(empty(imageDefinitionResourceId)) {
   name: '${depPrefix}gallery-image-definition-${timeStamp}'
   scope: resourceGroup(split(computeGalleryResourceId, '/')[2], split(computeGalleryResourceId, '/')[4])
   params: {
@@ -632,7 +577,7 @@ module imageDefinition 'carml/compute/gallery/image/main.bicep' = if(empty(image
   ]
 }
 
-module managedImage 'modules/managedImage.bicep' = {
+module managedImage 'modules/imageBuild/managedImage.bicep' = {
   name: '${depPrefix}managed-image-${timeStamp}'
   scope: resourceGroup(imageBuildRg.name)
   params: {
@@ -646,7 +591,7 @@ module managedImage 'modules/managedImage.bicep' = {
   ]  
 }
 
-module imageVersion 'modules/imageVersion.bicep' = {
+module imageVersion 'modules/resources/compute/gallery/image/version/main.bicep' = {
   name: '${depPrefix}imageVersion-${timeStamp}'
   scope: resourceGroup(split(computeGalleryResourceId, '/')[2], split(computeGalleryResourceId, '/')[4])
   params: {
@@ -664,7 +609,7 @@ module imageVersion 'modules/imageVersion.bicep' = {
   }
 }
 
-module removeImageBuildResources 'modules/removeImageBuildResources.bicep' = {
+module removeImageBuildResources 'modules/imageBuild/removeImageBuildResources.bicep' = {
   name: '${depPrefix}remove-buildResources-${timeStamp}'
   scope: resourceGroup(imageBuildResourceGroupName)
   params: {

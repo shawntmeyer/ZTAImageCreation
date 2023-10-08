@@ -147,7 +147,7 @@ resource resourceGroup 'Microsoft.Resources/resourceGroups@2023-07-01' = {
   location: Location
 }
 
-module computeGallery '../carml/compute/gallery/main.bicep' = if(DeployComputeGallery) {
+module computeGallery '../modules/resources/compute/gallery/main.bicep' = if(DeployComputeGallery) {
   scope: az.resourceGroup(SubscriptionId, resGroupName)
   name: 'Compute-Gallery-${Timestamp}'
   params: {
@@ -156,7 +156,7 @@ module computeGallery '../carml/compute/gallery/main.bicep' = if(DeployComputeGa
   }
 }
 
-module logAnalyticsWorkspace '../carml/operational-insights/workspace/main.bicep' = if (empty(LogAnalyticsWorspaceResourceId) && DeployLogAnalytics) {
+module logAnalyticsWorkspace '../modules/resources/operational-insights/workspace/main.bicep' = if (empty(LogAnalyticsWorspaceResourceId) && DeployLogAnalytics) {
   scope: az.resourceGroup(SubscriptionId, resGroupName)
   name: 'logAnalyticsWS-${Timestamp}'
   params: {
@@ -165,7 +165,7 @@ module logAnalyticsWorkspace '../carml/operational-insights/workspace/main.bicep
   }
 }
 
-module managedIdentity '../carml/managed-identity/user-assigned-identity/main.bicep' = {
+module managedIdentity '../modules/resources/managed-identity/user-assigned-identity/main.bicep' = {
   name: 'UAI-StorageAccess-${Timestamp}'
   scope: az.resourceGroup(SubscriptionId, resGroupName)
   params: {
@@ -175,7 +175,7 @@ module managedIdentity '../carml/managed-identity/user-assigned-identity/main.bi
   }
 }
 
-module storageAccount '../carml/storage/storage-account/main.bicep' = {
+module storageAccount '../modules/resources/storage/storage-account/main.bicep' = {
   name: 'StorageAccount-${Timestamp}'
   scope: az.resourceGroup(SubscriptionId, resGroupName)
   params:{
@@ -225,7 +225,7 @@ module storageAccount '../carml/storage/storage-account/main.bicep' = {
   }
 }
 
-module storageBlobReaderAssignment '../carml/authorization/role-assignment/resource-group/main.bicep' = {
+module storageBlobReaderAssignment '../modules/resources/authorization/role-assignment/resource-group/main.bicep' = {
   name: 'roleassign-blobreader-${Timestamp}'
   scope: az.resourceGroup(SubscriptionId, resGroupName)
   params: {
