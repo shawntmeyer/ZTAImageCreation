@@ -2,10 +2,10 @@ param name string
 param location string
 param vmName string
 param logBlobContainerUri string
-param userAssignedIdentityObjectId string
+param userAssignedIdentityClientId string
 param storageAccountName string
 param blobName string
-param arguments string
+param arguments string = ''
 param buildDir string
 param containerName string
 param storageEndpoint string
@@ -16,25 +16,18 @@ resource vm 'Microsoft.Compute/virtualMachines@2023-07-01' existing = {
   name: vmName
 }
 
-var installer = [for customization in customizations: {
-  name: customization.name
-  blobName: customization.blobName
-  arguments: contains(customization, 'arguments') ? customization.arguments : ''
-}]
-
-
 resource runCommand 'Microsoft.Compute/virtualMachines/runCommands@2023-03-01' = {
   name: 'app-${name}'
   location: location
   parent: vm
   properties: {
     treatFailureAsDeploymentFailure: true
-    errorBlobManagedIdentity: empty(userAssignedIdentityObjectId) ? {} : {
-      objectId: userAssignedIdentityObjectId
+    errorBlobManagedIdentity: empty(userAssignedIdentityClientId) ? null : {
+      clientId: userAssignedIdentityClientId
     }
     errorBlobUri: empty(logBlobContainerUri) ? null : '${logBlobContainerUri}${name}-error-${timeStamp}.log' 
-    outputBlobManagedIdentity: empty(userAssignedIdentityObjectId) ? {} : {
-      objectId: userAssignedIdentityObjectId
+    outputBlobManagedIdentity: empty(userAssignedIdentityClientId) ? null : {
+      objectId: userAssignedIdentityClientId
     }
     outputBlobUri: empty(logBlobContainerUri) ? null : '${logBlobContainerUri}${name}-output-${timeStamp}.log'
     parameters: [
@@ -43,8 +36,8 @@ resource runCommand 'Microsoft.Compute/virtualMachines/runCommands@2023-03-01' =
         value: buildDir
       }
       {
-        name: 'UserAssignedIdentityObjectId'
-        value: userAssignedIdentityObjectId
+        name: 'UserAssignedIdentityClientId'
+        value: userAssignedIdentityClientId
       }
       {
         name: 'StorageAccountName'
@@ -75,7 +68,7 @@ resource runCommand 'Microsoft.Compute/virtualMachines/runCommands@2023-03-01' =
       script: '''
         param(
           [string]$BuildDir,
-          [string]$UserAssignedIdentityObjectId,
+          [string]$UserAssignedIdentityClientId,
           [string]$StorageAccountName,
           [string]$ContainerName,
           [string]$StorageEndpoint,
@@ -89,7 +82,7 @@ resource runCommand 'Microsoft.Compute/virtualMachines/runCommands@2023-03-01' =
         $ContainerName = $ContainerName
         $BlobName = $BlobName
         $StorageAccountUrl = $StorageEndpoint
-        $TokenUri = "http://169.254.169.254/metadata/identity/oauth2/token?api-version=2018-02-01&resource=$StorageAccountUrl&object_id=$UserAssignedIdentityObjectId"
+        $TokenUri = "http://169.254.169.254/metadata/identity/oauth2/token?api-version=2018-02-01&resource=$StorageAccountUrl&client_id=$UserAssignedIdentityClientId"
         $AccessToken = ((Invoke-WebRequest -Headers @{Metadata=$true} -Uri $TokenUri -UseBasicParsing).Content | ConvertFrom-Json).access_token
         $InstallDir = Join-Path $BuildDir -ChildPath $Installer
         New-Item -Path $InstallDir -ItemType Directory -Force | Out-Null

@@ -224,11 +224,11 @@ resource office 'Microsoft.Compute/virtualMachines/runCommands@2023-03-01' = if 
   location: location
   parent: vm
   properties: {
-    errorBlobManagedIdentity: empty(logBlobContainerUri) ? {} : {
+    errorBlobManagedIdentity: empty(logBlobContainerUri) ? null : {
       clientId: userAssignedIdentityClientId
     }
     errorBlobUri: empty(logBlobContainerUri) ? null : '${logBlobContainerUri}Office-error-${timeStamp}.log' 
-    outputBlobManagedIdentity: empty(logBlobContainerUri) ? {} : {
+    outputBlobManagedIdentity: empty(logBlobContainerUri) ? null : {
       clientId: userAssignedIdentityClientId
     }
     outputBlobUri: empty(logBlobContainerUri) ? null : '${logBlobContainerUri}Office-output-${timeStamp}.log'
