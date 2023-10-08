@@ -79,7 +79,7 @@ resource createBuildDir 'Microsoft.Compute/virtualMachines/runCommands@2023-03-0
 
 @batchSize(1)
 resource applications 'Microsoft.Compute/virtualMachines/runCommands@2023-03-01' = [for installer in installers: {
-  name: 'app-${installer.name}'
+  name: '${installer.name}'
   location: location
   parent: imageVm
   properties: {
@@ -607,7 +607,7 @@ resource removeBuildDir 'Microsoft.Compute/virtualMachines/runCommands@2023-03-0
 }
 
 module firstImageVmMRestart 'restartVM.bicep' = {
-  name: '1st-vmRestart-${timeStamp}'
+  name: 'restart-post-customizations'
   params: {
     cloud: cloud
     location: location
@@ -621,7 +621,7 @@ module firstImageVmMRestart 'restartVM.bicep' = {
 }
 
 module microsoftUpdates 'runMicrosoftUpdates.bicep' = {
-  name: 'install-microsoftUpdates-${timeStamp}'
+  name: 'install-microsoft-updates'
   params: {
     location: location
     vmName: imageVmName
@@ -634,7 +634,7 @@ module microsoftUpdates 'runMicrosoftUpdates.bicep' = {
 }
 
 module secondImageVmMRestart 'restartVM.bicep' = {
-  name: '2nd-vmRestart-${timeStamp}'
+  name: 'restart-post-updates'
   params: {
     cloud: cloud
     location: location
@@ -648,7 +648,7 @@ module secondImageVmMRestart 'restartVM.bicep' = {
 }
 
 module sysprep 'sysprepVM.bicep' = {
-  name: 'sysprep-vm-${timeStamp}'
+  name: 'sysprep'
   params: {
     location: location
     vmName: imageVmName
