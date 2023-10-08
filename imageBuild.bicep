@@ -282,7 +282,7 @@ module roleAssignmentContributorBuildRg 'modules/resources/authorization/role-as
   scope: resourceGroup(imageBuildRg.name)
   params: {
     principalId: managedIdentity.properties.principalId
-    roleDefinitionIdOrName: 'Contributor'
+    roleDefinitionId: 'b24988ac-6180-42a0-ab88-20f7382dd24c' //Contributor
   }
 }
 
@@ -291,7 +291,7 @@ module roleAssignmentReaderGalleryRg 'modules/resources/authorization/role-assig
   scope: resourceGroup(split(computeGalleryResourceId, '/')[2], split(computeGalleryResourceId, '/')[4])
   params: {
     principalId: managedIdentity.properties.principalId
-    roleDefinitionIdOrName: 'Reader'
+    roleDefinitionId: 'acdd72a7-3385-48ef-bd42-f606fba81ae7' //Reader
   }
 }
 
@@ -443,7 +443,7 @@ module roleAssignmentBlobDataContributorBuilderRg 'modules/resources/authorizati
   scope: resourceGroup(imageBuildRg.name)
   params: {
     principalId: managedIdentity.properties.principalId
-    roleDefinitionIdOrName: 'Storage Blob Data Contributor'
+    roleDefinitionId: 'ba92f5b4-2d11-453d-a403-e96b0029c9fe' // Storage Blob Data Contributor
   }  
 }
 

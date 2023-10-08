@@ -120,7 +120,7 @@ param StorageAllowSharedKeyAccess bool = true
 param StorageSASExpirationPeriod string = ''
 
 @description('DO NOT MODIFY THIS VALUE! The timestamp is needed to differentiate deployments for certain Azure resources and must be set using a parameter.')
-param Timestamp string = utcNow('yyyyMMddhhmmss')
+param Timestamp string = utcNow('yyyyMMddhhmm')
 
 var locations = loadJsonContent('../data/locations.json')
 var ResourceAbbreviations = loadJsonContent('../data/resourceAbbreviations.json')
@@ -230,7 +230,7 @@ module storageBlobReaderAssignment '../modules/resources/authorization/role-assi
   scope: az.resourceGroup(SubscriptionId, resGroupName)
   params: {
     principalId: managedIdentity.outputs.principalId
-    roleDefinitionIdOrName: 'Storage Blob Data Reader'
+    roleDefinitionId: '2a2b9908-6ea1-4ae2-8e65-a410df84e7d1'
   }
 }
 
