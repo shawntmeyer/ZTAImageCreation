@@ -113,6 +113,11 @@ var targetRegionDefault = [
     storageAccountType: storageAccountType
   }
 ]
+// determine if targetRegions contains the deployment location with the next two variables
+var regionMatchArray = [for region in targetRegions: region.name == location ? true : false ]
+var targetRegionsContainsLocation = contains(regionMatchArray, true) ? true : false
+// cannot simply use a union function on an array of objects because there could be duplicates which will cause failures.
+var targetRegionsVar = !empty(targetRegions) ? (targetRegionsContainsLocation ? targetRegions : union(targetRegions, targetRegionDefault)) : targetRegionDefault
 
 resource gallery 'Microsoft.Compute/galleries@2022-03-03' existing = {
   name: galleryName
@@ -132,7 +137,7 @@ resource version 'Microsoft.Compute/galleries/images/versions@2022-03-03' = {
       replicaCount: replicaCount
       replicationMode: !empty(replicationMode) ? replicationMode : null
       storageAccountType: storageAccountType
-      targetRegions: !empty(targetRegions) ? targetRegions : targetRegionDefault
+      targetRegions: targetRegionsVar
     }
     safetyProfile: {
       allowDeletionOfReplicatedLocations: allowDeletionOfReplicatedLocations

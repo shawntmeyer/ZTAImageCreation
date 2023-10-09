@@ -483,11 +483,11 @@ resource sysprep 'Microsoft.Compute/virtualMachines/runCommands@2023-03-01' = {
   parent: imageVm
   properties: {
     asyncExecution: false
-    errorBlobManagedIdentity: empty(userAssignedIdentityClientId) ? null : {
+    errorBlobManagedIdentity: empty(logBlobContainerUri) ? null : {
         clientId: userAssignedIdentityClientId
     }
     errorBlobUri: empty(logBlobContainerUri) ? null : '${logBlobContainerUri}MicrosoftUpdate-error-${timeStamp}.log' 
-    outputBlobManagedIdentity: empty(userAssignedIdentityClientId) ? null : {
+    outputBlobManagedIdentity: empty(logBlobContainerUri) ? null : {
         clientId: userAssignedIdentityClientId
     }
     outputBlobUri: empty(logBlobContainerUri) ? null : '${logBlobContainerUri}MicrosoftUpdate-output-${timeStamp}.log'

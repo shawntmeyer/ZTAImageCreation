@@ -2,14 +2,15 @@
     "automationAccounts": "aa",
     "availabilitySets": "as",
     "computeGallery": "gal",
-    "desktopApplicationGroups": "dag",
-    "remoteApplicationGroups": "rag",
+    "desktopApplicationGroups": "vddag",
+    "remoteApplicationGroups": "vdrag",
     "disks": "disk",
     "diskEncryptionSets": "des",
-    "hostPools": "hp",
+    "hostPools": "vdpool",
     "imageDefinitions": "vmid",
     "keyVaults": "kv",
     "logAnalyticsWorkspaces": "law",
+    "managedImage": "img",
     "netAppAccounts": "naa",
     "netAppCapacityPools": "nacp",
     "networkInterfaces": "nic",
@@ -18,5 +19,5 @@
     "storageAccounts": "sa",
     "userAssignedIdentities": "uai",
     "virtualMachines": "vm",
-    "workspaces": "ws"
+    "workspaces": "vdws"
 }

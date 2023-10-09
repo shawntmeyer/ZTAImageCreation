@@ -127,15 +127,19 @@ param imageDefinitionResourceId string = ''
 @description('''Conditional. The name of the image Definition to create in the Compute Gallery.
 Only valid if [imageDefinitionResourceId] is not provided.
 If left blank, the image definition name will be built on Cloud Adoption Framework principals and based on the [imageDefinitonPublisher], [imageDefinitionOffer], and [imageDefinitionSku] values.''')
+@maxLength(80)
 param customImageDefinitionName string = ''
 
 @description('Conditional. The compute gallery image definition Publisher.')
+@maxLength(128)
 param imageDefinitionPublisher string = ''
 
 @description('Conditional. The computer gallery image definition Offer.')
+@maxLength(64)
 param imageDefinitionOffer string = ''
 
 @description('Conditional. The compute gallery image definition Sku.')
+@maxLength(64)
 param imageDefinitionSku string = ''
 
 @description('Optional. Specifies whether the image definition supports the deployment of virtual machines with accelerated networking enabled.')
@@ -224,9 +228,9 @@ var adminUserName = 'xadmin'
 var securityType = galleryImageDefinitionSecurityType == 'TrustedLaunch' || galleryImageDefinitionSecurityType == 'ConfidentialVM' ? galleryImageDefinitionSecurityType : 'Standard'
 var artifactsContainerUri = '${artifactsStorageAccount.properties.primaryEndpoints.blob}${containerName}/'
 
-var validationScriptCommonParameters = '-environment ${cloud} -subscription ${subscriptionId} -tenant ${tenantId} -userAssignedIdentityClientId ${managedIdentity.properties.clientId}'
-var validationScriptExDefParameters = '${validationScriptCommonParameters} -imageDefinitionResourceId ${imageDefinitionResourceId} -SourceSku ${sku}'
-var validationScriptNewDefParameters = '${validationScriptCommonParameters} -imageGalleryResourceId ${computeGalleryResourceId} -imageName ${galleryImageDefinitionName} -ImageHyperVGeneration ${galleryImageDefinitionHyperVGeneration} -ImageSecurityType ${imageDefinitionSecurityType} -ImageIsHibernateSupported ${imageDefinitionIsHibernateSupported} -ImageIsAcceleratedNetworkSupported ${imageDefinitionIsAcceleratedNetworkSupported} -ImageIsHigherStoragePerformanceSupported ${imageDefinitionIsHigherStoragePerformanceSupported} -imagePublisher ${galleryImageDefinitionPublisher} -imageOffer ${galleryImageDefinitionOffer} -imageSku ${galleryImageDefinitionSku}'
+var cseScriptCommonParameters = '-environment ${cloud} -subscription ${subscriptionId} -tenant ${tenantId} -userAssignedIdentityClientId ${managedIdentity.properties.clientId}'
+var validationScriptExDefParameters = '${cseScriptCommonParameters} -imageDefinitionResourceId ${imageDefinitionResourceId} -SourceSku ${sku}'
+var validationScriptNewDefParameters = '${cseScriptCommonParameters} -imageGalleryResourceId ${computeGalleryResourceId} -imageLocation ${deploymentLocation} -imageName ${galleryImageDefinitionName} -ImageHyperVGeneration ${galleryImageDefinitionHyperVGeneration} -ImageSecurityType ${imageDefinitionSecurityType} -ImageIsHibernateSupported ${imageDefinitionIsHibernateSupported} -ImageIsAcceleratedNetworkSupported ${imageDefinitionIsAcceleratedNetworkSupported} -ImageIsHigherStoragePerformanceSupported ${imageDefinitionIsHigherStoragePerformanceSupported} -imagePublisher ${galleryImageDefinitionPublisher} -imageOffer ${galleryImageDefinitionOffer} -imageSku ${galleryImageDefinitionSku}'
 
 var collectLogs = collectCustomizationLogs && !empty(privateEndpointSubnetResourceId) && !empty(blobPrivateDnsZoneResourceId) ? true : false
 var logContainerName = 'image-customization-logs'
@@ -278,7 +282,7 @@ resource vnet 'Microsoft.Network/virtualNetworks@2023-05-01' existing = {
 }
 
 module roleAssignmentContributorBuildRg 'modules/resources/authorization/role-assignment/resource-group/main.bicep' = {
-  name: '${depPrefix}roleAssign-mi-Contributor-BuildRG-${timeStamp}'
+  name: '${depPrefix}RoleAssign-MI-Contributor-BuildRG-${timeStamp}'
   scope: resourceGroup(imageBuildRg.name)
   params: {
     principalId: managedIdentity.properties.principalId
@@ -287,7 +291,7 @@ module roleAssignmentContributorBuildRg 'modules/resources/authorization/role-as
 }
 
 module roleAssignmentReaderGalleryRg 'modules/resources/authorization/role-assignment/resource-group/main.bicep' = {
-  name: '${depPrefix}roleAssign-mi-Reader-GalleryRG-${timeStamp}'
+  name: '${depPrefix}RoleAssign-MI-Reader-GalleryRG-${timeStamp}'
   scope: resourceGroup(split(computeGalleryResourceId, '/')[2], split(computeGalleryResourceId, '/')[4])
   params: {
     principalId: managedIdentity.properties.principalId
@@ -296,7 +300,7 @@ module roleAssignmentReaderGalleryRg 'modules/resources/authorization/role-assig
 }
 
 module managementVm 'modules/resources/compute/virtual-machine/main.bicep' = {
-  name: '${depPrefix}managementVM-${timeStamp}'
+  name: '${depPrefix}Management-VM-${timeStamp}'
   scope: resourceGroup(imageBuildRg.name)
   params: {
     location: computeLocation
@@ -358,7 +362,7 @@ module managementVm 'modules/resources/compute/virtual-machine/main.bicep' = {
 }
 
 module imageDefinitionValidation 'modules/imageBuild/customScriptExtensionWithOutput.bicep' = {
-  name: '${depPrefix}imageDefValidation-${timeStamp}'
+  name: '${depPrefix}Image-Definition-Validation-${timeStamp}'
   scope: resourceGroup(imageBuildRg.name)
   params: {
     ArtifactsLocation: artifactsContainerUri
@@ -379,7 +383,7 @@ module imageDefinitionValidation 'modules/imageBuild/customScriptExtensionWithOu
 }
 
 module logsStorageAccount 'modules/resources/storage/storage-account/main.bicep' = if(collectLogs) {
-  name: '${depPrefix}logsStorageAccount-${timeStamp}'
+  name: '${depPrefix}Logs-StorageAccount-${timeStamp}'
   scope: resourceGroup(imageBuildRg.name)
   params: {
     name: 'sa${deploymentPrefix}log${uniqueString(subscription().id,imageBuildRg.name,depPrefix)}'
@@ -439,7 +443,7 @@ module logsStorageAccount 'modules/resources/storage/storage-account/main.bicep'
 }
 
 module roleAssignmentBlobDataContributorBuilderRg 'modules/resources/authorization/role-assignment/resource-group/main.bicep' = if (collectLogs) {
-  name: '${depPrefix}roleAssign-mi-BlobDataContr-BuildRG-${timeStamp}'
+  name: '${depPrefix}RoleAssign-MI-BlobDataContr-BuildRG-${timeStamp}'
   scope: resourceGroup(imageBuildRg.name)
   params: {
     principalId: managedIdentity.properties.principalId
@@ -448,7 +452,7 @@ module roleAssignmentBlobDataContributorBuilderRg 'modules/resources/authorizati
 }
 
 module imageVm 'modules/resources/compute/virtual-machine/main.bicep' = {
-  name: '${depPrefix}imageVM-${timeStamp}'
+  name: '${depPrefix}Image-VM-${timeStamp}'
   scope: resourceGroup(imageBuildRg.name)
   params: {
     location: computeLocation
@@ -500,7 +504,7 @@ module imageVm 'modules/resources/compute/virtual-machine/main.bicep' = {
 }
 
 module customizeImage 'modules/imageBuild/customizeImage.bicep' = {
-  name: '${depPrefix}customizeImage-${timeStamp}'
+  name: '${depPrefix}Customize-Image-${timeStamp}'
   scope: resourceGroup(imageBuildRg.name)
   params: {
     cloud: cloud
@@ -535,7 +539,7 @@ module customizeImage 'modules/imageBuild/customizeImage.bicep' = {
 }
 
 module generalizeVm 'modules/imageBuild/generalizeVM.bicep' = {
-  name: '${depPrefix}generalizeVM-${timeStamp}'
+  name: '${depPrefix}Generalize-VM-${timeStamp}'
   scope: resourceGroup(imageBuildResourceGroupName)
   params: {
     cloud: cloud
@@ -555,7 +559,7 @@ resource existingImageDefinition 'Microsoft.Compute/galleries/images@2022-03-03'
 }
 
 module imageDefinition 'modules/resources/compute/gallery/image/main.bicep' = if(empty(imageDefinitionResourceId)) {
-  name: '${depPrefix}gallery-image-definition-${timeStamp}'
+  name: '${depPrefix}Gallery-Image-Definition-${timeStamp}'
   scope: resourceGroup(split(computeGalleryResourceId, '/')[2], split(computeGalleryResourceId, '/')[4])
   params: {
     location: deploymentLocation
@@ -579,22 +583,30 @@ module imageDefinition 'modules/resources/compute/gallery/image/main.bicep' = if
 
 // Image Definitions with Security Type = 'TrustedLaunchSupported', 'ConfidentialVMSupported', or TrustedLaunchConfidentialVMSupported' do not
 // support capture directly from a VM. Must create a legacy managed image first.
-module managedImage 'modules/imageBuild/managedImage.bicep' = if(contains(imageDefinitionSecurityType, 'Supported')) {
-  name: '${depPrefix}managed-image-${timeStamp}'
+
+module getImageSource 'modules/imageBuild/customScriptExtensionWithOutput.bicep' = {
+  name: '${depPrefix}Get-ImageVersion-Source-${timeStamp}'
   scope: resourceGroup(imageBuildRg.name)
   params: {
-    location: computeLocation
-    name: '${imageVm.outputs.name}-image-${timeStamp}'
-    hyperVGeneration: galleryImageDefinitionHyperVGeneration
-    sourceVMResourceId: imageVm.outputs.resourceId
+    ArtifactsLocation: artifactsContainerUri
+    ExecuteScript: 'Get-ImageVersionSource.ps1'
+    Parameters: !empty(imageDefinitionResourceId) ? '${cseScriptCommonParameters} -ImageDefinitionResourceId "${imageDefinitionResourceId}" -VmName ${imageVm.outputs.name} -ResourceGroupName ${imageBuildRg.name} -Location ${deploymentLocation}' : '${cseScriptCommonParameters} -ImageDefinitionResourceId "${imageDefinition.outputs.resourceId}" -VmName ${imageVm.outputs.name} -ResourceGroupName ${imageBuildRg.name} -Location ${deploymentLocation}'
+    Files: [
+      'Get-ImageVersionSource.ps1'
+    ]
+    Location: computeLocation
+    Output: true
+    Tags: tags
+    UserAssignedIdentityClientId: managedIdentity.properties.clientId
+    VirtualMachineName: managementVm.outputs.name
   }
   dependsOn: [
     generalizeVm
-  ]  
+  ]
 }
 
 module imageVersion 'modules/resources/compute/gallery/image/version/main.bicep' = {
-  name: '${depPrefix}imageVersion-${timeStamp}'
+  name: '${depPrefix}ImageVersion-${timeStamp}'
   scope: resourceGroup(split(computeGalleryResourceId, '/')[2], split(computeGalleryResourceId, '/')[4])
   params: {
     location: deploymentLocation
@@ -605,19 +617,19 @@ module imageVersion 'modules/resources/compute/gallery/image/version/main.bicep'
     excludeFromLatest: imageVersionExcludeFromLatest
     replicaCount: imageVersionDefaultReplicaCount
     storageAccountType: imageVersionDefaultStorageAccountType
-    sourceId: contains(imageDefinitionSecurityType, 'Supported') ? managedImage.outputs.resourceId : imageVm.outputs.resourceId
+    sourceId: getImageSource.outputs.value.sourceId
     targetRegions: imageVersionReplicationRegions
     tags: {}
   }
 }
 
 module removeImageBuildResources 'modules/imageBuild/removeImageBuildResources.bicep' = {
-  name: '${depPrefix}remove-buildResources-${timeStamp}'
+  name: '${depPrefix}Remove-Build-Resources-${timeStamp}'
   scope: resourceGroup(imageBuildResourceGroupName)
   params: {
     cloud: cloud
     location: computeLocation
-    imageResourceId: contains(imageDefinitionSecurityType, 'Supported') ? managedImage.outputs.resourceId : ''
+    imageResourceId: contains(getImageSource.outputs.value.sourceId, 'Microsoft.Compute/images') ? getImageSource.outputs.value.sourceId : ''
     imageVmName: imageVm.outputs.name
     managementVmName: managementVm.outputs.name
     userAssignedIdentityClientId: managedIdentity.properties.clientId

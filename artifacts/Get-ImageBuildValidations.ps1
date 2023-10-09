@@ -26,6 +26,9 @@ Param(
     [string]$ImageGalleryResourceId,
 
     [Parameter(ParameterSetName='NewID', Mandatory=$true)]
+    [string]$ImageLocation,
+
+    [Parameter(ParameterSetName='NewID', Mandatory=$true)]
     [string]$ImageName,
 
     [Parameter(ParameterSetName='NewID', Mandatory=$true)]
@@ -134,6 +137,7 @@ try
         ForEach ($ImageDefinition in $ImageDefinitions) {
             $Name = $ImageDefinition.Name
             If ($Name -eq $ImageName) {
+                
                 Write-Log -Message "The specified image definition name '$ImageName' already exists in Azure Compute Gallery: '$GalleryName'. Checking properties to prevent conflict." -Type 'INFO'
                 $Architecture = $ImageDefinition.Architecture
                 If ($Architecture -ne 'X64') {
@@ -142,6 +146,10 @@ try
                 $HyperVGeneration = $ImageDefinition.HyperVGeneration
                 If ($HyperVGeneration -ne $ImageHyperVGeneration) {
                     Write-Error -Exception "INVALID IMAGE DEFINITION: Hyper-V Generation mismatch."
+                }
+                $Location = $ImageDefinition.Location
+                If ($Location -ne $ImageLocation) {
+                    Write-Error -Exception "INVALID IMAGE DEFINITION: An Image Definition with the same name in the same gallery already exists in another region."
                 }
                 $OsState = $ImageDefinition.OsState
                 If ($OsState -ne 'Generalized') {

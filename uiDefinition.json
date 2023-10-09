@@ -245,7 +245,7 @@
 									"type": "Microsoft.Common.InfoBox",
 									"options": {
 										"style":"Warning",
-										"text": "The subnet selected below must be able to resolve the blob private dns zone and route to the storage account endpoint for the storage account selected above."
+										"text": "Virtual machines must be able to resolve the blob private dns zone and route to the storage account endpoint for the storage account selected above. Select the appropriate subnet that meets these requirements."
 									}
 								},
 								{
@@ -1126,8 +1126,8 @@
 									"toolTip": "The name of the image definition to create in the Image Gallery. Leave blank if you want to allow this deployment to create an image definition in the Image Gallery chosen on the 'Prerequisites' page with a name based on the selections below.",
 									"constraints": {
 										"required": false,
-										"regex": "^[a-z0-9A-Z-]{2,90}$",
-										"validationMessage": "When provided, the name must be between 2 and 90 characters long and only use valid characters."
+										"regex": "^[a-z0-9A-Z-]{2,80}$",
+										"validationMessage": "When provided, the name must be between 2 and 80 characters long and only use valid characters."
 									},
 									"visible": "[equals(steps('imageDest').imageDefinition.useExImageDef, false)]"
 								},
@@ -1140,8 +1140,8 @@
 									"toolTip": "The compute gallery image definition Publisher.",
 									"constraints": {
 										"required": true,
-										"regex": "^[a-z0-9A-Z-]{2,20}$",
-										"validationMessage": "The value must contain only valid characters, no spaces, and be between 2 and 20 characters in length."
+										"regex": "^[A-Za-z0-9][A-Za-z0-9_-]{0,126}[A-Za-z0-9]$",
+										"validationMessage": "The value must contain only valid characters, no spaces, and be between 2 and 128 characters in length."
 									},
 									"visible": "[equals(steps('imageDest').imageDefinition.useExImageDef, false)]"
 								},
@@ -1154,8 +1154,8 @@
 									"toolTip": "The compute gallery image definition Offer.",
 									"constraints": {
 										"required": true,
-										"regex": "^[a-z0-9A-Z-]{2,20}$",
-										"validationMessage": "The value must contain only valid characters, no spaces, and be between 2 and 20 characters in length."
+										"regex": "^[A-Za-z0-9][A-Za-z0-9_-]{0,62}[A-Za-z0-9]$",
+										"validationMessage": "The value must contain only valid characters, no spaces, and be between 2 and 64 characters in length."
 									},
 									"visible": "[equals(steps('imageDest').imageDefinition.useExImageDef, false)]"
 								},                        
@@ -1168,8 +1168,8 @@
 									"toolTip": "The compute gallery image definition Sku.",
 									"constraints": {
 										"required": true,
-										"regex": "^[a-z0-9A-Z-]{2,20}$",
-										"validationMessage": "The value must contain only valid characters, no spaces, and be between 2 and 20 characters in length."
+										"regex": "^[A-Za-z0-9][A-Za-z0-9_-]{0,62}[A-Za-z0-9]$",
+										"validationMessage": "The value must contain only valid characters, no spaces, and be between 2 and 64 characters in length."
 									},
 									"visible": "[equals(steps('imageDest').imageDefinition.useExImageDef, false)]"
 								},
