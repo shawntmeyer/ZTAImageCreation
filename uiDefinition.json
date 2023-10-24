@@ -402,7 +402,6 @@
 							"type": "Microsoft.Common.InfoBox",
 							"visible": true,
 							"options": {
-								"icon": "None",
 								"style": "Info",
 								"text": "This page of the wizard allows you to add image customizations by downloading blobs from the storage account and performing the defined actions."
 							}
@@ -927,6 +926,81 @@
                             ]
                         },
 						{
+                            "name": "updates",
+                            "type": "Microsoft.Common.Section",
+                            "label": "Software Updates",
+                            "elements": [
+                                {
+                                    "name": "installUpdates",
+                                    "type": "Microsoft.Common.OptionsGroup",
+                                    "label": "Install Windows Updates",
+                                    "defaultValue": "false",
+                                    "toolTip": "Select True to install updates and specify an update source.",
+                                    "constraints": {
+                                        "allowedValues": [
+                                            {
+                                                "label": "true",
+                                                "value": true
+                                            },
+                                            {
+                                                "label": "false",
+                                                "value": false
+                                            }
+                                        ],
+                                        "required": true
+                                    }
+                                },
+								{
+                                    "name": "updateService",
+                                    "type": "Microsoft.Common.DropDown",
+                                    "label": "Software update service",
+                                    "defaultValue": "Microsoft Update",
+                                    "toolTip": "Select the appropriate update source for your environment.",
+                                    "constraints": {
+                                        "allowedValues": [
+                                            {
+                                                "label": "Microsoft Update",
+                                                "value": "MU"
+                                            },
+                                            {
+                                                "label": "Windows Update",
+                                                "value": "WU"
+                                            },
+											{
+												"label": "Windows Server Update Services (WSUS)",
+												"value": "WSUS"
+											},
+											{
+												"label": "DCAT (Flighting updates like previews, rarely used)",
+												"value": "DCAT"
+											},
+											{
+												"label": "Microsoft Store",
+												"value": "STORE"
+											},
+											{
+												"label": "Other",
+												"value": "OTHER"
+											}
+                                        ],
+                                        "required": false
+                                    },
+									"visible": "[if(equals(steps('imageCustomizations').updates.installUpdates, true), true, false)]"
+                                },
+								{
+									"name": "wsusServer",
+									"type": "Microsoft.Common.TextBox",
+									"label": "WSUS Url",
+									"placeholder": "https://wsus.corp.contoso.com:8531",
+									"toolTip": "Specify an accessible WSUS server. Include the port if necessary.",
+									"constraints": {
+										"required": true
+									},
+									"visible": "[if(equals(steps('imageCustomizations').updates.updateService, 'WSUS'), true, false)]"
+								}
+							]
+						},
+						{
 							"name": "logging",
 							"type": "Microsoft.Common.Section",
 							"label": "Log Collection",
@@ -936,7 +1010,6 @@
 									"type": "Microsoft.Common.InfoBox",
 									"visible": true,
 									"options": {
-										"icon": "None",
 										"style": "Info",
 										"text": "If you choose to collect logs, a new randomly-named storage account will be created in the build resource group with a blob container called 'image-customization-logs'. All standard and error output will be written to individual blobs and saved for 7 days."
 									}
@@ -946,7 +1019,6 @@
 									"type": "Microsoft.Common.InfoBox",
 									"visible": true,
 									"options": {
-										"icon": "None",
 										"style": "Warning",
 										"text": "In order to collect logs from the customization scripts and installers you must provide the subnet where the storage account private endpoint will be created and the blob storage private dns zone.",										"uri": "https://www.microsoft.com"
 									}
@@ -1588,6 +1660,9 @@
 				"tenantType": "[if(equals(steps('imageCustomizations').office.installTeams, true), steps('imageCustomizations').office.TenantType, 'Commercial')]",
                 "vcRedistInstaller": "[if(equals(steps('imageCustomizations').office.installTeams, true), steps('imageCustomizations').office.vcRedistInstaller.blobName,'')]",
                 "msrdcwebrtcsvcInstaller": "[if(equals(steps('imageCustomizations').office.installTeams, true), steps('imageCustomizations').office.msrdcwebrtcsvcInstaller.blobName,'')]",
+				"installUpdates": "[steps('imageCustomizations').updates.installUpdates]",
+				"updateService": "[steps('imageCustomizations').updates.updateService]",
+				"wsusServer": "[if(equals(steps('imageCustomizations').updates.updateService, 'WSUS'), steps('imageCustomizations').updates.wsusServer, '')]",
 				"collectCustomizationLogs": "[steps('imageCustomizations').logging.collectLogs]",
 				"privateEndpointSubnetResourceId": "[if(equals(steps('imageCustomizations').logging.collectLogs, true), steps('imageCustomizations').logging.subnet, '')]",
 				"blobPrivateDnsZoneResourceId": "[if(equals(steps('imageCustomizations').logging.collectLogs, true), steps('imageCustomizations').logging.privateDnsZoneBlobStorageSelector.id, '')]",	
