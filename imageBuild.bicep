@@ -110,6 +110,23 @@ param customizations array = []
 @description('Optional. Collect image customization logs.')
 param collectCustomizationLogs bool = false
 
+@description('Optional. Determines if the latest updates from the specified update service will be installed.')
+param installUpdates bool = true
+
+@allowed([
+  'WU'
+  'MU'
+  'WSUS'
+  'DCAT'
+  'STORE'
+  'OTHER'
+])
+@description('Optional. The update service.')
+param updateService string = 'MU'
+
+@description('Conditional. The WSUS Server Url if WSUS is specified. (i.e., https://wsus.corp.contoso.com:8531)')
+param wsusServer string = ''
+
 @description('''Conditional. The resource id of the existing Azure storage account blob service private dns zone.
 Must be provided if [collectCustomizationLogs] is set to "true".
 This zone must be linked to or resolvable from the vnet referenced in the [privateEndpointSubnetResourceId] parameter.''')
@@ -535,6 +552,9 @@ module customizeImage 'modules/imageBuild/customizeImage.bicep' = {
     teamsInstaller: teamsInstaller
     vcRedistInstaller: vcRedistInstaller
     logBlobContainerUri: collectLogs ? logContainerUri : ''
+    installUpdates: installUpdates
+    updateService: updateService
+    wsusServer: wsusServer
   }
 }
 

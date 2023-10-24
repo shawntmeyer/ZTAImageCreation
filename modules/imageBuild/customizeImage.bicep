@@ -29,6 +29,9 @@ param teamsInstaller string
 param vcRedistInstaller string
 param msrdcwebrtcsvcInstaller string
 param timeStamp string = utcNow('yyMMddhhmm')
+param installUpdates bool
+param updateService string
+param wsusServer string
 
 var buildDir = 'c:\\BuildDir'
 
@@ -311,7 +314,7 @@ resource firstImageVmRestart 'Microsoft.Compute/virtualMachines/runCommands@2023
   ]
 }
 
-resource microsoftUpdates 'Microsoft.Compute/virtualMachines/runCommands@2023-03-01' = {
+resource microsoftUpdates 'Microsoft.Compute/virtualMachines/runCommands@2023-03-01' = if(installUpdates) {
   name: 'install-microsoft-updates'
   location: location
   parent: imageVm
@@ -325,17 +328,32 @@ resource microsoftUpdates 'Microsoft.Compute/virtualMachines/runCommands@2023-03
       clientId: userAssignedIdentityClientId
     }
     outputBlobUri: empty(logBlobContainerUri) ? null : '${logBlobContainerUri}vdot-output-${timeStamp}.log'
-    treatFailureAsDeploymentFailure: true
+    parameters: updateService == 'WSUS' ? [
+      {
+        name: 'Service'
+        value: updateService
+      }
+      {
+        name: 'WSUSServer'
+        value: wsusServer
+      }
+    ] : [
+      {
+        name: 'Service'
+        value: updateService
+      }
+    ]   
     source: {
       script: loadTextContent('../../data/Invoke-MicrosoftUpdate.ps1', 'utf-8')
     }
+    treatFailureAsDeploymentFailure: true
   }
   dependsOn: [
     firstImageVmRestart
   ]
 }
 
-resource secondImageVmRestart 'Microsoft.Compute/virtualMachines/runCommands@2023-03-01' = {
+resource secondImageVmRestart 'Microsoft.Compute/virtualMachines/runCommands@2023-03-01' = if(installUpdates) {
   name: 'restart-vm-2'
   location: location
   parent: managementVm
