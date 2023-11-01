@@ -412,7 +412,8 @@ resource onedrive 'Microsoft.Compute/virtualMachines/runCommands@2023-07-01' = i
         # Set OneDrive for All Users Install
         New-Item -Path "HKLM:\SOFTWARE\Microsoft\OneDrive" -Force
         New-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\OneDrive" -Name AllUsersInstall -PropertyType DWORD -Value 1 -Force
-        Start-Process -FilePath $onedrivesetup -ArgumentList '/allusers' -Wait -PassThru | Out-Null
+        Start-Process -FilePath $onedrivesetup -ArgumentList '/allusers'
+        Wait-Process -Name OneDriveSetup
         New-ItemProperty -Path 'HKLM:\Software\Microsoft\Windows\CurrentVersion\Run' -Name OneDrive -PropertyType String -Value 'C:\Program Files\Microsoft OneDrive\OneDrive.exe /background' -Force
         Write-Host "Installed OneDrive Per-Machine"
       '''
@@ -485,10 +486,10 @@ resource teams 'Microsoft.Compute/virtualMachines/runCommands@2023-03-01' = if (
         New-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Teams" -Name IsWVDEnvironment -PropertyType DWORD -Value 1 -Force
         Write-Host "Enabled media optimizations for Teams"
         $ErrorActionPreference = "Stop"
-        Start-Process -FilePath  $vcRedistFile -Args "/install /quiet /norestart" -Wait -PassThru | Out-Null
+        Start-Process -FilePath  $vcRedistFile -ArgumentList "/install /quiet /norestart" -Wait -PassThru | Out-Null
         Write-Host "Installed the latest version of Microsoft Visual C++ Redistributable"
         # install the Remote Desktop WebRTC Redirector Service
-        Start-Process -FilePath msiexec.exe -Args "/i  $webRTCFile /quiet /qn /norestart /passive" -Wait -PassThru | Out-Null
+        Start-Process -FilePath msiexec.exe -ArgumentList "/i  $webRTCFile /quiet /qn /norestart /passive" -Wait -PassThru | Out-Null
         Write-Host "Installed the Remote Desktop WebRTC Redirector Service"
         # Install Teams
         if(($Sku).Contains('multi')){
@@ -496,7 +497,7 @@ resource teams 'Microsoft.Compute/virtualMachines/runCommands@2023-03-01' = if (
         } else {
             $msiArgs = 'ALLUSERS=1'
         }
-        Start-Process -FilePath msiexec.exe -Args "/i $teamsFile /quiet /qn /norestart /passive $msiArgs" -Wait -PassThru | Out-Null
+        Start-Process -FilePath msiexec.exe -ArgumentList "/i $teamsFile /quiet /qn /norestart /passive $msiArgs" -Wait -PassThru | Out-Null
         Write-Host "Installed Teams"
       '''
     }
