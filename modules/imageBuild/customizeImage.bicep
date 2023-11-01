@@ -409,6 +409,9 @@ resource onedrive 'Microsoft.Compute/virtualMachines/runCommands@2023-07-01' = i
         Invoke-WebRequest -Headers @{"x-ms-version"="2017-11-09"; Authorization ="Bearer $AccessToken"} -Uri "$StorageEndpoint$ContainerName/$BlobName" -OutFile $destFile
         Expand-Archive -Path $destFile -DestinationPath $appDir -Force
         $onedrivesetup = (Get-ChildItem -Path $appDir -filter 'OneDrive*.exe' -Recurse).FullName
+        # Uninstall existing version
+        Start-Process -FilePath $onedrivesetup -ArgumentList '/uninstall'
+        Wait-Process -Name OneDriveSetup
         # Set OneDrive for All Users Install
         New-Item -Path "HKLM:\SOFTWARE\Microsoft\OneDrive" -Force
         New-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\OneDrive" -Name AllUsersInstall -PropertyType DWORD -Value 1 -Force
