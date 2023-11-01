@@ -62,7 +62,7 @@
         },
         {
             "Name": "Teams for Windows 64-bit",
-            "DownloadUrl": "https://teams.microsoft.com/downloads/desktopurl?env=production&plat=windows&arch=x64&managedInstaller=true&download=true",
+            "DownloadUrl": "",
             "WebSiteUrl": "",
             "SearchString": "",
             "APIUrl": "",
@@ -78,7 +78,17 @@
             "APIUrl": "",
             "GitHubRepo": "",
             "GitHubFileNamePattern": "",
-            "DestinationFilePath": "Microsoft-Teams/Websocket.msi"
+            "DestinationFilePath": "Microsoft-Teams/MSRDCWebRTC.msi"
+        },
+        {
+            "Name": "Visual Studio Redistributables (Latest)",
+            "DownloadUrl": "https://aka.ms/vs/17/release/vc_redist.x64.exe",
+            "WebSiteUrl": "",
+            "SearchString": "",
+            "APIUrl": "",
+            "GitHubRepo": "",
+            "GitHubFileNamePattern": "",
+            "DestinationFilePath": "Microsoft-Teams/vc_redist.x64.exe"
         },
         {
             "Name": "Edge Enterprise Administrative Templates",

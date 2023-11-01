@@ -10,7 +10,6 @@ param managementVmName string
 param imageVmName string
 param installAccess bool
 param installExcel bool
-param installOneDriveForBusiness bool
 param installOneNote bool
 param installOutlook bool
 param installPowerPoint bool
@@ -21,13 +20,12 @@ param installTeams bool
 param installVirtualDesktopOptimizationTool bool
 param installVisio bool
 param installWord bool
-param tenantType string
+param installOneDrive bool
+param onedriveBlobName string
 param customizations array
-param vDotInstaller string
-param officeInstaller string
-param teamsInstaller string
-param vcRedistInstaller string
-param msrdcwebrtcsvcInstaller string
+param vDotBlobName string
+param officeBlobName string
+param teamsBlobName string
 param timeStamp string = utcNow('yyMMddhhmm')
 param installUpdates bool
 param updateService string
@@ -35,19 +33,7 @@ param wsusServer string
 
 var buildDir = 'c:\\BuildDir'
 
-var installAccessVar = '${installAccess}installAccess'
-var installExcelVar = '${installExcel}installWord'
-var installOneDriveForBusinessVar = '${installOneDriveForBusiness}installOneDrive'
-var installOneNoteVar = '${installOneNote}installOneNote'
-var installOutlookVar = '${installOutlook}installOutlook'
-var installPowerPointVar = '${installPowerPoint}installPowerPoint'
-var installProjectVar = '${installProject}installProject'
-var installPublisherVar = '${installPublisher}installPublisher'
-var installSkypeForBusinessVar = '${installSkypeForBusiness}installSkypeForBusiness'
-var installVisioVar = '${installVisio}installVisio'
-var installWordVar = '${installWord}installWord'
-
-var installers = [for customization in customizations: {
+var customizers = [for customization in customizations: {
   name: customization.name
   blobName: customization.blobName
   arguments: contains(customization, 'arguments') ? customization.arguments : ''
@@ -85,8 +71,8 @@ resource createBuildDir 'Microsoft.Compute/virtualMachines/runCommands@2023-03-0
 }
 
 @batchSize(1)
-resource applications 'Microsoft.Compute/virtualMachines/runCommands@2023-03-01' = [for installer in installers: {
-  name: '${installer.name}'
+resource applications 'Microsoft.Compute/virtualMachines/runCommands@2023-03-01' = [for customizer in customizers: {
+  name: '${customizer.name}'
   location: location
   parent: imageVm
   properties: {
@@ -94,11 +80,11 @@ resource applications 'Microsoft.Compute/virtualMachines/runCommands@2023-03-01'
     errorBlobManagedIdentity: empty(logBlobContainerUri) ? null : {
       clientId: userAssignedIdentityClientId
     }
-    errorBlobUri: empty(logBlobContainerUri) ? null : '${logBlobContainerUri}${installer.name}-error-${timeStamp}.log' 
+    errorBlobUri: empty(logBlobContainerUri) ? null : '${logBlobContainerUri}${customizer.name}-error-${timeStamp}.log' 
     outputBlobManagedIdentity: empty(logBlobContainerUri) ? null : {
       clientId: userAssignedIdentityClientId
     }
-    outputBlobUri: empty(logBlobContainerUri) ? null : '${logBlobContainerUri}${installer.name}-output-${timeStamp}.log'
+    outputBlobUri: empty(logBlobContainerUri) ? null : '${logBlobContainerUri}${customizer.name}-output-${timeStamp}.log'
     parameters: [
       {
         name: 'BuildDir'
@@ -118,19 +104,89 @@ resource applications 'Microsoft.Compute/virtualMachines/runCommands@2023-03-01'
       }
       {
         name: 'Blobname'
-        value: installer.blobName
+        value: customizer.blobName
       }
       {
-        name: 'Installer'
-        value: installer.name
+        name: 'installer'
+        value: customizer.name
       }
       {
         name: 'Arguments'
-        value: installer.arguments
+        value: customizer.arguments
       }
     ]
     source: {
-      script: loadTextContent('../../data/Invoke-AppInstall.ps1', 'utf-8')
+      script: '''
+        param(
+          [string]$BuildDir,
+          [string]$UserAssignedIdentityClientId,
+          [string]$ContainerName,
+          [string]$StorageEndpoint,
+          [string]$BlobName,
+          [string]$Installer,
+          [string]$Arguments
+        )
+        If ($Arguments -eq '') {$Arguments = $null}
+        $TokenUri = "http://169.254.169.254/metadata/identity/oauth2/token?api-version=2018-02-01&resource=$StorageEndpoint&client_id=$UserAssignedIdentityClientId"
+        $AccessToken = ((Invoke-WebRequest -Headers @{Metadata=$true} -Uri $TokenUri -UseBasicParsing).Content | ConvertFrom-Json).access_token
+        $InstallDir = Join-Path $BuildDir -ChildPath $Installer
+        New-Item -Path $InstallDir -ItemType Directory -Force | Out-Null
+        Invoke-WebRequest -Headers @{"x-ms-version"="2017-11-09"; Authorization ="Bearer $AccessToken"} -Uri "$StorageEndpoint$ContainerName/$BlobName" -OutFile $InstallDir\$Blobname
+        Start-Sleep -Seconds 10        
+        Set-Location -Path $InstallDir
+        if($Blobname -like '*.exe') {
+          If ($Arguments) {
+            Start-Process -FilePath $InstallDir\$Blobname -ArgumentList $Arguments -NoNewWindow -Wait -PassThru
+          } Else {
+            Start-Process -FilePath $InstallDir\$Blobname -NoNewWindow -Wait -PassThru
+          }
+            $status = Get-WmiObject -Class Win32_Product | Where-Object Name -like "*$($installer)*"
+          if($status) {
+            Write-Host $status.Name "is installed"
+          } else {
+            Write-host $Installer "did not install properly, please check arguments"
+          }
+        }
+        if($Blobname -like '*.msi') {
+          If ($Arguments) {
+            If ($Arguments -notcontains $Blobname) {$Arguments = "/i $Blobname $Arguments"}
+            Start-Process -FilePath msiexec.exe -ArgumentList $Arguments -Wait
+          } Else {
+            Start-Process -FilePath msiexec.exe -ArgumentList "/i $BlobName /qn" -Wait
+          }
+          $status = Get-WmiObject -Class Win32_Product | Where-Object Name -like "*$($installer)*"
+          if($status) {
+            Write-Host $status.Name "is installed"
+          } else {
+            Write-host $Installer "did not install properly, please check arguments"
+          }
+        }
+        if($Blobname -like '*.bat') {
+          If ($Arguments) {
+            Start-Process -FilePath cmd.exe -ArgumentList "$BlobName $Arguments" -Wait
+          } Else {
+            Start-Process -FilePath cmd.exe -ArgumentList "$BlobName" -Wait
+          }
+        }
+        if($Blobname -like '*.ps1') {
+          If ($Arguments) {
+            & $BlobName $Arguments
+          } Else {
+            & $BlobName
+          }
+        }
+        if($Blobname -like '*.zip') {
+          $destinationPath = Join-Path -Path $InstallDir -ChildPath $([System.IO.Path]::GetFileNameWithoutExtension($Blobname))
+          Expand-Archive -Path $InstallDir\$Blobname -DestinationPath $destinationPath -Force
+          $PSScript = (Get-ChildItem -Path $destinationPath -filter '*.ps1').FullName
+          If ($PSScript.count -gt 1) { $PSScript = $PSScript[0] }
+          If ($Arguments) {
+            & $PSScript $Arguments
+          } Else {          
+            & $PSScript
+          }
+        }
+      '''
     }
   }
   dependsOn: [
@@ -138,8 +194,8 @@ resource applications 'Microsoft.Compute/virtualMachines/runCommands@2023-03-01'
   ]
 }]
 
-resource office 'Microsoft.Compute/virtualMachines/runCommands@2023-03-01' = if (installAccess || installExcel || installOneDriveForBusiness || installOneNote || installOutlook || installPowerPoint || installPublisher || installSkypeForBusiness || installWord || installVisio || installProject) {
-  name: 'office'
+resource office 'Microsoft.Compute/virtualMachines/runCommands@2023-03-01' = {
+  name: 'install-office'
   location: location
   parent: imageVm
   properties: {
@@ -158,47 +214,43 @@ resource office 'Microsoft.Compute/virtualMachines/runCommands@2023-03-01' = if 
       }
       {
         name: 'InstallAccess'
-        value: installAccessVar
+        value: string(installAccess)
       }
       {
         name: 'InstallWord'
-        value: installWordVar
+        value: string(installWord)
       }
       {
         name: 'InstallExcel'
-        value: installExcelVar
-      }
-      {
-        name: 'InstallOneDriveForBusiness'
-        value: installOneDriveForBusinessVar
+        value: string(installExcel)
       }
       {
         name: 'InstallOneNote'
-        value: installOneNoteVar
+        value: string(installOneNote)
       }
       {
         name: 'InstallOutlook'
-        value: installOutlookVar
+        value: string(installOutlook)
       }
       {
         name: 'InstallPowerPoint'
-        value: installPowerPointVar
+        value: string(installPowerPoint)
       }
       {
         name: 'InstallProject'
-        value: installProjectVar
+        value: string(installProject)
       }
       {
         name: 'InstallPublisher'
-        value: installPublisherVar
+        value: string(installPublisher)
       }
       {
         name: 'InstallSkypeForBusiness'
-        value: installSkypeForBusinessVar
+        value: string(installSkypeForBusiness)
       }
       {
         name: 'InstallVisio'
-        value: installVisioVar
+        value: string(installVisio)
       }
       {
         name: 'userAssignedIdentityClientId'
@@ -214,11 +266,89 @@ resource office 'Microsoft.Compute/virtualMachines/runCommands@2023-03-01' = if 
       }
       {
         name: 'BlobName'
-        value: officeInstaller
+        value: officeBlobName
       }
     ]
     source: {
-      script: loadTextContent('../../data/Invoke-OfficeInstall.ps1')
+      script: '''      
+         param(
+          [string]$BuildDir,
+          [string]$InstallAccess,
+          [string]$InstallExcel,
+          [string]$InstallOutlook,
+          [string]$InstallProject,
+          [string]$InstallPublisher,
+          [string]$InstallSkypeForBusiness,
+          [string]$InstallVisio,
+          [string]$InstallWord,
+          [string]$InstallOneNote,
+          [string]$InstallPowerPoint,
+          [string]$UserAssignedIdentityClientId,
+          [string]$ContainerName,
+          [string]$StorageEndpoint,
+          [string]$BlobName
+        )
+        $TokenUri = "http://169.254.169.254/metadata/identity/oauth2/token?api-version=2018-02-01&resource=$StorageEndpoint&client_id=$UserAssignedIdentityClientId"
+        $AccessToken = ((Invoke-WebRequest -Headers @{Metadata = $true } -Uri $TokenUri -UseBasicParsing).Content | ConvertFrom-Json).access_token
+        $sku = (Get-ComputerInfo).OsName
+        $appDir = Join-Path -Path $BuildDir -ChildPath 'Office365'
+        New-Item -Path $appDir -ItemType Directory -Force | Out-Null
+        $configFile = Join-Path -Path $appDir -ChildPath 'office365x64.xml'
+        $null = Set-Content $configFile '<Configuration><Add OfficeClientEdition="64" Channel="Current">'
+        $null = Add-Content $configFile '<Product ID="O365ProPlusRetail">'
+        $null = Add-Content $configFile '<Language ID="en-us" />'
+        $null = Add-Content $configFile '<ExcludeApp ID="Groove" />'
+        $null = Add-Content $configFile '<ExcludeApp ID="Teams"/>'
+        if ($InstallAccess -ne 'True') {
+            $null = Add-Content $configFile '<ExcludeApp ID="Access" />'
+        }
+        if ($InstallExcel -ne 'True') {
+            $null= Add-Content $configFile '<ExcludeApp ID="Excel" />'
+        }
+        if ($InstallOneNote -ne 'True') {
+            $null = Add-Content $configFile '<ExcludeApp ID="OneNote" />'
+        }
+        if ($InstallOutlook -ne 'True') {
+            $null = Add-Content $configFile '<ExcludeApp ID="Outlook" />'
+        }
+        if ($InstallPowerPoint -ne 'True') {
+            $null = Add-Content $configFile '<ExcludeApp ID="PowerPoint" />'
+        }
+        if ($InstallPublisher -ne 'True') {
+            $null = Add-Content $configFile '<ExcludeApp ID="Publisher" />'
+        }
+        if ($InstallSkypeForBusiness -ne 'True') {
+            $null = Add-Content $configFile '<ExcludeApp ID="Lync" />'
+        }
+        if ($InstallWord -ne 'True') {
+            $null = Add-Content $configFile '<ExcludeApp ID="Word" />'
+        }
+        $null = Add-Content $configFile '</Product>'
+        if ($InstallProject -eq 'True') {
+            $null = Add-Content $configFile '<Product ID="ProjectProRetail"><Language ID="en-us" /></Product>'
+        }
+        if ($InstallVisio -eq 'True') {
+            $null = Add-Content $configFile '<Product ID="VisioProRetail"><Language ID="en-us" /></Product>'
+        }
+        $null = Add-Content $configFile '</Add><Updates Enabled="FALSE" /><Display Level="None" AcceptEULA="TRUE" /><Property Name="FORCEAPPSHUTDOWN" Value="TRUE"/>'
+        if (($Sku).Contains("multi") -eq "true") {
+            $null = Add-Content $configFile '<Property Name="SharedComputerLicensing" Value="1"/>'
+        }
+        $null = Add-Content $configFile '</Configuration>'
+        $ErrorActionPreference = "Stop"
+        $destFile = Join-Path -Path $appDir -ChildPath 'office.zip'
+        Invoke-WebRequest -Headers @{"x-ms-version" = "2017-11-09"; Authorization = "Bearer $AccessToken" } -Uri "$StorageEndpoint$ContainerName/$BlobName" -OutFile $destFile
+        Expand-Archive -Path $destFile -DestinationPath "$appDir\Temp" -Force
+        $Setup = (Get-ChildItem -Path $appDir\Temp -Filter 'setup*.exe' -Recurse -File).FullName
+        If (-not($Setup)) {
+            $DeploymentTool = (Get-ChildItem -Path $appDir\Temp -Filter 'OfficeDeploymentTool*.exe' -Recurse -File).FullName
+            Start-Process -FilePath $DeploymentTool -ArgumentList "/extract:`"$appDir\ODT`" /quiet /passive /norestart" -Wait -PassThru | Out-Null
+            Write-Host "Downloaded & extracted the Office 365 Deployment Toolkit"
+            $setup = (Get-ChildItem -Path "$appDir\ODT" -Filter '*setup*.exe').FullName
+        }
+        Start-Process -FilePath $setup -ArgumentList "/configure `"$configFile`"" -Wait -PassThru -ErrorAction "Stop" | Out-Null
+        Write-Host "Installed the selected Office365 applications"
+      '''
     }
   }
   dependsOn: [
@@ -227,19 +357,23 @@ resource office 'Microsoft.Compute/virtualMachines/runCommands@2023-03-01' = if 
   ]
 }
 
-resource teams 'Microsoft.Compute/virtualMachines/runCommands@2023-03-01' = if (installTeams) {
-  name: 'teams'
+resource onedrive 'Microsoft.Compute/virtualMachines/runCommands@2023-07-01' = if(installOneDrive) {
+  name: 'onedrive'
   location: location
   parent: imageVm
   properties: {
+    errorBlobManagedIdentity: empty(logBlobContainerUri) ? null : {
+      clientId: userAssignedIdentityClientId
+    }
+    errorBlobUri: empty(logBlobContainerUri) ? null : '${logBlobContainerUri}OneDrive-error-${timeStamp}.log' 
+    outputBlobManagedIdentity: empty(logBlobContainerUri) ? null : {
+      clientId: userAssignedIdentityClientId
+    }
+    outputBlobUri: empty(logBlobContainerUri) ? null : '${logBlobContainerUri}OneDrive-output-${timeStamp}.log'
     parameters: [
       {
         name: 'BuildDir'
         value: buildDir
-      }
-      {
-        name: 'tenantType'
-        value: tenantType
       }
       {
         name: 'userAssignedIdentityClientId'
@@ -255,25 +389,123 @@ resource teams 'Microsoft.Compute/virtualMachines/runCommands@2023-03-01' = if (
       }
       {
         name: 'BlobName'
-        value: teamsInstaller
-      }
-      {
-        name: 'BlobName2'
-        value: vcRedistInstaller
-      }
-      {
-        name: 'BlobName3'
-        value: msrdcwebrtcsvcInstaller
+        value: onedriveBlobName
       }
     ]
     source: {
-      script: loadTextContent('../../data/Invoke-TeamsInstall.ps1', 'utf-8')
+      script: '''
+        param(
+          [string]$BuildDir,
+          [string]$UserAssignedIdentityClientId,
+          [string]$ContainerName,
+          [string]$StorageEndpoint,
+          [string]$BlobName
+        )
+        $TokenUri = "http://169.254.169.254/metadata/identity/oauth2/token?api-version=2018-02-01&resource=$StorageEndpoint&client_id=$UserAssignedIdentityClientId"
+        $AccessToken = ((Invoke-WebRequest -Headers @{Metadata=$true} -Uri $TokenUri -UseBasicParsing).Content | ConvertFrom-Json).access_token
+        $appDir = Join-Path -Path $BuildDir -ChildPath 'OneDrive'
+        New-Item -Path $appDir -ItemType Directory -Force | Out-Null
+        $destFile = Join-Path -Path $appDir -ChildPath 'OneDrive.zip'
+        Invoke-WebRequest -Headers @{"x-ms-version"="2017-11-09"; Authorization ="Bearer $AccessToken"} -Uri "$StorageEndpoint$ContainerName/$BlobName" -OutFile $destFile
+        Expand-Archive -Path $destFile -DestinationPath $appDir -Force
+        $onedrivesetup = (Get-ChildItem -Path $appDir -filter 'OneDrive*.exe' -Recurse).FullName
+        # Set OneDrive for All Users Install
+        New-Item -Path "HKLM:\SOFTWARE\Microsoft\OneDrive" -Force
+        New-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\OneDrive" -Name AllUsersInstall -PropertyType DWORD -Value 1 -Force
+        Start-Process -FilePath $onedrivesetup -ArgumentList '/allusers' -Wait -PassThru | Out-Null
+        New-ItemProperty -Path 'HKLM:\Software\Microsoft\Windows\CurrentVersion\Run' -Name OneDrive -PropertyType String -Value 'C:\Program Files\Microsoft OneDrive\OneDrive.exe /background' -Force
+        Write-Host "Installed OneDrive Per-Machine"
+      '''
     }
   }
   dependsOn: [
     createBuildDir
     applications
     office
+  ]
+}
+
+resource teams 'Microsoft.Compute/virtualMachines/runCommands@2023-03-01' = if (installTeams) {
+  name: 'teams'
+  location: location
+  parent: imageVm
+  properties: {
+    errorBlobManagedIdentity: empty(logBlobContainerUri) ? null : {
+      clientId: userAssignedIdentityClientId
+    }
+    errorBlobUri: empty(logBlobContainerUri) ? null : '${logBlobContainerUri}Teams-error-${timeStamp}.log' 
+    outputBlobManagedIdentity: empty(logBlobContainerUri) ? null : {
+      clientId: userAssignedIdentityClientId
+    }
+    outputBlobUri: empty(logBlobContainerUri) ? null : '${logBlobContainerUri}Teams-output-${timeStamp}.log'
+    parameters: [
+      {
+        name: 'BuildDir'
+        value: buildDir
+      }
+      {
+        name: 'userAssignedIdentityClientId'
+        value: userAssignedIdentityClientId
+      }
+      {
+        name: 'ContainerName'
+        value: containerName
+      }
+      {
+        name: 'StorageEndpoint'
+        value: storageEndpoint
+      }
+      {
+        name: 'BlobName'
+        value: teamsBlobName
+      }
+    ]
+    source: {
+      script: '''
+        param(
+          [string]$BuildDir,
+          [string]$UserAssignedIdentityClientId,
+          [string]$ContainerName,
+          [string]$StorageEndpoint,
+          [string]$BlobName
+        )
+        $TokenUri = "http://169.254.169.254/metadata/identity/oauth2/token?api-version=2018-02-01&resource=$StorageEndpoint&client_id=$UserAssignedIdentityClientId"
+        $AccessToken = ((Invoke-WebRequest -Headers @{Metadata=$true} -Uri $TokenUri -UseBasicParsing).Content | ConvertFrom-Json).access_token
+        $sku = (Get-ComputerInfo).OsName
+        $appDir = Join-Path -Path $BuildDir -ChildPath 'Teams'
+        New-Item -Path $appDir -ItemType Directory -Force | Out-Null
+        $destFile = Join-Path -Path $appDir -ChildPath 'Teams.zip'
+        Invoke-WebRequest -Headers @{"x-ms-version"="2017-11-09"; Authorization ="Bearer $AccessToken"} -Uri "$StorageEndpoint$ContainerName/$BlobName" -OutFile $destFile
+        Expand-Archive -Path $destFile -DestinationPath $appDir -Force
+        $vcRedistFile = (Get-ChildItem -Path $appDir -filter 'vc*.exe' -Recurse).FullName
+        $webRTCFile = (Get-ChildItem -Path $appDir -filter '*WebRTC*.msi' -Recurse).FullName
+        $teamsFile = (Get-ChildItem -Path $appDir -filter '*Teams*.msi' -Recurse).FullName
+        # Enable media optimizations for Team
+        New-Item -Path "HKLM:\SOFTWARE\Microsoft\Teams" -Force
+        New-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Teams" -Name IsWVDEnvironment -PropertyType DWORD -Value 1 -Force
+        Write-Host "Enabled media optimizations for Teams"
+        $ErrorActionPreference = "Stop"
+        Start-Process -FilePath  $vcRedistFile -Args "/install /quiet /norestart" -Wait -PassThru | Out-Null
+        Write-Host "Installed the latest version of Microsoft Visual C++ Redistributable"
+        # install the Remote Desktop WebRTC Redirector Service
+        Start-Process -FilePath msiexec.exe -Args "/i  $webRTCFile /quiet /qn /norestart /passive" -Wait -PassThru | Out-Null
+        Write-Host "Installed the Remote Desktop WebRTC Redirector Service"
+        # Install Teams
+        if(($Sku).Contains('multi')){
+            $msiArgs = 'ALLUSER=1 ALLUSERS=1'
+        } else {
+            $msiArgs = 'ALLUSERS=1'
+        }
+        Start-Process -FilePath msiexec.exe -Args "/i $teamsFile /quiet /qn /norestart /passive $msiArgs" -Wait -PassThru | Out-Null
+        Write-Host "Installed Teams"
+      '''
+    }
+  }
+  dependsOn: [
+    createBuildDir
+    applications
+    office
+    onedrive
   ]
 }
 
@@ -286,7 +518,7 @@ resource firstImageVmRestart 'Microsoft.Compute/virtualMachines/runCommands@2023
     asyncExecution: false
     parameters: [
       {
-        name: 'miClientId'
+        name: 'userAssignedIdentityClientId'
         value: userAssignedIdentityClientId
       }
       {
@@ -303,7 +535,31 @@ resource firstImageVmRestart 'Microsoft.Compute/virtualMachines/runCommands@2023
       }
     ]
     source: {
-      script: loadTextContent('../../data/Restart-Vm.ps1')
+      script: '''
+        param(
+          [string]$userAssignedIdentityClientId,
+          [string]$imageVmRg,
+          [string]$imageVmName,
+          [string]$Environment
+        )
+        # Connect to Azure
+        Connect-AzAccount -Identity -AccountId $userAssignedIdentityClientId -Environment $Environment # Run on the virtual machine
+        # Restart VM
+        Restart-AzVM -Name $imageVmName -ResourceGroupName $imageVmRg        
+        $lastProvisioningState = ""
+        $provisioningState = (Get-AzVM -resourcegroupname $imageVmRg -name $imageVmName -Status).Statuses[1].Code
+        $condition = ($provisioningState -eq "PowerState/running")
+        while (!$condition) {
+          if ($lastProvisioningState -ne $provisioningState) {
+            write-host $imageVmName "under" $imageVmRg "is" $provisioningState "(waiting for state change)"
+          }
+          $lastProvisioningState = $provisioningState
+      
+          Start-Sleep -Seconds 5
+          $provisioningState = (Get-AzVM -resourcegroupname $imageVmRg -name $imageVmName -Status).Statuses[1].Code
+        }
+        write-host $imageVmName "under" $imageVmRg "is" $provisioningState
+      '''
     }
   }
   dependsOn: [
@@ -344,7 +600,168 @@ resource microsoftUpdates 'Microsoft.Compute/virtualMachines/runCommands@2023-03
       }
     ]   
     source: {
-      script: loadTextContent('../../data/Invoke-MicrosoftUpdate.ps1', 'utf-8')
+      script: '''
+        param (
+          # The App Name to pass to the WUA API as the calling application.
+          [Parameter()]
+          [String]$AppName = "Windows Update API Script",
+          # The search criteria to be used.
+          [Parameter()]
+          [String]$Criteria = "IsInstalled=0 and Type='Software' and IsHidden=0",
+          [Parameter()]
+          [bool]$ExcludePreviewUpdates = $true,
+          # Default service (WSUS if machine is configured to use it, or MU if opted in, or WU otherwise.)
+          [Parameter()]
+          [ValidateSet("WU","MU","WSUS","DCAT","STORE","OTHER")]
+          [string]$Service = 'MU',
+          # The http/https fqdn for the Windows Server Update Server
+          [Parameter()]
+          [string]$WSUSServer
+        )
+        
+        Function ConvertFrom-InstallationResult {
+        [CmdletBinding()]
+            param (
+                [Parameter()]
+                [int]$Result
+            )
+        
+            switch ($Result) {
+                2 { $Text = 'Succeeded' }
+                3 { $Text = 'Succeeded with errors' }
+                4 { $Text = 'Failed' }
+                5 { $Text = 'Cancelled' }
+                Default { $Text = "Unexpected ($Result)"}
+            }
+        
+            Return $Text
+        }
+        
+        Switch ($Service.ToUpper()) {
+            'WU' { $ServerSelection = 2 }
+            'MU' { $ServerSelection = 3; $ServiceId = "7971f918-a847-4430-9279-4a52d1efe18d" }
+            'WSUS' { $ServerSelection = 1 }
+            'DCAT' { $ServerSelection = 3; $ServiceId = "855E8A7C-ECB4-4CA3-B045-1DFA50104289" }
+            'STORE' { $serverSelection = 3; $ServiceId = "117cab2d-82b1-4b5a-a08c-4d62dbee7782" }
+            'OTHER' { $ServerSelection = 3; $ServiceId = $Service }
+        }
+        
+        If ($Service -eq 'MU') {
+            $UpdateServiceManager = New-Object -ComObject Microsoft.Update.ServiceManager
+            $UpdateServiceManager.ClientApplicationID = $AppName
+            $UpdateServiceManager.AddService2("7971f918-a847-4430-9279-4a52d1efe18d", 7, "")
+            $null = cmd /c reg.exe ADD "HKLM\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU" /v AllowMUUpdateService /t REG_DWORD /d 1 /f '2>&1'
+            Write-Output "Added Registry entry to configure Microsoft Update. Exit Code: [$LastExitCode]"
+        } Elseif ($Service -eq 'WSUS' -and $WSUSServer) {
+            $null = cmd /c reg.exe ADD "HKLM\Software\Policies\Microsoft\Windows\WindowsUpdate" /v WUServer /t REG_SZ /d $WSUSServer /f '2>&1'
+            $null = cmd /c reg.exe ADD "HKLM\Software\Policies\Microsoft\Windows\WindowsUpdate" /v WUStatusServer /t REG_SZ /d $WSUSServer /f '2>&1'
+            Write-Output "Added Registry entry to configure WSUS Server. Exit Code: [$LastExitCode]"
+        }
+        
+        $UpdateSession = New-Object -ComObject Microsoft.Update.Session
+        $updateSession.ClientApplicationID = $AppName
+            
+        $UpdateSearcher = $UpdateSession.CreateUpdateSearcher()
+        $UpdateSearcher.ServerSelection = $ServerSelection
+        If ($ServerSelection -eq 3) {
+            $UpdateSearcher.ServiceId = $ServiceId
+        }
+        
+        Write-Output "Searching for Updates..."
+        
+        $SearchResult = $UpdateSearcher.Search($Criteria)
+        If ($SearchResult.Updates.Count -eq 0) {
+            Write-Output "There are no applicable updates."
+            Write-Output "Now Exiting"
+            Exit $ExitCode
+        }
+        
+        Write-Output "List of applicable items found for this computer:"
+        
+        For ($i = 0; $i -lt $SearchResult.Updates.Count; $i++) {
+            $Update = $SearchResult.Updates[$i]
+            Write-Output "$($i + 1) > $($update.Title)"
+        }
+        
+        $AtLeastOneAdded = $false
+        $ExclusiveAdded = $false   
+        $UpdatesToDownload = New-Object -ComObject Microsoft.Update.UpdateColl
+        Write-Output "Checking search results:"
+        For ($i = 0; $i -lt $SearchResult.Updates.Count; $i++) {
+            $Update = $SearchResult.Updates[$i]
+            $AddThisUpdate = $false
+        
+            If ($ExclusiveAdded) {
+                Write-Output "$($i + 1) > skipping: '$($update.Title)' because an exclusive update has already been selected."
+            } Else {
+                $AddThisUpdate = $true
+            }
+        
+            if ($ExcludePreviewUpdates -and $update.Title -like '*Preview*') {
+                Write-Output "$($i + 1) > Skipping: '$($update.Title)' because it is a preview update."
+                $AddThisUpdate = $false
+            }
+        
+            If ($AddThisUpdate) {
+                $PropertyTest = 0
+                $ErrorActionPreference = 'SilentlyContinue'
+                $PropertyTest = $Update.InstallationBehavior.Impact
+                $ErrorActionPreference = 'Stop'
+                If ($PropertyTest -eq 2) {
+                    If ($AtLeastOneAdded) {
+                        Write-Output "$($i + 1) > skipping: '$($update.Title)' because it is exclusive and other updates are being installed first."
+                        $AddThisUpdate = $false
+                    }
+                }
+            }
+        
+            If ($AddThisUpdate) {
+                Write-Output "$($i + 1) > adding: '$($update.Title)'"
+                $UpdatesToDownload.Add($Update) | out-null
+                $AtLeastOneAdded = $true
+                $ErrorActionPreference = 'SilentlyContinue'
+                $PropertyTest = $Update.InstallationBehavior.Impact
+                $ErrorActionPreference = 'Stop'
+                If ($PropertyTest -eq 2) {
+                    Write-Output "This update is exclusive; skipping remaining updates"
+                    $ExclusiveAdded = $true
+                }
+            }
+        }
+        
+        $UpdatesToInstall = New-Object -ComObject Microsoft.Update.UpdateColl
+        Write-Output "Downloading updates..."
+        $Downloader = $UpdateSession.CreateUpdateDownloader()
+        $Downloader.Updates = $UpdatesToDownload
+        $Downloader.Download()
+        Write-Output "Successfully downloaded updates:"
+        
+        For ($i = 0; $i -lt $UpdatesToDownload.Count; $i++) {
+            $Update = $UpdatesToDownload[$i]
+            If ($Update.IsDownloaded -eq $true) {
+                Write-Output "$($i + 1) > $($update.title)"
+                $UpdatesToInstall.Add($Update) | out-null
+            }
+        }
+        
+        If ($UpdatesToInstall.Count -gt 0) {
+            $Installer = $UpdateSession.CreateUpdateInstaller()
+            $Installer.Updates = $UpdatesToInstall
+            $InstallationResult = $Installer.Install()
+            $Text = ConvertFrom-InstallationResult -Result $InstallationResult.ResultCode
+            Write-Output "Installation Result: $($Text)"
+        
+            If ($InstallationResult.RebootRequired) {
+                Write-Output "Atleast one update requires a reboot to complete the installation."
+            }
+        }
+        If ($service -eq 'MU') {
+            Reg.exe DELETE "HKLM\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU" /v AllowMUUpdateService /f
+        } Elseif ($Service -eq 'WSUS' -and $WSUSServer) {
+            reg.exe DELETE "HKLM\Software\Policies\Microsoft\Windows\WindowsUpdate" /v WUServer /f
+            reg.exe DELETE "HKLM\Software\Policies\Microsoft\Windows\WindowsUpdate" /v WUStatusServer /f
+        }    
+      '''
     }
     treatFailureAsDeploymentFailure: true
   }
@@ -362,7 +779,7 @@ resource secondImageVmRestart 'Microsoft.Compute/virtualMachines/runCommands@202
     asyncExecution: false
     parameters: [
       {
-        name: 'miClientId'
+        name: 'userAssignedIdentityClientId'
         value: userAssignedIdentityClientId
       }
       {
@@ -379,7 +796,31 @@ resource secondImageVmRestart 'Microsoft.Compute/virtualMachines/runCommands@202
       }
     ]
     source: {
-      script: loadTextContent('../../data/Restart-Vm.ps1')
+      script: '''
+        param(
+          [string]$userAssignedIdentityClientId,
+          [string]$imageVmRg,
+          [string]$imageVmName,
+          [string]$Environment
+        )
+        # Connect to Azure
+        Connect-AzAccount -Identity -AccountId $userAssignedIdentityClientId -Environment $Environment # Run on the virtual machine
+        # Restart VM
+        Restart-AzVM -Name $imageVmName -ResourceGroupName $imageVmRg        
+        $lastProvisioningState = ""
+        $provisioningState = (Get-AzVM -resourcegroupname $imageVmRg -name $imageVmName -Status).Statuses[1].Code
+        $condition = ($provisioningState -eq "PowerState/running")
+        while (!$condition) {
+          if ($lastProvisioningState -ne $provisioningState) {
+            write-host $imageVmName "under" $imageVmRg "is" $provisioningState "(waiting for state change)"
+          }
+          $lastProvisioningState = $provisioningState
+      
+          Start-Sleep -Seconds 5
+          $provisioningState = (Get-AzVM -resourcegroupname $imageVmRg -name $imageVmName -Status).Statuses[1].Code
+        }
+        write-host $imageVmName "under" $imageVmRg "is" $provisioningState
+      '''
     }
   }
   dependsOn: [
@@ -417,7 +858,7 @@ resource vdot 'Microsoft.Compute/virtualMachines/runCommands@2023-03-01' = if (i
       }
       {
         name: 'BlobName'
-        value: vDotInstaller
+        value: vDotBlobName
       }
       {
         name: 'BuildDir'
@@ -425,7 +866,31 @@ resource vdot 'Microsoft.Compute/virtualMachines/runCommands@2023-03-01' = if (i
       }
     ]
     source: {
-      script: loadTextContent('../../data/Invoke-VDOT.ps1')
+      script: '''
+        param(
+          [string]$UserAssignedIdentityClientId,
+          [string]$ContainerName,
+          [string]$StorageEndpoint,
+          [string]$BlobName,
+          [string]$BuildDir    
+        )
+        $TokenUri = "http://169.254.169.254/metadata/identity/oauth2/token?api-version=2018-02-01&resource=$StorageEndpoint&client_id=$UserAssignedIdentityClientId"
+        $AccessToken = ((Invoke-WebRequest -Headers @{Metadata=$true} -Uri $TokenUri -UseBasicParsing).Content | ConvertFrom-Json).access_token
+        $ZIP = Join-Path -Path $BuildDir -ChildPath 'VDOT.zip'
+        Invoke-WebRequest -Headers @{"x-ms-version"="2017-11-09"; Authorization ="Bearer $AccessToken"} -Uri "$StorageEndpoint$ContainerName/$BlobName" -OutFile $ZIP
+        Set-Location -Path $BuildDir
+        $ErrorActionPreference = "Stop"
+        Do {Start-Sleep -seconds 5} Until (Test-Path -Path $ZIP)
+        Unblock-File -Path $ZIP
+        $VDOTDir = Join-Path -Path $BuildDir -ChildPath 'VDOT'
+        Expand-Archive -LiteralPath $ZIP -DestinationPath $VDOTDir -Force
+        $Path = (Get-ChildItem -Path $VDOTDir -Recurse | Where-Object {$_.Name -eq "Windows_VDOT.ps1"}).FullName
+        $Script = Get-Content -Path $Path
+        $ScriptUpdate = $Script.Replace("Set-NetAdapterAdvancedProperty","#Set-NetAdapterAdvancedProperty")
+        $ScriptUpdate | Set-Content -Path $Path
+        & $Path -Optimizations @("AppxPackages","Autologgers","DefaultUserSettings","LGPO","NetworkOptimizations","ScheduledTasks","Services","WindowsMediaPlayer") -AdvancedOptimizations @("Edge","RemoveLegacyIE") -AcceptEULA
+        Write-Output "Optimized the operating system using the Virtual Desktop Optimization Tool"
+      '''
     }
     timeoutInSeconds: 640
   }
@@ -470,7 +935,7 @@ resource thirdImageVmRestart 'Microsoft.Compute/virtualMachines/runCommands@2023
     asyncExecution: false
     parameters: [
       {
-        name: 'miClientId'
+        name: 'userAssignedIdentityClientId'
         value: userAssignedIdentityClientId
       }
       {
@@ -487,7 +952,31 @@ resource thirdImageVmRestart 'Microsoft.Compute/virtualMachines/runCommands@2023
       }
     ]
     source: {
-      script: loadTextContent('../../data/Restart-Vm.ps1')
+      script: '''
+        param(
+          [string]$userAssignedIdentityClientId,
+          [string]$imageVmRg,
+          [string]$imageVmName,
+          [string]$Environment
+        )
+        # Connect to Azure
+        Connect-AzAccount -Identity -AccountId $userAssignedIdentityClientId -Environment $Environment # Run on the virtual machine
+        # Restart VM
+        Restart-AzVM -Name $imageVmName -ResourceGroupName $imageVmRg        
+        $lastProvisioningState = ""
+        $provisioningState = (Get-AzVM -resourcegroupname $imageVmRg -name $imageVmName -Status).Statuses[1].Code
+        $condition = ($provisioningState -eq "PowerState/running")
+        while (!$condition) {
+          if ($lastProvisioningState -ne $provisioningState) {
+            write-host $imageVmName "under" $imageVmRg "is" $provisioningState "(waiting for state change)"
+          }
+          $lastProvisioningState = $provisioningState
+      
+          Start-Sleep -Seconds 5
+          $provisioningState = (Get-AzVM -resourcegroupname $imageVmRg -name $imageVmName -Status).Statuses[1].Code
+        }
+        write-host $imageVmName "under" $imageVmRg "is" $provisioningState
+      '''
     }
   }
   dependsOn: [
@@ -510,7 +999,31 @@ resource sysprep 'Microsoft.Compute/virtualMachines/runCommands@2023-03-01' = {
     }
     outputBlobUri: empty(logBlobContainerUri) ? null : '${logBlobContainerUri}MicrosoftUpdate-output-${timeStamp}.log'
     source: {
-      script: loadTextContent('../../data/Invoke-Sysprep.ps1')
+      script: '''
+        Write-Output '>>> Waiting for GA Service (RdAgent) to start ...'
+        while ((Get-Service RdAgent).Status -ne 'Running') { Start-Sleep -s 5 }
+        Write-Output '>>> Waiting for GA Service (WindowsAzureTelemetryService) to start ...'
+        while ((Get-Service WindowsAzureTelemetryService) -and ((Get-Service WindowsAzureTelemetryService).Status -ne 'Running')) { Start-Sleep -s 5 }
+        Write-Output '>>> Waiting for GA Service (WindowsAzureGuestAgent) to start ...'
+        while ((Get-Service WindowsAzureGuestAgent).Status -ne 'Running') { Start-Sleep -s 5 }
+        if( Test-Path $Env:SystemRoot\system32\Sysprep\unattend.xml ) {
+          Write-Output '>>> Removing Sysprep\unattend.xml ...'
+          Remove-Item $Env:SystemRoot\system32\Sysprep\unattend.xml -Force
+        }
+        if (Test-Path $Env:SystemRoot\Panther\unattend.xml) {
+          Write-Output '>>> Removing Panther\unattend.xml ...'
+          Remove-Item $Env:SystemRoot\Panther\unattend.xml -Force
+        }
+        Write-Output '>>> Sysprepping VM ...'
+        Start-Process -FilePath "C:\Windows\System32\Sysprep\Sysprep.exe" -ArgumentList "/generalize /oobe /quit /mode:vm" -Wait
+        while($true) {
+          $imageState = (Get-ItemProperty HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Setup\State).ImageState
+          Write-Output $imageState
+          if ($imageState -eq 'IMAGE_STATE_GENERALIZE_RESEAL_TO_OOBE') { break }
+          Start-Sleep -s 5
+        }
+        Write-Output ">>> Sysprep complete ..."
+      '''
     }
   }
   dependsOn: [

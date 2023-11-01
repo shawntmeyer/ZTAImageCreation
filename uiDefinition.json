@@ -539,14 +539,14 @@
                                     "name": "officeBlob",
                                     "type": "Microsoft.Storage.StorageBlobSelector",
                                     "visible": "[steps('imageCustomizations').office.installOffice]",
-                                    "toolTip": "Select office blob",
-                                    "label": "Office (.exe)",
+                                    "toolTip": "Select Microsoft Office Customization Tool blob",
+                                    "label": "Office Deployment Tool (.zip)",
                                     "options": {
                                         "text": "Select Package"
                                     },
                                     "constraints": {
                                         "allowedFileExtensions": [
-                                            "exe"
+                                            "zip"
                                         ]
                                     }
                                 },
@@ -577,27 +577,6 @@
                                     "label": "installExcel",
                                     "defaultValue": "false",
                                     "toolTip": "Select True to install Excel",
-                                    "constraints": {
-                                        "allowedValues": [
-                                            {
-                                                "label": "true",
-                                                "value": true
-                                            },
-                                            {
-                                                "label": "false",
-                                                "value": false
-                                            }
-                                        ],
-                                        "required": true
-                                    },
-                                    "visible": "[steps('imageCustomizations').office.installOffice]"
-                                },
-                                {
-                                    "name": "installOneDriveForBusiness",
-                                    "type": "Microsoft.Common.OptionsGroup",
-                                    "label": "Install One Dive For Business",
-                                    "defaultValue": "false",
-                                    "toolTip": "Select True to Install One Dive For Business",
                                     "constraints": {
                                         "allowedValues": [
                                             {
@@ -781,6 +760,42 @@
                                     },
                                     "visible": "[steps('imageCustomizations').office.installOffice]"
                                 },
+								{
+                                    "name": "installOneDrive",
+                                    "type": "Microsoft.Common.OptionsGroup",
+                                    "label": "Install OneDrive (Per Machine)",
+                                    "defaultValue": "false",
+                                    "toolTip": "Select True to install OneDrive (Per-Machine)",
+                                    "constraints": {
+                                        "allowedValues": [
+                                            {
+                                                "label": "true",
+                                                "value": true
+                                            },
+                                            {
+                                                "label": "false",
+                                                "value": false
+                                            }
+                                        ],
+                                        "required": true
+                                    },
+                                    "visible": true
+                                },
+                                {
+                                    "name": "onedriveBlob",
+                                    "type": "Microsoft.Storage.StorageBlobSelector",
+                                    "visible": "[steps('imageCustomizations').office.installOneDrive]",
+                                    "toolTip": "Select Mirosoft OneDrive blob",
+                                    "label": "OneDrive Setup (.zip)",
+                                    "options": {
+                                        "text": "Select Package"
+                                    },
+                                    "constraints": {
+                                        "allowedFileExtensions": [
+                                            "zip"
+                                        ]
+                                    }
+                                },
                                 {
                                     "name": "installTeams",
                                     "type": "Microsoft.Common.OptionsGroup",
@@ -802,88 +817,18 @@
                                     },
                                     "visible": true
                                 },
-								{
-                                    "name": "TenantType",
-                                    "type": "Microsoft.Common.DropDown",
-                                    "label": "Tenant Type",
-                                    "placeholder": "",
-                                    "defaultValue": [],
-                                    "toolTip": "Multiple values can be selected",
-                                    "multiselect": false,
-                                    "selectAll": true,
-                                    "filter": true,
-                                    "filterPlaceholder": "Filter items ...",
-                                    "multiLine": false,
-                                    "defaultDescription": "Select your Azure Tenant type",
-                                    "constraints": {
-                                        "allowedValues": [
-                                            {
-                                                "label": "Commercial",
-                                                "description": "Azure Commercial Tenant Type",
-                                                "value": "Commercial"
-                                            },
-                                            {
-                                                "label": "DepartmentOfDefense",
-                                                "description": "Azure DepartmentOfDefense Tenant Type",
-                                                "value": "DepartmentOfDefense"
-                                            },
-                                            {
-                                                "label": "GovernmentCommunityCloud",
-                                                "description": "Azure GovernmentCommunityCloud Tenant Type",
-                                                "value": "GovernmentCommunityCloud"
-                                            },
-                                            {
-                                                "label": "GovernmentCommunityCloudHigh",
-                                                "description": "Azure GovernmentCommunityCloudHigh Tenant Type",
-                                                "value": "GovernmentCommunityCloudHigh"
-                                            }
-                                        ],
-                                        "required": true
-                                    },
-                                    "visible": "[steps('imageCustomizations').office.installTeams]"
-                                },
                                 {
                                     "name": "teamsBlob",
                                     "type": "Microsoft.Storage.StorageBlobSelector",
                                     "visible": "[steps('imageCustomizations').office.installTeams]",
-                                    "toolTip": "Select teams blob",
-                                    "label": "Teams Installer (.msi)",
+                                    "toolTip": "Select Mirosoft Teams blob",
+                                    "label": "Teams Installers (.zip)",
                                     "options": {
                                         "text": "Select Package"
                                     },
                                     "constraints": {
                                         "allowedFileExtensions": [
-                                            "msi"
-                                        ]
-                                    }
-                                },
-                                {
-                                    "name": "msrdcwebrtcsvcInstaller",
-                                    "type": "Microsoft.Storage.StorageBlobSelector",
-                                    "visible": "[steps('imageCustomizations').office.installTeams]",
-                                    "toolTip": "Select Remote Desktop WebRTC Redirector Service",
-                                    "label": "Remote Desktop WebRTC Redirector Service Installer (.msi)",
-                                    "options": {
-                                        "text": "Select Package"
-                                    },
-                                    "constraints": {
-                                        "allowedFileExtensions": [
-                                            "msi"
-                                        ]
-                                    }
-                                },
-                                {
-                                    "name": "vcRedistInstaller",
-                                    "type": "Microsoft.Storage.StorageBlobSelector",
-                                    "visible": "[steps('imageCustomizations').office.installTeams]",
-                                    "toolTip": "Select Microsoft Visual C++ Redistributable",
-                                    "label": "Microsoft Visual C++ Redistributable Installer (.exe)",
-                                    "options": {
-                                        "text": "Select Package"
-                                    },
-                                    "constraints": {
-                                        "allowedFileExtensions": [
-                                            "exe"
+                                            "zip"
                                         ]
                                     }
                                 },
@@ -1643,7 +1588,7 @@
 				"customizations": "[if(equals(steps('imageCustomizations').customSoftware.addCustomSoftware, true), steps('imageCustomizations').customSoftware.customizations, '')]",
 				"installAccess": "[if(equals(steps('imageCustomizations').office.installOffice, true), steps('imageCustomizations').office.installAccess,'false')]",
                 "installExcel": "[if(equals(steps('imageCustomizations').office.installOffice, true), steps('imageCustomizations').office.installExcel,'false')]",
-                "installOneDriveForBusiness": "[if(equals(steps('imageCustomizations').office.installOffice, true), steps('imageCustomizations').office.installOneDriveForBusiness,'false')]",
+				"installOneDrive": "[steps('imageCustomizations').office.installOneDrive]",
                 "installOneNote": "[if(equals(steps('imageCustomizations').office.installOffice, true), steps('imageCustomizations').office.installOneNote,'false')]",
                 "installOutlook": "[if(equals(steps('imageCustomizations').office.installOffice, true), steps('imageCustomizations').office.installOutlook,'false')]",
                 "installPowerPoint": "[if(equals(steps('imageCustomizations').office.installOffice, true), steps('imageCustomizations').office.installPowerPoint,'false')]",
@@ -1654,12 +1599,10 @@
                 "installVirtualDesktopOptimizationTool": "[steps('imageCustomizations').office.installVirtualDesktopOptimizationTool]",
                 "installVisio": "[if(equals(steps('imageCustomizations').office.installOffice, true), steps('imageCustomizations').office.installVisio,'false')]",
                 "installWord": "[if(equals(steps('imageCustomizations').office.installOffice, true), steps('imageCustomizations').office.installWord,'false')]",
-				"vDotInstaller": "[if(equals(steps('imageCustomizations').office.installVirtualDesktopOptimizationTool, true), steps('imageCustomizations').office.vDotBlob.blobName,'')]",
-                "officeInstaller": "[if(equals(steps('imageCustomizations').office.installOffice, true), steps('imageCustomizations').office.officeBlob.blobName,'')]",
-                "teamsInstaller": "[if(equals(steps('imageCustomizations').office.installTeams, true), steps('imageCustomizations').office.teamsBlob.blobName,'')]",
-				"tenantType": "[if(equals(steps('imageCustomizations').office.installTeams, true), steps('imageCustomizations').office.TenantType, 'Commercial')]",
-                "vcRedistInstaller": "[if(equals(steps('imageCustomizations').office.installTeams, true), steps('imageCustomizations').office.vcRedistInstaller.blobName,'')]",
-                "msrdcwebrtcsvcInstaller": "[if(equals(steps('imageCustomizations').office.installTeams, true), steps('imageCustomizations').office.msrdcwebrtcsvcInstaller.blobName,'')]",
+				"vDotBlobName": "[if(equals(steps('imageCustomizations').office.installVirtualDesktopOptimizationTool, true), steps('imageCustomizations').office.vDotBlob.blobName,'')]",
+                "officeBlobName": "[if(equals(steps('imageCustomizations').office.installOffice, true), steps('imageCustomizations').office.officeBlob.blobName,'')]",
+				"onedriveBlobName": "[if(equals(steps('imageCustomizations').office.installOneDrive, true), steps('imageCustomizations').office.onedriveBlob.blobName,'')]",
+                "teamsBlobName": "[if(equals(steps('imageCustomizations').office.installTeams, true), steps('imageCustomizations').office.teamsBlob.blobName,'')]",
 				"installUpdates": "[steps('imageCustomizations').updates.installUpdates]",
 				"updateService": "[steps('imageCustomizations').updates.updateService]",
 				"wsusServer": "[if(equals(steps('imageCustomizations').updates.updateService, 'WSUS'), steps('imageCustomizations').updates.wsusServer, '')]",

@@ -62,33 +62,56 @@ param sku string
 param vmSize string
 
 // Image customizers
-
-@allowed([
-  'Commercial'
-  'DepartmentOfDefense'
-  'GovernmentCommunityCloud'
-  'GovernmentCommunityCloudHigh'
-])
-@description('Used to select the correct version of certain office components to install.')
-param tenantType string = 'Commercial'
+@description('Optional. Install Microsoft Access.')
 param installAccess bool = false
+
+@description('Optional. Install Microsoft Excel.')
 param installExcel bool = false
-param installOneDriveForBusiness bool = false
+
+@description('Optional. Install OneDrive Per Machine.')
+param installOneDrive bool = false
+
+@description('Conditional. The name of the zip blob containing OneDriveSetup.exe.')
+param onedriveBlobName string = ''
+
+@description('Optional. Install Microsoft OneNote.')
 param installOneNote bool = false
+
+@description('Optional. Install Microsoft Outlook.')
 param installOutlook bool = false
+
+@description('Optional. Install Microsoft PowerPoint.')
 param installPowerPoint bool = false
+
+@description('Optional. Install Microsoft Project.')
 param installProject bool = false
+
+@description('Optional. Install Microsoft Publisher.')
 param installpublisher bool = false
+
+@description('Optional. Install Microsoft Skype for Business.')
 param installSkypeForBusiness bool = false
-param installTeams bool = false
-param installVirtualDesktopOptimizationTool bool = false
+
+@description('Optional. Install Microsoft Visio.')
 param installVisio bool = false
+
+@description('Optional. Install Microsoft Word.')
 param installWord bool = false
-param vDotInstaller string = 'Virtual-Desktop-Optimization-Tool.zip'
-param officeInstaller string = 'Office365-Install.zip'
-param teamsInstaller string = 'teams.exe'
-param msrdcwebrtcsvcInstaller string = 'string'
-param vcRedistInstaller string = 'vsstudio.exe'
+
+@description('Conditional. The name of the zip blob containing the Office Deployment Tool.')
+param officeBlobName string = ''
+
+@description('Optional. Install Microsoft Teams.')
+param installTeams bool = false
+
+@description('Conditional. The name of the zip blob containing the VC++Redistributables, MSRDC WebRTC Redirector, and Teams installer.')
+param teamsBlobName string = ''
+
+@description('Optional. Apply the Virtual Desktop Optimization Tool customizations.')
+param installVirtualDesktopOptimizationTool bool = false
+
+@description('Conditional. The name of the zip blob containing the Virtual Desktop Optimization Tool Script and files.')
+param vDotBlobName string = ''
 
 @description('''An array of image customizations consisting of the blob name and parameters.
 BICEP example:
@@ -530,7 +553,8 @@ module customizeImage 'modules/imageBuild/customizeImage.bicep' = {
     customizations: customizations
     installAccess:  installAccess
     installExcel: installExcel
-    installOneDriveForBusiness: installOneDriveForBusiness
+    installOneDrive: installOneDrive
+    onedriveBlobName: onedriveBlobName
     installOneNote: installOneNote
     installOutlook: installOutlook
     installPowerPoint: installPowerPoint
@@ -542,19 +566,16 @@ module customizeImage 'modules/imageBuild/customizeImage.bicep' = {
     installVisio: installVisio
     installWord: installWord
     storageEndpoint: artifactsStorageAccount.properties.primaryEndpoints.blob
-    tenantType: tenantType
     userAssignedIdentityClientId: managedIdentity.properties.clientId
     managementVmName: managementVm.outputs.name
     imageVmName: imageVm.outputs.name
-    vDotInstaller: vDotInstaller
-    officeInstaller: officeInstaller
-    msrdcwebrtcsvcInstaller: msrdcwebrtcsvcInstaller
-    teamsInstaller: teamsInstaller
-    vcRedistInstaller: vcRedistInstaller
+    vDotBlobName: vDotBlobName
+    officeBlobName: officeBlobName
+    teamsBlobName: teamsBlobName
     logBlobContainerUri: collectLogs ? logContainerUri : ''
     installUpdates: installUpdates
     updateService: updateService
-    wsusServer: wsusServer
+    wsusServer: wsusServer  
   }
 }
 

@@ -1,27 +1,8 @@
-<#
-.SYNOPSIS
-Run this script to automatically download any required files from the internet and put them in their prescribed folders and
-then zip up all subfolders and upload all blobs to a storage account blob container for use by packer or Azure VM Image Builder.
-
-.DESCRIPTION
-Run the Post-Deployment for the storage account deployment
-- Upload required data to the storage account
-
-.PARAMETER FunctionsPath
-Path to the required functions
-
-.PARAMETER SourceDir
-The source directory where existing scripts and content are updated and copied to the DestinationDir
-
-.PARAMETER DestinationDir
-The directory to where the compressed zip files and standalone scripts are copied.
-#>
-
 param(
     # The Azure Environment containing the storage account.
     [Parameter(ParameterSetName='Deploy')]
     [Parameter(ParameterSetName='UpdateOnly')]
-    [ValidateSet("AzureCloud,AzureUSGovernment")]
+    [ValidateSet("AzureCloud","AzureUSGovernment")]
     [string]$AzureEnvironment = 'AzureCloud',
     # the folder containing the artifact sources
     [Parameter(ParameterSetName='Deploy', Mandatory=$false)]
@@ -31,9 +12,15 @@ param(
     [Parameter(ParameterSetName='Deploy', Mandatory=$false)]
     [Parameter(ParameterSetName='UpdateOnly')]
     [string] $TempDir = "$PSScriptRoot\temp",
+    # Determines if this script will reach out to the Internet and download new source Files for the installers.
     [Parameter(ParameterSetName='Deploy', Mandatory=$false)]
     [Parameter(ParameterSetName='UpdateOnly', Mandatory=$false)]
     [bool] $DownloadNewSources = $true,
+    # Teams Tenant Type to determine download Url
+    [Parameter(ParameterSetName='Deploy', Mandatory=$false)]
+    [Parameter(ParameterSetName='UpdateOnly', Mandatory=$false)]
+    [ValidateSet("Commercial","GovernmentCommunityCloud","GovernmentCommunityCloudHigh","DepartmentOfDefense")]
+    [string] $TeamsTenantType = "Commercial",
     #SubscriptionId. If not provided then the default context is used for deployment.
     [Parameter(ParameterSetName='Deploy')]
     [string]$SubscriptionId,
@@ -168,6 +155,20 @@ if ($DownloadNewSources -and (Test-Path -Path $downloadFilePath)) {
             $ReleasesUri = "https://api.github.com/repos/$Repo/releases/latest"
             Write-Output "Retrieving the url of the latest version from '$Repo' Github repo."
             $DownloadUrl = ((Invoke-RestMethod -Method GET -Uri $ReleasesUri).assets | Where-Object name -like $FileNamePattern).browser_download_url
+        }
+        ElseIf ($Download.Name -like 'Teams*') {
+            If($TeamsTenantType-eq "Commercial") {
+                $DownloadUrl = "https://teams.microsoft.com/downloads/desktopurl?env=production&plat=windows&arch=x64&managedInstaller=true&download=true"
+            }
+            If($TeamsTenantType-eq "DepartmentOfDefense") {
+                $DownloadUrl = "https://dod.teams.microsoft.us/downloads/desktopurl?env=production&plat=windows&arch=x64&managedInstaller=true&download=true"
+            }
+            If($TeamsTenantType-eq "GovernmentCommunityCloud") {
+                $DownloadUrl = "https://teams.microsoft.com/downloads/desktopurl?env=production&plat=windows&arch=x64&managedInstaller=true&ring=general_gcc&download=true"
+            }
+            If($TeamsTenantType-eq "GovernmentCommunityCloudHigh") {
+                $DownloadUrl = "https://gov.teams.microsoft.us/downloads/desktopurl?env=production&plat=windows&arch=x64&managedInstaller=true&download=true"
+            }            
         }
 
         If (($DownloadUrl -ne '') -and ($null -ne $DownloadUrl)) {
