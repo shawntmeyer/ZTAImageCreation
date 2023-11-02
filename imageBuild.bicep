@@ -62,6 +62,12 @@ param sku string
 param vmSize string
 
 // Image customizers
+@description('Optional. Install FSLogix Agent.')
+param installFsLogix bool = false
+
+@description('Conditional. The name of the blob that contains the FSlogix zip.')
+param fslogixBlobName string = ''
+
 @description('Optional. Install Microsoft Access.')
 param installAccess bool = false
 
@@ -551,6 +557,8 @@ module customizeImage 'modules/imageBuild/customizeImage.bicep' = {
     location: computeLocation
     containerName: containerName
     customizations: customizations
+    installFsLogix: installFsLogix
+    fslogixBlobName: fslogixBlobName
     installAccess:  installAccess
     installExcel: installExcel
     installOneDrive: installOneDrive

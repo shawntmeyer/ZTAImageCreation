@@ -8,6 +8,8 @@ param storageEndpoint string
 param containerName string
 param managementVmName string
 param imageVmName string
+param installFsLogix bool
+param fslogixBlobName string
 param installAccess bool
 param installExcel bool
 param installOneNote bool
@@ -140,11 +142,11 @@ resource applications 'Microsoft.Compute/virtualMachines/runCommands@2023-03-01'
           } Else {
             Start-Process -FilePath $InstallDir\$Blobname -NoNewWindow -Wait -PassThru
           }
-            $status = Get-WmiObject -Class Win32_Product | Where-Object Name -like "*$($installer)*"
+          $status = Get-WmiObject -Class Win32_Product | Where-Object Name -like "*$($installer)*"
           if($status) {
             Write-Output $status.Name "is installed"
           } else {
-            Write-Output $Installer "did not install properly, please check arguments"
+            Write-Output "$Installer did not install properly, please check arguments"
           }
         }
         if($Blobname -like '*.msi') {
@@ -194,7 +196,86 @@ resource applications 'Microsoft.Compute/virtualMachines/runCommands@2023-03-01'
   ]
 }]
 
-resource office 'Microsoft.Compute/virtualMachines/runCommands@2023-03-01' = {
+resource fslogix 'Microsoft.Compute/virtualMachines/runCommands@2023-07-01' = if(installFsLogix) {
+  name: 'fslogix'
+  location: location
+  parent: imageVm
+  properties: {
+    errorBlobManagedIdentity: empty(logBlobContainerUri) ? null : {
+      clientId: userAssignedIdentityClientId
+    }
+    errorBlobUri: empty(logBlobContainerUri) ? null : '${logBlobContainerUri}FSLogix-error-${timeStamp}.log' 
+    outputBlobManagedIdentity: empty(logBlobContainerUri) ? null : {
+      clientId: userAssignedIdentityClientId
+    }
+    outputBlobUri: empty(logBlobContainerUri) ? null : '${logBlobContainerUri}FSLogix-output-${timeStamp}.log'
+    parameters: [
+      {
+        name: 'BuildDir'
+        value: buildDir
+      }
+      {
+        name: 'UserAssignedIdentityClientId'
+        value: userAssignedIdentityClientId
+      }
+      {
+        name: 'ContainerName'
+        value: containerName
+      }
+      {
+        name: 'StorageEndpoint'
+        value: storageEndpoint
+      }
+      {
+        name: 'BlobName'
+        value: fslogixBlobName
+      }
+    ]
+    source: {
+      script: '''
+        param(
+          [string]$BuildDir,
+          [string]$UserAssignedIdentityClientId,
+          [string]$ContainerName,
+          [string]$StorageEndpoint,
+          [string]$BlobName
+        )
+        $SoftwareName = 'FSLogix'
+        Write-Output "Starting '$SoftwareName' install."
+        Write-Output "Obtaining bearer token for download from Azure Storage Account."
+        $TokenUri = "http://169.254.169.254/metadata/identity/oauth2/token?api-version=2018-02-01&resource=$StorageEndpoint&client_id=$UserAssignedIdentityClientId"
+        $AccessToken = ((Invoke-WebRequest -Headers @{Metadata=$true} -Uri $TokenUri -UseBasicParsing).Content | ConvertFrom-Json).access_token
+        $appDir = Join-Path -Path $BuildDir -ChildPath $SoftwareName
+        New-Item -Path $appDir -ItemType Directory -Force | Out-Null
+        $destFile = Join-Path -Path $appDir -ChildPath $BlobName
+        Write-Output "Downloading $BlobName from storage."
+        Invoke-WebRequest -Headers @{"x-ms-version"="2017-11-09"; Authorization ="Bearer $AccessToken"} -Uri "$StorageEndpoint$ContainerName/$BlobName" -OutFile $destFile
+        Expand-Archive -Path $destFile -DestinationPath "$appDir\Temp" -Force
+        $FSLogixZip = (Get-ChildItem -Path "$appDir\Temp" -filter '*.zip').FullName
+        Expand-Archive -Path $FSLogixZip -DestinationPath $appDir -Force
+        $Installer = Get-ChildItem -Path $appDir -File -Recurse -Filter 'FSLogixAppsSetup.exe' | Where-Object { $_.FullName -like '*x64*' }
+        $Install = Start-Process -FilePath $Installer -ArgumentList "/install /quiet /norestart" -Wait -PassThru
+        If ($($Install.ExitCode) -eq 0) {
+            Write-Output "'Microsoft FSLogix Apps' installed successfully."
+        }
+        Else {
+            Write-Error "The Install exit code is $($Install.ExitCode)"
+        }
+        Write-Output "Copying the FSLogix ADMX and ADML files to the PolicyDefinitions folders."
+        Get-ChildItem -Path $appDir -File -Recurse -Filter '*.admx' | ForEach-Object { Write-Output "Copying $($_.Name)"; Copy-Item -Path $_.FullName -Destination "$env:WINDIR\PolicyDefinitions\" -Force }
+        Get-ChildItem -Path $appDir -File -Recurse -Filter '*.adml' | ForEach-Object { Write-Output "Copying $($_.Name)"; Copy-Item -Path $_.FullName -Destination "$env:WINDIR\PolicyDefinitions\en-us\" -Force }
+        Write-Output "Installation complete."     
+      '''
+    }
+  }
+  dependsOn: [
+    createBuildDir
+    applications
+  ]
+}
+
+
+resource office 'Microsoft.Compute/virtualMachines/runCommands@2023-03-01' = if(installAccess || installExcel || installOneNote || installOutlook || installPowerPoint || installProject || installPublisher || installSkypeForBusiness || installVisio || installWord) {
   name: 'install-office'
   location: location
   parent: imageVm
@@ -288,22 +369,25 @@ resource office 'Microsoft.Compute/virtualMachines/runCommands@2023-03-01' = {
           [string]$StorageEndpoint,
           [string]$BlobName
         )
+        $SoftwareName = 'Office-365'
+        Write-Output "Installing '$SoftwareName'."
         $TokenUri = "http://169.254.169.254/metadata/identity/oauth2/token?api-version=2018-02-01&resource=$StorageEndpoint&client_id=$UserAssignedIdentityClientId"
         $AccessToken = ((Invoke-WebRequest -Headers @{Metadata = $true } -Uri $TokenUri -UseBasicParsing).Content | ConvertFrom-Json).access_token
         $sku = (Get-ComputerInfo).OsName
-        $appDir = Join-Path -Path $BuildDir -ChildPath 'Office365'
+        $appDir = Join-Path -Path $BuildDir -ChildPath $SoftwareName
         New-Item -Path $appDir -ItemType Directory -Force | Out-Null  
         $ErrorActionPreference = "Stop"
-        $destFile = Join-Path -Path $appDir -ChildPath 'office.zip'
+        $destFile = Join-Path -Path $appDir -ChildPath $BlobName
         Invoke-WebRequest -Headers @{"x-ms-version" = "2017-11-09"; Authorization = "Bearer $AccessToken" } -Uri "$StorageEndpoint$ContainerName/$BlobName" -OutFile $destFile
         Expand-Archive -Path $destFile -DestinationPath "$appDir\Temp" -Force
-        $Setup = (Get-ChildItem -Path $appDir\Temp -Filter 'setup*.exe' -Recurse -File).FullName
+        $Setup = (Get-ChildItem -Path "$appDir\Temp" -Filter 'setup*.exe' -Recurse -File).FullName
         If (-not($Setup)) {
           $DeploymentTool = (Get-ChildItem -Path $appDir\Temp -Filter 'OfficeDeploymentTool*.exe' -Recurse -File).FullName
           Start-Process -FilePath $DeploymentTool -ArgumentList "/extract:`"$appDir\ODT`" /quiet /passive /norestart" -Wait -PassThru | Out-Null
           Write-Output "Downloaded & extracted the Office 365 Deployment Toolkit"
           $setup = (Get-ChildItem -Path "$appDir\ODT" -Filter '*setup*.exe').FullName
         }
+        Write-Output "Dynamically creating $SoftwareName configuration file for setup."
         $configFile = Join-Path -Path $appDir -ChildPath 'office365x64.xml'
         $null = Set-Content $configFile '<Configuration>'
         $null = Add-Content $configFile '  <Add OfficeClientEdition="64" Channel="MonthlyEnterprise">'
@@ -351,13 +435,20 @@ resource office 'Microsoft.Compute/virtualMachines/runCommands@2023-03-01' = {
         $null = Add-Content $configFile '  <Updates Enabled="FALSE" />'
         $null = Add-Content $configFile '  <Display Level="None" AcceptEULA="TRUE" />'
         $null = Add-Content $configFile '</Configuration>'
-        Start-Process -FilePath $setup -ArgumentList "/configure `"$configFile`"" -Wait -PassThru -ErrorAction "Stop" | Out-Null
-        Write-Output "Installed the selected Office365 applications"
+        Write-Output "Starting setup process."
+        $Install = Start-Process -FilePath $setup -ArgumentList "/configure `"$configFile`"" -Wait -PassThru -ErrorAction "Stop"
+        If ($($Install.ExitCode) -eq 0) {
+          Write-Output "'$SoftwareName' installed successfully."
+        }
+        Else {
+          Write-Error "'$SoftwareName' install exit code is $($Install.ExitCode)"
+        }
       '''
     }
   }
   dependsOn: [
     createBuildDir
+    fslogix
     applications
   ]
 }
@@ -457,6 +548,7 @@ resource onedrive 'Microsoft.Compute/virtualMachines/runCommands@2023-07-01' = i
   dependsOn: [
     createBuildDir
     applications
+    fslogix
     office
   ]
 }
@@ -540,6 +632,7 @@ resource teams 'Microsoft.Compute/virtualMachines/runCommands@2023-03-01' = if (
   dependsOn: [
     createBuildDir
     applications
+    fslogix
     office
     onedrive
   ]
@@ -601,6 +694,7 @@ resource firstImageVmRestart 'Microsoft.Compute/virtualMachines/runCommands@2023
   dependsOn: [
     createBuildDir
     applications
+    fslogix
     office
     teams
   ]
