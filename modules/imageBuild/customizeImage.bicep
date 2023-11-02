@@ -294,10 +294,11 @@ resource office 'Microsoft.Compute/virtualMachines/runCommands@2023-03-01' = {
         $appDir = Join-Path -Path $BuildDir -ChildPath 'Office365'
         New-Item -Path $appDir -ItemType Directory -Force | Out-Null
         $configFile = Join-Path -Path $appDir -ChildPath 'office365x64.xml'
-        $null = Set-Content $configFile '<Configuration><Add OfficeClientEdition="64" Channel="Current">'
+        $null = Set-Content $configFile '<Configuration><Add OfficeClientEdition="64" Channel="MonthlyEnterprise">'
         $null = Add-Content $configFile '<Product ID="O365ProPlusRetail">'
         $null = Add-Content $configFile '<Language ID="en-us" />'
         $null = Add-Content $configFile '<ExcludeApp ID="Groove" />'
+        $null = Add-Content $configFile '<ExcludeApp ID="OneDrive" />'
         $null = Add-Content $configFile '<ExcludeApp ID="Teams"/>'
         if ($InstallAccess -ne 'True') {
             $null = Add-Content $configFile '<ExcludeApp ID="Access" />'
@@ -330,7 +331,8 @@ resource office 'Microsoft.Compute/virtualMachines/runCommands@2023-03-01' = {
         if ($InstallVisio -eq 'True') {
             $null = Add-Content $configFile '<Product ID="VisioProRetail"><Language ID="en-us" /></Product>'
         }
-        $null = Add-Content $configFile '</Add><Updates Enabled="FALSE" /><Display Level="None" AcceptEULA="TRUE" /><Property Name="FORCEAPPSHUTDOWN" Value="TRUE"/>'
+        $null = Add-Content $configFile '</Add>'
+        $null = Add-Content $configFile '<Updates Enabled="FALSE" /><Display Level="None" AcceptEULA="TRUE" /><Property Name="FORCEAPPSHUTDOWN" Value="TRUE"/>'
         if (($Sku).Contains("multi") -eq "true") {
             $null = Add-Content $configFile '<Property Name="SharedComputerLicensing" Value="1"/>'
         }
@@ -401,24 +403,51 @@ resource onedrive 'Microsoft.Compute/virtualMachines/runCommands@2023-07-01' = i
           [string]$StorageEndpoint,
           [string]$BlobName
         )
-        $TokenUri = "http://169.254.169.254/metadata/identity/oauth2/token?api-version=2018-02-01&resource=$StorageEndpoint&client_id=$UserAssignedIdentityClientId"
-        $AccessToken = ((Invoke-WebRequest -Headers @{Metadata=$true} -Uri $TokenUri -UseBasicParsing).Content | ConvertFrom-Json).access_token
-        $appDir = Join-Path -Path $BuildDir -ChildPath 'OneDrive'
-        New-Item -Path $appDir -ItemType Directory -Force | Out-Null
-        $destFile = Join-Path -Path $appDir -ChildPath 'OneDrive.zip'
-        Invoke-WebRequest -Headers @{"x-ms-version"="2017-11-09"; Authorization ="Bearer $AccessToken"} -Uri "$StorageEndpoint$ContainerName/$BlobName" -OutFile $destFile
-        Expand-Archive -Path $destFile -DestinationPath $appDir -Force
-        $onedrivesetup = (Get-ChildItem -Path $appDir -filter 'OneDrive*.exe' -Recurse).FullName
-        # Uninstall existing version
-        Start-Process -FilePath $onedrivesetup -ArgumentList '/uninstall'
-        Wait-Process -Name OneDriveSetup
-        # Set OneDrive for All Users Install
-        New-Item -Path "HKLM:\SOFTWARE\Microsoft\OneDrive" -Force
-        New-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\OneDrive" -Name AllUsersInstall -PropertyType DWORD -Value 1 -Force
-        Start-Process -FilePath $onedrivesetup -ArgumentList '/allusers'
-        Wait-Process -Name OneDriveSetup
-        New-ItemProperty -Path 'HKLM:\Software\Microsoft\Windows\CurrentVersion\Run' -Name OneDrive -PropertyType String -Value 'C:\Program Files\Microsoft OneDrive\OneDrive.exe /background' -Force
-        Write-Host "Installed OneDrive Per-Machine"
+        $RegPath = 'HKLM:\SOFTWARE\Microsoft\OneDrive'
+        If (Test-Path -Path $RegPath) {
+          If (Get-ItemProperty -Path $RegPath -Name AllUsersInstall -ErrorAction SilentlyContinue) {
+            $AllUsersInstall = Get-ItemPropertyValue -Path $RegPath -Name AllUsersInstall
+          }
+        }
+        If ($AllUsersInstall -eq '1') {
+          Write-Host "OneDrive is already setup per-machine. Quiting."
+        } Else {
+          Write-Host "Obtaining bearer token for download from Azure Storage Account."
+          $TokenUri = "http://169.254.169.254/metadata/identity/oauth2/token?api-version=2018-02-01&resource=$StorageEndpoint&client_id=$UserAssignedIdentityClientId"
+          $AccessToken = ((Invoke-WebRequest -Headers @{Metadata=$true} -Uri $TokenUri -UseBasicParsing).Content | ConvertFrom-Json).access_token
+          $appDir = Join-Path -Path $BuildDir -ChildPath 'OneDrive'
+          New-Item -Path $appDir -ItemType Directory -Force | Out-Null
+          $destFile = Join-Path -Path $appDir -ChildPath 'OneDrive.zip'
+          Write-Host "Downloading $BlobName from storage."
+          Invoke-WebRequest -Headers @{"x-ms-version"="2017-11-09"; Authorization ="Bearer $AccessToken"} -Uri "$StorageEndpoint$ContainerName/$BlobName" -OutFile $destFile
+          Expand-Archive -Path $destFile -DestinationPath $appDir -Force
+          $onedrivesetup = (Get-ChildItem -Path $appDir -filter 'OneDrive*.exe' -Recurse).FullName
+          #Find existing OneDriveSetup
+          $RegPath = 'HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\OneDriveSetup.exe'
+          If (Test-Path -Path $RegPath) {
+            Write-Output "Found Per-Machine Installation, determining uninstallation command."
+            If (Get-ItemProperty -Path $RegPath -name UninstallString -ErrorAction SilentlyContinue) {
+              $UninstallString = (Get-ItemPropertyValue -Path $RegPath -Name UninstallString).toLower()
+              $OneDriveSetupindex = $UninstallString.IndexOf('onedrivesetup.exe') + 17
+              $Uninstaller = $UninstallString.Substring(0,$OneDriveSetupindex)
+              $Arguments = $UninstallString.Substring($OneDriveSetupindex).replace('  ', ' ').trim()
+            }
+          } Else {
+            $Uninstaller = $OneDriveSetup
+            $Arguments = '/uninstall'
+          }    
+          # Uninstall existing version
+          Write-Output "Running [$Uninstaller $Arguments] to remove any existing versions."
+          Start-Process -FilePath $Uninstaller -ArgumentList $Arguments
+          Wait-Process -Name OneDriveSetup
+          # Set OneDrive for All Users Install
+          New-Item -Path "HKLM:\SOFTWARE\Microsoft\OneDrive" -Force
+          New-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\OneDrive" -Name AllUsersInstall -PropertyType DWORD -Value 1 -Force
+          Start-Process -FilePath $onedrivesetup -ArgumentList '/allusers'
+          Wait-Process -Name OneDriveSetup
+          New-ItemProperty -Path 'HKLM:\Software\Microsoft\Windows\CurrentVersion\Run' -Name OneDrive -PropertyType String -Value 'C:\Program Files\Microsoft OneDrive\OneDrive.exe /background' -Force
+          Write-Host "Installed OneDrive Per-Machine"
+        }     
       '''
     }
   }
