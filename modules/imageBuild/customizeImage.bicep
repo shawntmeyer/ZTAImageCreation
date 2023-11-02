@@ -142,9 +142,9 @@ resource applications 'Microsoft.Compute/virtualMachines/runCommands@2023-03-01'
           }
             $status = Get-WmiObject -Class Win32_Product | Where-Object Name -like "*$($installer)*"
           if($status) {
-            Write-Host $status.Name "is installed"
+            Write-Output $status.Name "is installed"
           } else {
-            Write-host $Installer "did not install properly, please check arguments"
+            Write-Output $Installer "did not install properly, please check arguments"
           }
         }
         if($Blobname -like '*.msi') {
@@ -156,9 +156,9 @@ resource applications 'Microsoft.Compute/virtualMachines/runCommands@2023-03-01'
           }
           $status = Get-WmiObject -Class Win32_Product | Where-Object Name -like "*$($installer)*"
           if($status) {
-            Write-Host $status.Name "is installed"
+            Write-Output $status.Name "is installed"
           } else {
-            Write-host $Installer "did not install properly, please check arguments"
+            Write-Output $Installer "did not install properly, please check arguments"
           }
         }
         if($Blobname -like '*.bat') {
@@ -345,11 +345,11 @@ resource office 'Microsoft.Compute/virtualMachines/runCommands@2023-03-01' = {
         If (-not($Setup)) {
             $DeploymentTool = (Get-ChildItem -Path $appDir\Temp -Filter 'OfficeDeploymentTool*.exe' -Recurse -File).FullName
             Start-Process -FilePath $DeploymentTool -ArgumentList "/extract:`"$appDir\ODT`" /quiet /passive /norestart" -Wait -PassThru | Out-Null
-            Write-Host "Downloaded & extracted the Office 365 Deployment Toolkit"
+            Write-Output "Downloaded & extracted the Office 365 Deployment Toolkit"
             $setup = (Get-ChildItem -Path "$appDir\ODT" -Filter '*setup*.exe').FullName
         }
         Start-Process -FilePath $setup -ArgumentList "/configure `"$configFile`"" -Wait -PassThru -ErrorAction "Stop" | Out-Null
-        Write-Host "Installed the selected Office365 applications"
+        Write-Output "Installed the selected Office365 applications"
       '''
     }
   }
@@ -410,15 +410,15 @@ resource onedrive 'Microsoft.Compute/virtualMachines/runCommands@2023-07-01' = i
           }
         }
         If ($AllUsersInstall -eq '1') {
-          Write-Host "OneDrive is already setup per-machine. Quiting."
+          Write-Output "OneDrive is already setup per-machine. Quiting."
         } Else {
-          Write-Host "Obtaining bearer token for download from Azure Storage Account."
+          Write-Output "Obtaining bearer token for download from Azure Storage Account."
           $TokenUri = "http://169.254.169.254/metadata/identity/oauth2/token?api-version=2018-02-01&resource=$StorageEndpoint&client_id=$UserAssignedIdentityClientId"
           $AccessToken = ((Invoke-WebRequest -Headers @{Metadata=$true} -Uri $TokenUri -UseBasicParsing).Content | ConvertFrom-Json).access_token
           $appDir = Join-Path -Path $BuildDir -ChildPath 'OneDrive'
           New-Item -Path $appDir -ItemType Directory -Force | Out-Null
           $destFile = Join-Path -Path $appDir -ChildPath 'OneDrive.zip'
-          Write-Host "Downloading $BlobName from storage."
+          Write-Output "Downloading $BlobName from storage."
           Invoke-WebRequest -Headers @{"x-ms-version"="2017-11-09"; Authorization ="Bearer $AccessToken"} -Uri "$StorageEndpoint$ContainerName/$BlobName" -OutFile $destFile
           Expand-Archive -Path $destFile -DestinationPath $appDir -Force
           $onedrivesetup = (Get-ChildItem -Path $appDir -filter 'OneDrive*.exe' -Recurse).FullName
@@ -446,7 +446,7 @@ resource onedrive 'Microsoft.Compute/virtualMachines/runCommands@2023-07-01' = i
           Start-Process -FilePath $onedrivesetup -ArgumentList '/allusers'
           Wait-Process -Name OneDriveSetup
           New-ItemProperty -Path 'HKLM:\Software\Microsoft\Windows\CurrentVersion\Run' -Name OneDrive -PropertyType String -Value 'C:\Program Files\Microsoft OneDrive\OneDrive.exe /background' -Force
-          Write-Host "Installed OneDrive Per-Machine"
+          Write-Output "Installed OneDrive Per-Machine"
         }     
       '''
     }
@@ -516,13 +516,13 @@ resource teams 'Microsoft.Compute/virtualMachines/runCommands@2023-03-01' = if (
         # Enable media optimizations for Team
         New-Item -Path "HKLM:\SOFTWARE\Microsoft\Teams" -Force
         New-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Teams" -Name IsWVDEnvironment -PropertyType DWORD -Value 1 -Force
-        Write-Host "Enabled media optimizations for Teams"
+        Write-Output "Enabled media optimizations for Teams"
         $ErrorActionPreference = "Stop"
         Start-Process -FilePath  $vcRedistFile -ArgumentList "/install /quiet /norestart" -Wait -PassThru | Out-Null
-        Write-Host "Installed the latest version of Microsoft Visual C++ Redistributable"
+        Write-Output "Installed the latest version of Microsoft Visual C++ Redistributable"
         # install the Remote Desktop WebRTC Redirector Service
         Start-Process -FilePath msiexec.exe -ArgumentList "/i  $webRTCFile /quiet /qn /norestart /passive" -Wait -PassThru | Out-Null
-        Write-Host "Installed the Remote Desktop WebRTC Redirector Service"
+        Write-Output "Installed the Remote Desktop WebRTC Redirector Service"
         # Install Teams
         if(($Sku).Contains('multi')){
             $msiArgs = 'ALLUSER=1 ALLUSERS=1'
@@ -530,7 +530,7 @@ resource teams 'Microsoft.Compute/virtualMachines/runCommands@2023-03-01' = if (
             $msiArgs = 'ALLUSERS=1'
         }
         Start-Process -FilePath msiexec.exe -ArgumentList "/i $teamsFile /quiet /qn /norestart /passive $msiArgs" -Wait -PassThru | Out-Null
-        Write-Host "Installed Teams"
+        Write-Output "Installed Teams"
       '''
     }
   }
@@ -584,14 +584,14 @@ resource firstImageVmRestart 'Microsoft.Compute/virtualMachines/runCommands@2023
         $condition = ($provisioningState -eq "PowerState/running")
         while (!$condition) {
           if ($lastProvisioningState -ne $provisioningState) {
-            write-host $imageVmName "under" $imageVmRg "is" $provisioningState "(waiting for state change)"
+            Write-Output $imageVmName "under" $imageVmRg "is" $provisioningState "(waiting for state change)"
           }
           $lastProvisioningState = $provisioningState
       
           Start-Sleep -Seconds 5
           $provisioningState = (Get-AzVM -resourcegroupname $imageVmRg -name $imageVmName -Status).Statuses[1].Code
         }
-        write-host $imageVmName "under" $imageVmRg "is" $provisioningState
+        Write-Output $imageVmName "under" $imageVmRg "is" $provisioningState
       '''
     }
   }
@@ -845,14 +845,14 @@ resource secondImageVmRestart 'Microsoft.Compute/virtualMachines/runCommands@202
         $condition = ($provisioningState -eq "PowerState/running")
         while (!$condition) {
           if ($lastProvisioningState -ne $provisioningState) {
-            write-host $imageVmName "under" $imageVmRg "is" $provisioningState "(waiting for state change)"
+            Write-Output $imageVmName "under" $imageVmRg "is" $provisioningState "(waiting for state change)"
           }
           $lastProvisioningState = $provisioningState
       
           Start-Sleep -Seconds 5
           $provisioningState = (Get-AzVM -resourcegroupname $imageVmRg -name $imageVmName -Status).Statuses[1].Code
         }
-        write-host $imageVmName "under" $imageVmRg "is" $provisioningState
+        Write-Output $imageVmName "under" $imageVmRg "is" $provisioningState
       '''
     }
   }
@@ -1001,14 +1001,14 @@ resource thirdImageVmRestart 'Microsoft.Compute/virtualMachines/runCommands@2023
         $condition = ($provisioningState -eq "PowerState/running")
         while (!$condition) {
           if ($lastProvisioningState -ne $provisioningState) {
-            write-host $imageVmName "under" $imageVmRg "is" $provisioningState "(waiting for state change)"
+            Write-Output $imageVmName "under" $imageVmRg "is" $provisioningState "(waiting for state change)"
           }
           $lastProvisioningState = $provisioningState
       
           Start-Sleep -Seconds 5
           $provisioningState = (Get-AzVM -resourcegroupname $imageVmRg -name $imageVmName -Status).Statuses[1].Code
         }
-        write-host $imageVmName "under" $imageVmRg "is" $provisioningState
+        Write-Output $imageVmName "under" $imageVmRg "is" $provisioningState
       '''
     }
   }
