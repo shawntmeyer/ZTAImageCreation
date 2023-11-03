@@ -706,11 +706,7 @@ resource firstImageVmRestart 'Microsoft.Compute/virtualMachines/runCommands@2023
         $provisioningState = (Get-AzVM -resourcegroupname $imageVmRg -name $imageVmName -Status).Statuses[1].Code
         $condition = ($provisioningState -eq "PowerState/running")
         while (!$condition) {
-          if ($lastProvisioningState -ne $provisioningState) {
-            Write-Output $imageVmName "under" $imageVmRg "is" $provisioningState "(waiting for state change)"
-          }
-          $lastProvisioningState = $provisioningState
-      
+          $lastProvisioningState = $provisioningState    
           Start-Sleep -Seconds 5
           $provisioningState = (Get-AzVM -resourcegroupname $imageVmRg -name $imageVmName -Status).Statuses[1].Code
         }
@@ -780,16 +776,14 @@ resource microsoftUpdates 'Microsoft.Compute/virtualMachines/runCommands@2023-03
             param (
                 [Parameter()]
                 [int]$Result
-            )
-        
+            )        
             switch ($Result) {
                 2 { $Text = 'Succeeded' }
                 3 { $Text = 'Succeeded with errors' }
                 4 { $Text = 'Failed' }
                 5 { $Text = 'Cancelled' }
                 Default { $Text = "Unexpected ($Result)"}
-            }
-        
+            }        
             Return $Text
         }
         Start-Transcript -Path "$env:SystemRoot\Logs\ImageBuild\Install-Updates.log"
@@ -800,8 +794,7 @@ resource microsoftUpdates 'Microsoft.Compute/virtualMachines/runCommands@2023-03
             'DCAT' { $ServerSelection = 3; $ServiceId = "855E8A7C-ECB4-4CA3-B045-1DFA50104289" }
             'STORE' { $serverSelection = 3; $ServiceId = "117cab2d-82b1-4b5a-a08c-4d62dbee7782" }
             'OTHER' { $ServerSelection = 3; $ServiceId = $Service }
-        }
-        
+        }        
         If ($Service -eq 'MU') {
             $UpdateServiceManager = New-Object -ComObject Microsoft.Update.ServiceManager
             $UpdateServiceManager.ClientApplicationID = $AppName
@@ -812,52 +805,42 @@ resource microsoftUpdates 'Microsoft.Compute/virtualMachines/runCommands@2023-03
             $null = cmd /c reg.exe ADD "HKLM\Software\Policies\Microsoft\Windows\WindowsUpdate" /v WUServer /t REG_SZ /d $WSUSServer /f '2>&1'
             $null = cmd /c reg.exe ADD "HKLM\Software\Policies\Microsoft\Windows\WindowsUpdate" /v WUStatusServer /t REG_SZ /d $WSUSServer /f '2>&1'
             Write-Output "Added Registry entry to configure WSUS Server. Exit Code: [$LastExitCode]"
-        }
-        
+        }        
         $UpdateSession = New-Object -ComObject Microsoft.Update.Session
-        $updateSession.ClientApplicationID = $AppName
-            
+        $updateSession.ClientApplicationID = $AppName   
         $UpdateSearcher = $UpdateSession.CreateUpdateSearcher()
         $UpdateSearcher.ServerSelection = $ServerSelection
         If ($ServerSelection -eq 3) {
             $UpdateSearcher.ServiceId = $ServiceId
         }
-        
         Write-Output "Searching for Updates..."
-        
         $SearchResult = $UpdateSearcher.Search($Criteria)
         If ($SearchResult.Updates.Count -eq 0) {
             Write-Output "There are no applicable updates."
             Write-Output "Now Exiting"
             Exit $ExitCode
         }
-        
         Write-Output "List of applicable items found for this computer:"
-        
         For ($i = 0; $i -lt $SearchResult.Updates.Count; $i++) {
             $Update = $SearchResult.Updates[$i]
             Write-Output "$($i + 1) > $($update.Title)"
         }
-        
         $AtLeastOneAdded = $false
         $ExclusiveAdded = $false   
         $UpdatesToDownload = New-Object -ComObject Microsoft.Update.UpdateColl
         Write-Output "Checking search results:"
         For ($i = 0; $i -lt $SearchResult.Updates.Count; $i++) {
             $Update = $SearchResult.Updates[$i]
-            $AddThisUpdate = $false
-        
+            $AddThisUpdate = $false        
             If ($ExclusiveAdded) {
                 Write-Output "$($i + 1) > skipping: '$($update.Title)' because an exclusive update has already been selected."
             } Else {
                 $AddThisUpdate = $true
-            }
-        
+            }        
             if ($ExcludePreviewUpdates -and $update.Title -like '*Preview*') {
                 Write-Output "$($i + 1) > Skipping: '$($update.Title)' because it is a preview update."
                 $AddThisUpdate = $false
-            }
-        
+            }        
             If ($AddThisUpdate) {
                 $PropertyTest = 0
                 $ErrorActionPreference = 'SilentlyContinue'
@@ -870,7 +853,6 @@ resource microsoftUpdates 'Microsoft.Compute/virtualMachines/runCommands@2023-03
                     }
                 }
             }
-        
             If ($AddThisUpdate) {
                 Write-Output "$($i + 1) > adding: '$($update.Title)'"
                 $UpdatesToDownload.Add($Update) | out-null
@@ -898,6 +880,7 @@ resource microsoftUpdates 'Microsoft.Compute/virtualMachines/runCommands@2023-03
             }
         }        
         If ($UpdatesToInstall.Count -gt 0) {
+            Write-Output "Now installing updates..."
             $Installer = $UpdateSession.CreateUpdateInstaller()
             $Installer.Updates = $UpdatesToInstall
             $InstallationResult = $Installer.Install()
