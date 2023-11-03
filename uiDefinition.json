@@ -49,7 +49,7 @@
 												"value": false
 											}
 										],
-										"required": true
+										"required": false
 									}
 								},
 								{
@@ -416,7 +416,7 @@
                                     "type": "Microsoft.Common.OptionsGroup",
                                     "label": "Install FsLogix Agent",
                                     "defaultValue": "No",
-                                    "toolTip": "Select True to install FsLogix Agent",
+                                    "toolTip": "Select 'Yes' to install FsLogix Agent",
                                     "constraints": {
                                         "allowedValues": [
                                             {
@@ -428,7 +428,7 @@
                                                 "value": false
                                             }
                                         ],
-                                        "required": true
+                                        "required": false
                                     }
                                 },
                                 {
@@ -458,7 +458,7 @@
                                     "type": "Microsoft.Common.OptionsGroup",
                                     "label": "Install Office",
                                     "defaultValue": "No",
-                                    "toolTip": "Select True to install Office",
+                                    "toolTip": "Select 'Yes' to install Office",
                                     "constraints": {
                                         "allowedValues": [
                                             {
@@ -470,7 +470,7 @@
                                                 "value": false
                                             }
                                         ],
-                                        "required": true
+                                        "required": false
                                     }
                                 },
                                 {
@@ -491,9 +491,9 @@
                                 {
                                     "name": "installAccess",
                                     "type": "Microsoft.Common.OptionsGroup",
-                                    "label": "InstallAccess",
+                                    "label": "Install Access",
                                     "defaultValue": "No",
-                                    "toolTip": "Select True to install Access",
+                                    "toolTip": "Select 'Yes' to install Access",
                                     "constraints": {
                                         "allowedValues": [
                                             {
@@ -505,16 +505,16 @@
                                                 "value": false
                                             }
                                         ],
-                                        "required": true
+                                        "required": false
                                     },
                                     "visible": "[steps('imageCustomizations').office.installOffice]"
                                 },
                                 {
                                     "name": "installExcel",
                                     "type": "Microsoft.Common.OptionsGroup",
-                                    "label": "installExcel",
+                                    "label": "Install Excel",
                                     "defaultValue": "No",
-                                    "toolTip": "Select True to install Excel",
+                                    "toolTip": "Select 'Yes' to install Excel",
                                     "constraints": {
                                         "allowedValues": [
                                             {
@@ -526,7 +526,7 @@
                                                 "value": false
                                             }
                                         ],
-                                        "required": true
+                                        "required": false
                                     },
                                     "visible": "[steps('imageCustomizations').office.installOffice]"
                                 },
@@ -535,7 +535,7 @@
                                     "type": "Microsoft.Common.OptionsGroup",
                                     "label": "Install OneNote",
                                     "defaultValue": "No",
-                                    "toolTip": "Select True to install OneNote",
+                                    "toolTip": "Select 'Yes' to install OneNote",
                                     "constraints": {
                                         "allowedValues": [
                                             {
@@ -547,7 +547,7 @@
                                                 "value": false
                                             }
                                         ],
-                                        "required": true
+                                        "required": false
                                     },
                                     "visible": "[steps('imageCustomizations').office.installOffice]"
                                 },
@@ -556,7 +556,7 @@
                                     "type": "Microsoft.Common.OptionsGroup",
                                     "label": "Install Outlook",
                                     "defaultValue": "No",
-                                    "toolTip": "Select True to install Outlook",
+                                    "toolTip": "Select 'Yes' to install Outlook",
                                     "constraints": {
                                         "allowedValues": [
                                             {
@@ -568,7 +568,7 @@
                                                 "value": false
                                             }
                                         ],
-                                        "required": true
+                                        "required": false
                                     },
                                     "visible": "[steps('imageCustomizations').office.installOffice]"
                                 },
@@ -577,7 +577,7 @@
                                     "type": "Microsoft.Common.OptionsGroup",
                                     "label": "Install PowerPoint",
                                     "defaultValue": "No",
-                                    "toolTip": "Select True to Install PowerPoint",
+                                    "toolTip": "Select 'Yes' to Install PowerPoint",
                                     "constraints": {
                                         "allowedValues": [
                                             {
@@ -589,7 +589,7 @@
                                                 "value": false
                                             }
                                         ],
-                                        "required": true
+                                        "required": false
                                     },
                                     "visible": "[steps('imageCustomizations').office.installOffice]"
                                 },
@@ -598,7 +598,7 @@
                                     "type": "Microsoft.Common.OptionsGroup",
                                     "label": "Install Project",
                                     "defaultValue": "No",
-                                    "toolTip": "Select True to install Project",
+                                    "toolTip": "Select 'Yes' to install Project",
                                     "constraints": {
                                         "allowedValues": [
                                             {
@@ -610,7 +610,7 @@
                                                 "value": false
                                             }
                                         ],
-                                        "required": true
+                                        "required": false
                                     },
                                     "visible": "[steps('imageCustomizations').office.installOffice]"
                                 },
@@ -619,7 +619,7 @@
                                     "type": "Microsoft.Common.OptionsGroup",
                                     "label": "Install Publisher",
                                     "defaultValue": "No",
-                                    "toolTip": "Select True to install Publisher",
+                                    "toolTip": "Select 'Yes' to install Publisher",
                                     "constraints": {
                                         "allowedValues": [
                                             {
@@ -631,7 +631,7 @@
                                                 "value": false
                                             }
                                         ],
-                                        "required": true
+                                        "required": false
                                     },
                                     "visible": "[steps('imageCustomizations').office.installOffice]"
                                 },
@@ -640,7 +640,7 @@
                                     "type": "Microsoft.Common.OptionsGroup",
                                     "label": "Install Skype For Business",
                                     "defaultValue": "No",
-                                    "toolTip": "Select True to install Skype For Business",
+                                    "toolTip": "Select 'Yes' to install Skype For Business",
                                     "constraints": {
                                         "allowedValues": [
                                             {
@@ -652,16 +652,16 @@
                                                 "value": false
                                             }
                                         ],
-                                        "required": true
+                                        "required": false
                                     },
                                     "visible": "[steps('imageCustomizations').office.installOffice]"
                                 },
                                 {
                                     "name": "installVisio",
                                     "type": "Microsoft.Common.OptionsGroup",
-                                    "label": "installVisio",
+                                    "label": "Install Visio",
                                     "defaultValue": "No",
-                                    "toolTip": "Select True to install Visio",
+                                    "toolTip": "Select 'Yes' to install Visio",
                                     "constraints": {
                                         "allowedValues": [
                                             {
@@ -673,7 +673,7 @@
                                                 "value": false
                                             }
                                         ],
-                                        "required": true
+                                        "required": false
                                     },
                                     "visible": "[steps('imageCustomizations').office.installOffice]"
                                 },
@@ -682,7 +682,7 @@
                                     "type": "Microsoft.Common.OptionsGroup",
                                     "label": "Install Word",
                                     "defaultValue": "No",
-                                    "toolTip": "Select True to install Word",
+                                    "toolTip": "Select 'Yes' to install Word",
                                     "constraints": {
                                         "allowedValues": [
                                             {
@@ -694,7 +694,7 @@
                                                 "value": false
                                             }
                                         ],
-                                        "required": true
+                                        "required": false
                                     },
                                     "visible": "[steps('imageCustomizations').office.installOffice]"
                                 },
@@ -703,7 +703,7 @@
                                     "type": "Microsoft.Common.OptionsGroup",
                                     "label": "Install OneDrive (Per Machine)",
                                     "defaultValue": "No",
-                                    "toolTip": "Select True to install OneDrive (Per-Machine)",
+                                    "toolTip": "Select 'Yes' to install OneDrive (Per-Machine)",
                                     "constraints": {
                                         "allowedValues": [
                                             {
@@ -715,7 +715,7 @@
                                                 "value": false
                                             }
                                         ],
-                                        "required": true
+                                        "required": false
                                     },
                                     "visible": true
                                 },
@@ -751,7 +751,7 @@
                                                 "value": false
                                             }
                                         ],
-                                        "required": true
+                                        "required": false
                                     },
                                     "visible": true
                                 },
@@ -794,7 +794,7 @@
                                                 "value": false
                                             }
                                         ],
-                                        "required": true
+                                        "required": false
                                     },
                                     "visible": true
                                 },
@@ -837,7 +837,7 @@
 												"value": false
 											}
 										],
-										"required": true
+										"required": false
 									},
 									"visible": true
 								},
@@ -929,7 +929,7 @@
                                     "type": "Microsoft.Common.OptionsGroup",
                                     "label": "Install Windows Updates",
                                     "defaultValue": "No",
-                                    "toolTip": "Select True to install updates and specify an update source.",
+                                    "toolTip": "Select 'Yes' to install updates and specify an update source.",
                                     "constraints": {
                                         "allowedValues": [
                                             {
@@ -941,7 +941,7 @@
                                                 "value": false
                                             }
                                         ],
-                                        "required": true
+                                        "required": false
                                     }
                                 },
 								{
@@ -1034,7 +1034,7 @@
 												"value": false
 											}
 										],
-										"required": true
+										"required": false
 									},
 									"visible": true
 								},
@@ -1140,7 +1140,7 @@
 												"value": false
 											}
 										],
-										"required": true
+										"required": false
 									},
 									"visible": true
 								},
@@ -1256,7 +1256,7 @@
 												"value": false
 											}
 										],
-										"required": true
+										"required": false
 									},
 									"visible": "[equals(steps('imageDest').imageDefinition.useExImageDef, false)]"
 								},
@@ -1267,7 +1267,7 @@
                                     "defaultValue": "No",
                                     "toolTip": "Set this to 'Yes' to enable Virtual Machines to be deployed from this image definition that support hibernation.",
                                     "constraints": {
-                                        "required": true,
+                                        "required": false,
                                         "allowedValues": [
                                             {
                                                 "label": "Yes",
@@ -1288,7 +1288,7 @@
                                     "defaultValue": "Trusted Launch Supported",
                                     "toolTip": "Choose a type of security that matches your needs: Standard includes basic protections at no additional cost. Trusted launch virtual machines provide additional security features on Gen2 virtual machines to protect against persistent and advanced attacks.",
                                     "constraints": {
-                                        "required": true,
+                                        "required": false,
                                         "allowedValues": [
                                             {
                                                 "label": "Standard",
@@ -1325,7 +1325,7 @@
                                     "defaultValue": "No",
                                     "toolTip": "Set this to 'Yes' to enable the capture of VMs and disks on NVMe storage.",
                                     "constraints": {
-                                        "required": true,
+                                        "required": false,
                                         "allowedValues": [
                                             {
                                                 "label": "Yes",
@@ -1364,7 +1364,7 @@
 												"value": false
 											}
 										],
-										"required": true
+										"required": false
 									}
 								},
 								{
@@ -1440,7 +1440,7 @@
 												"value": "Standard_ZRS"
 											}
 										],
-										"required": true
+										"required": false
 									},
 									"visible": true
 								},
@@ -1455,7 +1455,7 @@
 									"showStepMarkers": false,
 									"toolTip": "Specify the default replica count per region for this image version. If you don't specify additional replication regions, then this value will be used with the deployment location.",
 									"constraints": {
-										"required": true
+										"required": false
 									},									
 									"visible": true
 								},
@@ -1476,7 +1476,7 @@
 												"value": true
 											}
 										],
-										"required": true
+										"required": false
 									},
 									"visible": true
 								},
@@ -1496,7 +1496,7 @@
 												"value": false
 											}
 										],
-										"required": true
+										"required": false
 									}
 								},
 								{
@@ -1647,13 +1647,13 @@
                 "installPublisher": "[if(equals(steps('imageCustomizations').office.installOffice, true), steps('imageCustomizations').office.installPublisher,'false')]",
                 "installSkypeForBusiness": "[if(equals(steps('imageCustomizations').office.installOffice, true), steps('imageCustomizations').office.installSkypeForBusiness,'false')]",
                 "installTeams": "[steps('imageCustomizations').office.installTeams]",
+				"teamsBlobName": "[if(equals(steps('imageCustomizations').office.installTeams, true), steps('imageCustomizations').office.teamsBlob.blobName,'')]",
                 "installVirtualDesktopOptimizationTool": "[steps('imageCustomizations').customizations.installVirtualDesktopOptimizationTool]",
                 "installVisio": "[if(equals(steps('imageCustomizations').office.installOffice, true), steps('imageCustomizations').office.installVisio,'false')]",
                 "installWord": "[if(equals(steps('imageCustomizations').office.installOffice, true), steps('imageCustomizations').office.installWord,'false')]",
 				"vDotBlobName": "[if(equals(steps('imageCustomizations').customizations.installVirtualDesktopOptimizationTool, true), steps('imageCustomizations').customizations.vDotBlob.blobName,'')]",
                 "officeBlobName": "[if(equals(steps('imageCustomizations').office.installOffice, true), steps('imageCustomizations').office.officeBlob.blobName,'')]",
 				"onedriveBlobName": "[if(equals(steps('imageCustomizations').office.installOneDrive, true), steps('imageCustomizations').office.onedriveBlob.blobName,'')]",
-                "teamsBlobName": "[if(equals(steps('imageCustomizations').office.installTeams, true), steps('imageCustomizations').office.teamsBlob.blobName,'')]",
 				"installUpdates": "[steps('imageCustomizations').updates.installUpdates]",
 				"updateService": "[steps('imageCustomizations').updates.updateService]",
 				"wsusServer": "[if(equals(steps('imageCustomizations').updates.updateService, 'WSUS'), steps('imageCustomizations').updates.wsusServer, '')]",

@@ -49,8 +49,8 @@ resource managementVm 'Microsoft.Compute/virtualMachines@2022-03-01' existing = 
   name: managementVmName
 }
 
-resource createBuildDir 'Microsoft.Compute/virtualMachines/runCommands@2023-03-01' = {
-  name: 'create-BuildDir'
+resource createBuildDirs 'Microsoft.Compute/virtualMachines/runCommands@2023-03-01' = {
+  name: 'create-BuildDir-and-LogDir'
   location: location
   parent: imageVm
   properties: {
@@ -67,6 +67,7 @@ resource createBuildDir 'Microsoft.Compute/virtualMachines/runCommands@2023-03-0
           [string]$BuildDir
         )
         New-Item -Path $BuildDir -ItemType Directory -Force | Out-Null
+        New-Item -Path (Join-Path -Path "$env:SystemRoot\Logs" -ChildPath ImageBuild) -ItemType Directory -Force | Out-Null
       '''
     }
   }
@@ -93,7 +94,7 @@ resource applications 'Microsoft.Compute/virtualMachines/runCommands@2023-03-01'
         value: buildDir
       }
       {
-        name: 'userAssignedIdentityClientId'
+        name: 'UserAssignedIdentityClientId'
         value: userAssignedIdentityClientId
       }
       {
@@ -128,6 +129,7 @@ resource applications 'Microsoft.Compute/virtualMachines/runCommands@2023-03-01'
           [string]$Installer,
           [string]$Arguments
         )
+        Start-Transcript -Path "$env:SystemRoot\Logs\ImageBuild\$Installer.log" -Force
         If ($Arguments -eq '') {$Arguments = $null}
         $TokenUri = "http://169.254.169.254/metadata/identity/oauth2/token?api-version=2018-02-01&resource=$StorageEndpoint&client_id=$UserAssignedIdentityClientId"
         $AccessToken = ((Invoke-WebRequest -Headers @{Metadata=$true} -Uri $TokenUri -UseBasicParsing).Content | ConvertFrom-Json).access_token
@@ -188,11 +190,12 @@ resource applications 'Microsoft.Compute/virtualMachines/runCommands@2023-03-01'
             & $PSScript
           }
         }
+        Stop-Transcript
       '''
     }
   }
   dependsOn: [
-    createBuildDir
+    createBuildDirs
   ]
 }]
 
@@ -241,6 +244,7 @@ resource fslogix 'Microsoft.Compute/virtualMachines/runCommands@2023-07-01' = if
           [string]$BlobName
         )
         $SoftwareName = 'FSLogix'
+        Start-Transcript -Path "$env:SystemRoot\Logs\ImageBuild\$SoftwareName.log" -Force
         Write-Output "Starting '$SoftwareName' install."
         Write-Output "Obtaining bearer token for download from Azure Storage Account."
         $TokenUri = "http://169.254.169.254/metadata/identity/oauth2/token?api-version=2018-02-01&resource=$StorageEndpoint&client_id=$UserAssignedIdentityClientId"
@@ -250,10 +254,14 @@ resource fslogix 'Microsoft.Compute/virtualMachines/runCommands@2023-07-01' = if
         $destFile = Join-Path -Path $appDir -ChildPath $BlobName
         Write-Output "Downloading $BlobName from storage."
         Invoke-WebRequest -Headers @{"x-ms-version"="2017-11-09"; Authorization ="Bearer $AccessToken"} -Uri "$StorageEndpoint$ContainerName/$BlobName" -OutFile $destFile
+        Start-Sleep -seconds 10
+        Write-Output "Extracting Contents of Zip File"
         Expand-Archive -Path $destFile -DestinationPath "$appDir\Temp" -Force
         $FSLogixZip = (Get-ChildItem -Path "$appDir\Temp" -filter '*.zip').FullName
+        Write-Output "Found FSLogix Source files: [$FSLogixZip], Extracting contents..."
         Expand-Archive -Path $FSLogixZip -DestinationPath $appDir -Force
-        $Installer = Get-ChildItem -Path $appDir -File -Recurse -Filter 'FSLogixAppsSetup.exe' | Where-Object { $_.FullName -like '*x64*' }
+        $Installer = (Get-ChildItem -Path $appDir -File -Recurse -Filter 'FSLogixAppsSetup.exe' | Where-Object { $_.FullName -like '*x64*' }).FullName
+        Write-Output "Installation file found: [$Installer], executing installation."
         $Install = Start-Process -FilePath $Installer -ArgumentList "/install /quiet /norestart" -Wait -PassThru
         If ($($Install.ExitCode) -eq 0) {
             Write-Output "'Microsoft FSLogix Apps' installed successfully."
@@ -264,12 +272,13 @@ resource fslogix 'Microsoft.Compute/virtualMachines/runCommands@2023-07-01' = if
         Write-Output "Copying the FSLogix ADMX and ADML files to the PolicyDefinitions folders."
         Get-ChildItem -Path $appDir -File -Recurse -Filter '*.admx' | ForEach-Object { Write-Output "Copying $($_.Name)"; Copy-Item -Path $_.FullName -Destination "$env:WINDIR\PolicyDefinitions\" -Force }
         Get-ChildItem -Path $appDir -File -Recurse -Filter '*.adml' | ForEach-Object { Write-Output "Copying $($_.Name)"; Copy-Item -Path $_.FullName -Destination "$env:WINDIR\PolicyDefinitions\en-us\" -Force }
-        Write-Output "Installation complete."     
+        Write-Output "Installation complete."
+        Stop-Transcript     
       '''
     }
   }
   dependsOn: [
-    createBuildDir
+    createBuildDirs
     applications
   ]
 }
@@ -334,7 +343,7 @@ resource office 'Microsoft.Compute/virtualMachines/runCommands@2023-03-01' = if(
         value: string(installVisio)
       }
       {
-        name: 'userAssignedIdentityClientId'
+        name: 'UserAssignedIdentityClientId'
         value: userAssignedIdentityClientId
       }
       {
@@ -370,6 +379,7 @@ resource office 'Microsoft.Compute/virtualMachines/runCommands@2023-03-01' = if(
           [string]$BlobName
         )
         $SoftwareName = 'Office-365'
+        Start-Transcript -Path "$env:SystemRoot\Logs\ImageBuild\$SoftwareName.log" -Force
         Write-Output "Installing '$SoftwareName'."
         $TokenUri = "http://169.254.169.254/metadata/identity/oauth2/token?api-version=2018-02-01&resource=$StorageEndpoint&client_id=$UserAssignedIdentityClientId"
         $AccessToken = ((Invoke-WebRequest -Headers @{Metadata = $true } -Uri $TokenUri -UseBasicParsing).Content | ConvertFrom-Json).access_token
@@ -379,6 +389,7 @@ resource office 'Microsoft.Compute/virtualMachines/runCommands@2023-03-01' = if(
         $ErrorActionPreference = "Stop"
         $destFile = Join-Path -Path $appDir -ChildPath $BlobName
         Invoke-WebRequest -Headers @{"x-ms-version" = "2017-11-09"; Authorization = "Bearer $AccessToken" } -Uri "$StorageEndpoint$ContainerName/$BlobName" -OutFile $destFile
+        Start-Sleep -Seconds 10
         Expand-Archive -Path $destFile -DestinationPath "$appDir\Temp" -Force
         $Setup = (Get-ChildItem -Path "$appDir\Temp" -Filter 'setup*.exe' -Recurse -File).FullName
         If (-not($Setup)) {
@@ -443,11 +454,12 @@ resource office 'Microsoft.Compute/virtualMachines/runCommands@2023-03-01' = if(
         Else {
           Write-Error "'$SoftwareName' install exit code is $($Install.ExitCode)"
         }
+        Stop-Transcript
       '''
     }
   }
   dependsOn: [
-    createBuildDir
+    createBuildDirs
     fslogix
     applications
   ]
@@ -472,7 +484,7 @@ resource onedrive 'Microsoft.Compute/virtualMachines/runCommands@2023-07-01' = i
         value: buildDir
       }
       {
-        name: 'userAssignedIdentityClientId'
+        name: 'UserAssignedIdentityClientId'
         value: userAssignedIdentityClientId
       }
       {
@@ -497,6 +509,8 @@ resource onedrive 'Microsoft.Compute/virtualMachines/runCommands@2023-07-01' = i
           [string]$StorageEndpoint,
           [string]$BlobName
         )
+        $SoftwareName = 'OneDrive'
+        Start-Transcript -Path "$env:SystemRoot\Logs\ImageBuild\$SoftwareName.log" -Force
         $RegPath = 'HKLM:\SOFTWARE\Microsoft\OneDrive'
         If (Test-Path -Path $RegPath) {
           If (Get-ItemProperty -Path $RegPath -Name AllUsersInstall -ErrorAction SilentlyContinue) {
@@ -504,7 +518,7 @@ resource onedrive 'Microsoft.Compute/virtualMachines/runCommands@2023-07-01' = i
           }
         }
         If ($AllUsersInstall -eq '1') {
-          Write-Output "OneDrive is already setup per-machine. Quiting."
+          Write-Output "$SoftwareName is already setup per-machine. Quiting."
         } Else {
           Write-Output "Obtaining bearer token for download from Azure Storage Account."
           $TokenUri = "http://169.254.169.254/metadata/identity/oauth2/token?api-version=2018-02-01&resource=$StorageEndpoint&client_id=$UserAssignedIdentityClientId"
@@ -514,6 +528,7 @@ resource onedrive 'Microsoft.Compute/virtualMachines/runCommands@2023-07-01' = i
           $destFile = Join-Path -Path $appDir -ChildPath 'OneDrive.zip'
           Write-Output "Downloading $BlobName from storage."
           Invoke-WebRequest -Headers @{"x-ms-version"="2017-11-09"; Authorization ="Bearer $AccessToken"} -Uri "$StorageEndpoint$ContainerName/$BlobName" -OutFile $destFile
+          Start-Sleep -Seconds 10
           Expand-Archive -Path $destFile -DestinationPath $appDir -Force
           $onedrivesetup = (Get-ChildItem -Path $appDir -filter 'OneDrive*.exe' -Recurse).FullName
           #Find existing OneDriveSetup
@@ -535,18 +550,27 @@ resource onedrive 'Microsoft.Compute/virtualMachines/runCommands@2023-07-01' = i
           Start-Process -FilePath $Uninstaller -ArgumentList $Arguments
           Wait-Process -Name OneDriveSetup
           # Set OneDrive for All Users Install
-          New-Item -Path "HKLM:\SOFTWARE\Microsoft\OneDrive" -Force
-          New-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\OneDrive" -Name AllUsersInstall -PropertyType DWORD -Value 1 -Force
-          Start-Process -FilePath $onedrivesetup -ArgumentList '/allusers'
+          Write-Output "Setting registry values to indicate a per-machine (AllUsersInstall)"
+          New-Item -Path "HKLM:\SOFTWARE\Microsoft\OneDrive" -Force | Out-Null
+          New-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\OneDrive" -Name AllUsersInstall -PropertyType DWORD -Value 1 -Force | Out-Null
+          $Install = Start-Process -FilePath $onedrivesetup -ArgumentList '/allusers' -Wait -Passthru
           Wait-Process -Name OneDriveSetup
-          New-ItemProperty -Path 'HKLM:\Software\Microsoft\Windows\CurrentVersion\Run' -Name OneDrive -PropertyType String -Value 'C:\Program Files\Microsoft OneDrive\OneDrive.exe /background' -Force
+          If ($($Install.ExitCode) -eq 0) {
+            Write-Output "'$SoftwareName' installed successfully."
+          }
+          Else {
+            Write-Error "'$SoftwareName' install exit code is $($Install.ExitCode)"
+          }
+          Write-Output "Configuring OneDrive to startup for each user upon logon."
+          New-ItemProperty -Path 'HKLM:\Software\Microsoft\Windows\CurrentVersion\Run' -Name OneDrive -PropertyType String -Value 'C:\Program Files\Microsoft OneDrive\OneDrive.exe /background' -Force | Out-Null
           Write-Output "Installed OneDrive Per-Machine"
-        }     
+        }
+        Stop-Transcript
       '''
     }
   }
   dependsOn: [
-    createBuildDir
+    createBuildDirs
     applications
     fslogix
     office
@@ -572,7 +596,7 @@ resource teams 'Microsoft.Compute/virtualMachines/runCommands@2023-03-01' = if (
         value: buildDir
       }
       {
-        name: 'userAssignedIdentityClientId'
+        name: 'UserAssignedIdentityClientId'
         value: userAssignedIdentityClientId
       }
       {
@@ -597,13 +621,16 @@ resource teams 'Microsoft.Compute/virtualMachines/runCommands@2023-03-01' = if (
           [string]$StorageEndpoint,
           [string]$BlobName
         )
+        $SoftwareName = 'Teams'
+        Start-Transcript -Path "$env:SystemRoot\Logs\ImageBuild\$SoftwareName.log" -Force
         $TokenUri = "http://169.254.169.254/metadata/identity/oauth2/token?api-version=2018-02-01&resource=$StorageEndpoint&client_id=$UserAssignedIdentityClientId"
         $AccessToken = ((Invoke-WebRequest -Headers @{Metadata=$true} -Uri $TokenUri -UseBasicParsing).Content | ConvertFrom-Json).access_token
         $sku = (Get-ComputerInfo).OsName
-        $appDir = Join-Path -Path $BuildDir -ChildPath 'Teams'
+        $appDir = Join-Path -Path $BuildDir -ChildPath $SoftwareName
         New-Item -Path $appDir -ItemType Directory -Force | Out-Null
-        $destFile = Join-Path -Path $appDir -ChildPath 'Teams.zip'
+        $destFile = Join-Path -Path $appDir -ChildPath $BlobName
         Invoke-WebRequest -Headers @{"x-ms-version"="2017-11-09"; Authorization ="Bearer $AccessToken"} -Uri "$StorageEndpoint$ContainerName/$BlobName" -OutFile $destFile
+        Start-Sleep -Seconds 10
         Expand-Archive -Path $destFile -DestinationPath $appDir -Force
         $vcRedistFile = (Get-ChildItem -Path $appDir -filter 'vc*.exe' -Recurse).FullName
         $webRTCFile = (Get-ChildItem -Path $appDir -filter '*WebRTC*.msi' -Recurse).FullName
@@ -626,11 +653,12 @@ resource teams 'Microsoft.Compute/virtualMachines/runCommands@2023-03-01' = if (
         }
         Start-Process -FilePath msiexec.exe -ArgumentList "/i $teamsFile /quiet /qn /norestart /passive $msiArgs" -Wait -PassThru | Out-Null
         Write-Output "Installed Teams"
+        Stop-Transcript
       '''
     }
   }
   dependsOn: [
-    createBuildDir
+    createBuildDirs
     applications
     fslogix
     office
@@ -647,7 +675,7 @@ resource firstImageVmRestart 'Microsoft.Compute/virtualMachines/runCommands@2023
     asyncExecution: false
     parameters: [
       {
-        name: 'userAssignedIdentityClientId'
+        name: 'UserAssignedIdentityClientId'
         value: userAssignedIdentityClientId
       }
       {
@@ -666,13 +694,13 @@ resource firstImageVmRestart 'Microsoft.Compute/virtualMachines/runCommands@2023
     source: {
       script: '''
         param(
-          [string]$userAssignedIdentityClientId,
+          [string]$UserAssignedIdentityClientId,
           [string]$imageVmRg,
           [string]$imageVmName,
           [string]$Environment
         )
         # Connect to Azure
-        Connect-AzAccount -Identity -AccountId $userAssignedIdentityClientId -Environment $Environment # Run on the virtual machine
+        Connect-AzAccount -Identity -AccountId $UserAssignedIdentityClientId -Environment $Environment # Run on the virtual machine
         # Restart VM
         Restart-AzVM -Name $imageVmName -ResourceGroupName $imageVmRg        
         $lastProvisioningState = ""
@@ -687,12 +715,11 @@ resource firstImageVmRestart 'Microsoft.Compute/virtualMachines/runCommands@2023
           Start-Sleep -Seconds 5
           $provisioningState = (Get-AzVM -resourcegroupname $imageVmRg -name $imageVmName -Status).Statuses[1].Code
         }
-        Write-Output $imageVmName "under" $imageVmRg "is" $provisioningState
       '''
     }
   }
   dependsOn: [
-    createBuildDir
+    createBuildDirs
     applications
     fslogix
     office
@@ -709,11 +736,11 @@ resource microsoftUpdates 'Microsoft.Compute/virtualMachines/runCommands@2023-03
     errorBlobManagedIdentity: empty(logBlobContainerUri) ? null : {
       clientId: userAssignedIdentityClientId
     }
-    errorBlobUri: empty(logBlobContainerUri) ? null : '${logBlobContainerUri}vdot-error-${timeStamp}.log' 
+    errorBlobUri: empty(logBlobContainerUri) ? null : '${logBlobContainerUri}Install-Updates-error-${timeStamp}.log' 
     outputBlobManagedIdentity: empty(logBlobContainerUri) ? null : {
       clientId: userAssignedIdentityClientId
     }
-    outputBlobUri: empty(logBlobContainerUri) ? null : '${logBlobContainerUri}vdot-output-${timeStamp}.log'
+    outputBlobUri: empty(logBlobContainerUri) ? null : '${logBlobContainerUri}Install-Updates-output-${timeStamp}.log'
     parameters: updateService == 'WSUS' ? [
       {
         name: 'Service'
@@ -766,7 +793,7 @@ resource microsoftUpdates 'Microsoft.Compute/virtualMachines/runCommands@2023-03
         
             Return $Text
         }
-        
+        Start-Transcript -Path "$env:SystemRoot\Logs\ImageBuild\Install-Updates.log"
         Switch ($Service.ToUpper()) {
             'WU' { $ServerSelection = 2 }
             'MU' { $ServerSelection = 3; $ServiceId = "7971f918-a847-4430-9279-4a52d1efe18d" }
@@ -857,30 +884,26 @@ resource microsoftUpdates 'Microsoft.Compute/virtualMachines/runCommands@2023-03
                     $ExclusiveAdded = $true
                 }
             }
-        }
-        
+        }        
         $UpdatesToInstall = New-Object -ComObject Microsoft.Update.UpdateColl
         Write-Output "Downloading updates..."
         $Downloader = $UpdateSession.CreateUpdateDownloader()
         $Downloader.Updates = $UpdatesToDownload
         $Downloader.Download()
-        Write-Output "Successfully downloaded updates:"
-        
+        Write-Output "Successfully downloaded updates:"        
         For ($i = 0; $i -lt $UpdatesToDownload.Count; $i++) {
             $Update = $UpdatesToDownload[$i]
             If ($Update.IsDownloaded -eq $true) {
                 Write-Output "$($i + 1) > $($update.title)"
                 $UpdatesToInstall.Add($Update) | out-null
             }
-        }
-        
+        }        
         If ($UpdatesToInstall.Count -gt 0) {
             $Installer = $UpdateSession.CreateUpdateInstaller()
             $Installer.Updates = $UpdatesToInstall
             $InstallationResult = $Installer.Install()
             $Text = ConvertFrom-InstallationResult -Result $InstallationResult.ResultCode
-            Write-Output "Installation Result: $($Text)"
-        
+            Write-Output "Installation Result: $($Text)"        
             If ($InstallationResult.RebootRequired) {
                 Write-Output "Atleast one update requires a reboot to complete the installation."
             }
@@ -890,7 +913,8 @@ resource microsoftUpdates 'Microsoft.Compute/virtualMachines/runCommands@2023-03
         } Elseif ($Service -eq 'WSUS' -and $WSUSServer) {
             reg.exe DELETE "HKLM\Software\Policies\Microsoft\Windows\WindowsUpdate" /v WUServer /f
             reg.exe DELETE "HKLM\Software\Policies\Microsoft\Windows\WindowsUpdate" /v WUStatusServer /f
-        }    
+        }
+        Stop-Transcript
       '''
     }
     treatFailureAsDeploymentFailure: true
@@ -909,7 +933,7 @@ resource secondImageVmRestart 'Microsoft.Compute/virtualMachines/runCommands@202
     asyncExecution: false
     parameters: [
       {
-        name: 'userAssignedIdentityClientId'
+        name: 'UserAssignedIdentityClientId'
         value: userAssignedIdentityClientId
       }
       {
@@ -928,13 +952,13 @@ resource secondImageVmRestart 'Microsoft.Compute/virtualMachines/runCommands@202
     source: {
       script: '''
         param(
-          [string]$userAssignedIdentityClientId,
+          [string]$UserAssignedIdentityClientId,
           [string]$imageVmRg,
           [string]$imageVmName,
           [string]$Environment
         )
         # Connect to Azure
-        Connect-AzAccount -Identity -AccountId $userAssignedIdentityClientId -Environment $Environment # Run on the virtual machine
+        Connect-AzAccount -Identity -AccountId $UserAssignedIdentityClientId -Environment $Environment # Run on the virtual machine
         # Restart VM
         Restart-AzVM -Name $imageVmName -ResourceGroupName $imageVmRg        
         $lastProvisioningState = ""
@@ -944,8 +968,7 @@ resource secondImageVmRestart 'Microsoft.Compute/virtualMachines/runCommands@202
           if ($lastProvisioningState -ne $provisioningState) {
             Write-Output $imageVmName "under" $imageVmRg "is" $provisioningState "(waiting for state change)"
           }
-          $lastProvisioningState = $provisioningState
-      
+          $lastProvisioningState = $provisioningState      
           Start-Sleep -Seconds 5
           $provisioningState = (Get-AzVM -resourcegroupname $imageVmRg -name $imageVmName -Status).Statuses[1].Code
         }
@@ -974,7 +997,7 @@ resource vdot 'Microsoft.Compute/virtualMachines/runCommands@2023-03-01' = if (i
     outputBlobUri: empty(logBlobContainerUri) ? null : '${logBlobContainerUri}vdot-output-${timeStamp}.log'
     parameters: [
       {
-        name: 'userAssignedIdentityClientId'
+        name: 'UserAssignedIdentityClientId'
         value: userAssignedIdentityClientId
       }
 
@@ -1004,13 +1027,12 @@ resource vdot 'Microsoft.Compute/virtualMachines/runCommands@2023-03-01' = if (i
           [string]$BlobName,
           [string]$BuildDir    
         )
+        Start-Transcript -Path "$env:SystemRoot\Logs\ImageBuild\VDOT.log" -Force
         $TokenUri = "http://169.254.169.254/metadata/identity/oauth2/token?api-version=2018-02-01&resource=$StorageEndpoint&client_id=$UserAssignedIdentityClientId"
         $AccessToken = ((Invoke-WebRequest -Headers @{Metadata=$true} -Uri $TokenUri -UseBasicParsing).Content | ConvertFrom-Json).access_token
-        $ZIP = Join-Path -Path $BuildDir -ChildPath 'VDOT.zip'
+        $ZIP = Join-Path -Path $BuildDir -ChildPath $BlobName
         Invoke-WebRequest -Headers @{"x-ms-version"="2017-11-09"; Authorization ="Bearer $AccessToken"} -Uri "$StorageEndpoint$ContainerName/$BlobName" -OutFile $ZIP
-        Set-Location -Path $BuildDir
-        $ErrorActionPreference = "Stop"
-        Do {Start-Sleep -seconds 5} Until (Test-Path -Path $ZIP)
+        Start-Sleep -Seconds 10
         Unblock-File -Path $ZIP
         $VDOTDir = Join-Path -Path $BuildDir -ChildPath 'VDOT'
         Expand-Archive -LiteralPath $ZIP -DestinationPath $VDOTDir -Force
@@ -1020,6 +1042,7 @@ resource vdot 'Microsoft.Compute/virtualMachines/runCommands@2023-03-01' = if (i
         $ScriptUpdate | Set-Content -Path $Path
         & $Path -Optimizations @("AppxPackages","Autologgers","DefaultUserSettings","LGPO","NetworkOptimizations","ScheduledTasks","Services","WindowsMediaPlayer") -AdvancedOptimizations @("Edge","RemoveLegacyIE") -AcceptEULA
         Write-Output "Optimized the operating system using the Virtual Desktop Optimization Tool"
+        Stop-Transcript
       '''
     }
     timeoutInSeconds: 640
@@ -1065,15 +1088,15 @@ resource thirdImageVmRestart 'Microsoft.Compute/virtualMachines/runCommands@2023
     asyncExecution: false
     parameters: [
       {
-        name: 'userAssignedIdentityClientId'
+        name: 'UserAssignedIdentityClientId'
         value: userAssignedIdentityClientId
       }
       {
-        name: 'imageVmRg'
+        name: 'ImageVmRg'
         value: split(imageVm.id, '/')[4]
       }
       {
-        name: 'imageVmName'
+        name: 'ImageVmName'
         value: imageVm.name
       }
       {
@@ -1084,14 +1107,13 @@ resource thirdImageVmRestart 'Microsoft.Compute/virtualMachines/runCommands@2023
     source: {
       script: '''
         param(
-          [string]$userAssignedIdentityClientId,
-          [string]$imageVmRg,
-          [string]$imageVmName,
+          [string]$UserAssignedIdentityClientId,
+          [string]$ImageVmRg,
+          [string]$ImageVmName,
           [string]$Environment
         )
         # Connect to Azure
-        Connect-AzAccount -Identity -AccountId $userAssignedIdentityClientId -Environment $Environment # Run on the virtual machine
-        # Restart VM
+        Connect-AzAccount -Identity -AccountId $UserAssignedIdentityClientId -Environment $Environment
         Restart-AzVM -Name $imageVmName -ResourceGroupName $imageVmRg        
         $lastProvisioningState = ""
         $provisioningState = (Get-AzVM -resourcegroupname $imageVmRg -name $imageVmName -Status).Statuses[1].Code
@@ -1100,8 +1122,7 @@ resource thirdImageVmRestart 'Microsoft.Compute/virtualMachines/runCommands@2023
           if ($lastProvisioningState -ne $provisioningState) {
             Write-Output $imageVmName "under" $imageVmRg "is" $provisioningState "(waiting for state change)"
           }
-          $lastProvisioningState = $provisioningState
-      
+          $lastProvisioningState = $provisioningState      
           Start-Sleep -Seconds 5
           $provisioningState = (Get-AzVM -resourcegroupname $imageVmRg -name $imageVmName -Status).Statuses[1].Code
         }
@@ -1123,36 +1144,44 @@ resource sysprep 'Microsoft.Compute/virtualMachines/runCommands@2023-03-01' = {
     errorBlobManagedIdentity: empty(logBlobContainerUri) ? null : {
         clientId: userAssignedIdentityClientId
     }
-    errorBlobUri: empty(logBlobContainerUri) ? null : '${logBlobContainerUri}MicrosoftUpdate-error-${timeStamp}.log' 
+    errorBlobUri: empty(logBlobContainerUri) ? null : '${logBlobContainerUri}Sysprep-error-${timeStamp}.log' 
     outputBlobManagedIdentity: empty(logBlobContainerUri) ? null : {
         clientId: userAssignedIdentityClientId
     }
-    outputBlobUri: empty(logBlobContainerUri) ? null : '${logBlobContainerUri}MicrosoftUpdate-output-${timeStamp}.log'
+    outputBlobUri: empty(logBlobContainerUri) ? null : '${logBlobContainerUri}Sysprep-output-${timeStamp}.log'
     source: {
       script: '''
-        Write-Output '>>> Waiting for GA Service (RdAgent) to start ...'
-        while ((Get-Service RdAgent).Status -ne 'Running') { Start-Sleep -s 5 }
-        Write-Output '>>> Waiting for GA Service (WindowsAzureTelemetryService) to start ...'
-        while ((Get-Service WindowsAzureTelemetryService) -and ((Get-Service WindowsAzureTelemetryService).Status -ne 'Running')) { Start-Sleep -s 5 }
-        Write-Output '>>> Waiting for GA Service (WindowsAzureGuestAgent) to start ...'
-        while ((Get-Service WindowsAzureGuestAgent).Status -ne 'Running') { Start-Sleep -s 5 }
+        Start-Transcript -Path "$env:SystemRoot\Logs\ImageBuild\sysprep.log" -Force
+        If (Get-Service | Where-Object {$_.Name -eq 'RdAgent'}) {
+            Write-Output '>>> Waiting for GA Service (RdAgent) to start ...'
+            while ((Get-Service | RdAgent).Status -ne 'Running') { Start-Sleep -s 5 }
+        }
+        If (Get-Service | Where-Object {$_.Name -eq 'WindowsTelemetryService'}) {
+            Write-Output '>>> Waiting for GA Service (WindowsAzureTelemetryService) to start ...'
+            while ((Get-Service WindowsAzureTelemetryService).Status -ne 'Running') { Start-Sleep -s 5 }
+        }
+        If (Get-Service | Where-Object {$_.Name -eq 'WindowsAzureGuestAgent'}) {
+            Write-Output '>>> Waiting for GA Service (WindowsAzureGuestAgent) to start ...'
+            while ((Get-Service WindowsAzureGuestAgent).Status -ne 'Running') { Start-Sleep -s 5 }
+        }
         if( Test-Path $Env:SystemRoot\system32\Sysprep\unattend.xml ) {
-          Write-Output '>>> Removing Sysprep\unattend.xml ...'
-          Remove-Item $Env:SystemRoot\system32\Sysprep\unattend.xml -Force
+            Write-Output '>>> Removing Sysprep\unattend.xml ...'
+            Remove-Item $Env:SystemRoot\system32\Sysprep\unattend.xml -Force
         }
         if (Test-Path $Env:SystemRoot\Panther\unattend.xml) {
-          Write-Output '>>> Removing Panther\unattend.xml ...'
-          Remove-Item $Env:SystemRoot\Panther\unattend.xml -Force
+            Write-Output '>>> Removing Panther\unattend.xml ...'
+            Remove-Item $Env:SystemRoot\Panther\unattend.xml -Force
         }
         Write-Output '>>> Sysprepping VM ...'
         Start-Process -FilePath "C:\Windows\System32\Sysprep\Sysprep.exe" -ArgumentList "/generalize /oobe /quit /mode:vm" -Wait
         while($true) {
-          $imageState = (Get-ItemProperty HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Setup\State).ImageState
-          Write-Output $imageState
-          if ($imageState -eq 'IMAGE_STATE_GENERALIZE_RESEAL_TO_OOBE') { break }
-          Start-Sleep -s 5
+            $imageState = (Get-ItemProperty HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Setup\State).ImageState
+            Write-Output $imageState
+            if ($imageState -eq 'IMAGE_STATE_GENERALIZE_RESEAL_TO_OOBE') { break }
+            Start-Sleep -s 5
         }
         Write-Output ">>> Sysprep complete ..."
+        Stop-Transcript
       '''
     }
   }
