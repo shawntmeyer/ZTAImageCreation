@@ -548,13 +548,12 @@ resource onedrive 'Microsoft.Compute/virtualMachines/runCommands@2023-07-01' = i
           # Uninstall existing version
           Write-Output "Running [$Uninstaller $Arguments] to remove any existing versions."
           Start-Process -FilePath $Uninstaller -ArgumentList $Arguments
-          Wait-Process -Name OneDriveSetup
+          If (get-process onedrivesetup) {Wait-Process -Name OneDriveSetup}
           # Set OneDrive for All Users Install
           Write-Output "Setting registry values to indicate a per-machine (AllUsersInstall)"
           New-Item -Path "HKLM:\SOFTWARE\Microsoft\OneDrive" -Force | Out-Null
           New-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\OneDrive" -Name AllUsersInstall -PropertyType DWORD -Value 1 -Force | Out-Null
           $Install = Start-Process -FilePath $onedrivesetup -ArgumentList '/allusers' -Wait -Passthru
-          Wait-Process -Name OneDriveSetup
           If ($($Install.ExitCode) -eq 0) {
             Write-Output "'$SoftwareName' installed successfully."
           }
@@ -1151,26 +1150,21 @@ resource sysprep 'Microsoft.Compute/virtualMachines/runCommands@2023-03-01' = {
     outputBlobUri: empty(logBlobContainerUri) ? null : '${logBlobContainerUri}Sysprep-output-${timeStamp}.log'
     source: {
       script: '''
-        Start-Transcript -Path "$env:SystemRoot\Logs\ImageBuild\sysprep.log" -Force
-        If (Get-Service | Where-Object {$_.Name -eq 'RdAgent'}) {
-            Write-Output '>>> Waiting for GA Service (RdAgent) to start ...'
-            while ((Get-Service | RdAgent).Status -ne 'Running') { Start-Sleep -s 5 }
+        $Services = 'RdAgent', 'WindowsTelemetryService', 'WindowsAzureGuestAgent'        
+        ForEach ($Service in $Services) {
+            If (Get-Service | Where-Object {$_.Name -eq $Service}) {
+                While ((Get-Service -Name $Service).Status -ne 'Running') {
+                    Write-Output ">>> Waiting for $Service to start..."
+                    Start-Sleep -Seconds 5
+                }
+            }
         }
-        If (Get-Service | Where-Object {$_.Name -eq 'WindowsTelemetryService'}) {
-            Write-Output '>>> Waiting for GA Service (WindowsAzureTelemetryService) to start ...'
-            while ((Get-Service WindowsAzureTelemetryService).Status -ne 'Running') { Start-Sleep -s 5 }
-        }
-        If (Get-Service | Where-Object {$_.Name -eq 'WindowsAzureGuestAgent'}) {
-            Write-Output '>>> Waiting for GA Service (WindowsAzureGuestAgent) to start ...'
-            while ((Get-Service WindowsAzureGuestAgent).Status -ne 'Running') { Start-Sleep -s 5 }
-        }
-        if( Test-Path $Env:SystemRoot\system32\Sysprep\unattend.xml ) {
-            Write-Output '>>> Removing Sysprep\unattend.xml ...'
-            Remove-Item $Env:SystemRoot\system32\Sysprep\unattend.xml -Force
-        }
-        if (Test-Path $Env:SystemRoot\Panther\unattend.xml) {
-            Write-Output '>>> Removing Panther\unattend.xml ...'
-            Remove-Item $Env:SystemRoot\Panther\unattend.xml -Force
+        $Files = "$env:SystemRoot\System32\sysprep\unattend.xml", "$env:SystemRoot\Panther\Unattend.xml"
+        ForEach ($file in $Files) {
+            if (Test-Path -Path $File) {
+              Write-Output ">>> Removing $file"
+              Remove-Item $file -Force
+            }
         }
         Write-Output '>>> Sysprepping VM ...'
         Start-Process -FilePath "C:\Windows\System32\Sysprep\Sysprep.exe" -ArgumentList "/generalize /oobe /quit /mode:vm" -Wait
@@ -1181,7 +1175,6 @@ resource sysprep 'Microsoft.Compute/virtualMachines/runCommands@2023-03-01' = {
             Start-Sleep -s 5
         }
         Write-Output ">>> Sysprep complete ..."
-        Stop-Transcript
       '''
     }
   }
