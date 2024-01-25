@@ -186,7 +186,7 @@ resource image 'Microsoft.Compute/galleries/images@2022-03-03' = {
     hyperVGeneration: !empty(hyperVGeneration) ? hyperVGeneration : (!empty(securityType) ? 'V2' : 'V1')
     features: features
     description: description
-    eula: eula
+    eula: !empty(eula) ? eula : null
     privacyStatementUri: privacyStatementUri
     releaseNoteUri: releaseNoteUri
     purchasePlan: {

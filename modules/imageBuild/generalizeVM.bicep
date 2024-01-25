@@ -21,15 +21,15 @@ resource generalize 'Microsoft.Compute/virtualMachines/runCommands@2023-03-01' =
     asyncExecution: false
     parameters: [
       {
-        name: 'miClientId'
+        name: 'UserAssignedIdentityClientId'
         value: userAssignedIdentityClientId
       }
       {
-        name: 'imageVmRg'
+        name: 'ImageVmRg'
         value: split(imageVm.id, '/')[4]
       }
       {
-        name: 'imageVmName'
+        name: 'ImageVmName'
         value: imageVmName
       }
       {
@@ -40,9 +40,9 @@ resource generalize 'Microsoft.Compute/virtualMachines/runCommands@2023-03-01' =
     source: {
       script: '''
       param(
-        [string]$miId,
-        [string]$imageVmRg,
-        [string]$imageVmName,
+        [string]$UserAssignedIdentityClientId,
+        [string]$ImageVmRg,
+        [string]$ImageVmName,
         [string]$Environment
         )
         # Connect to Azure
@@ -61,3 +61,13 @@ resource generalize 'Microsoft.Compute/virtualMachines/runCommands@2023-03-01' =
     }
   }
 }
+
+// This resource block deploys a run command on a virtual machine to generalize it.
+// The run command executes a PowerShell script that connects to Azure, generalizes the virtual machine, and outputs a message.
+// It requires the following parameters:
+// - UserAssignedIdentityClientId: The client ID of the user-assigned identity used to authenticate with Azure.
+// - ImageVmRg: The resource group of the virtual machine to be generalized.
+// - ImageVmName: The name of the virtual machine to be generalized.
+// - Environment: The Azure environment to connect to.
+// The script connects to Azure using the provided identity, waits for the virtual machine to be available, and then generalizes it using PowerShell commands.
+// Finally, it outputs a message indicating that the virtual machine has been generalized.

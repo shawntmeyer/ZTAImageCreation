@@ -47,7 +47,10 @@ param imageBuildResourceGroupId string = ''
 @description('The custom name of the resource group where the image build and management vms will be created. Leave blank to create a new resource group based on Cloud Adoption Framework naming principals.')
 param customBuildResourceGroupName string = ''
 
-// Source MarketPlace Image Properties
+// Source Image Properties
+
+@description('Optional. The resource Id of the source image to use for the image build. If not provided, the latest image from the specified publisher, offer, and sku will be used.')
+param customSourceImageResourceId string = ''
 
 @description('The Marketplace Image publisher')
 param publisher string
@@ -57,6 +60,9 @@ param offer string
 
 @description('The Marketplace Image sku')
 param sku string
+
+@description('Optional. Determines if "EncryptionAtHost" is enabled on the VMs.')
+param encryptionAtHost bool = true
 
 @description('The size of the Image build and Management VMs.')
 param vmSize string
@@ -282,9 +288,9 @@ var collectLogs = collectCustomizationLogs && !empty(privateEndpointSubnetResour
 var logContainerName = 'image-customization-logs'
 var logContainerUri = collectLogs ? '${logsStorageAccount.outputs.primaryBlobEndpoint}${logContainerName}/' : ''
 
-var galleryImageDefinitionPublisher = replace(imageDefinitionPublisher, ' ', '')
-var galleryImageDefinitionOffer = replace(imageDefinitionOffer, ' ', '')
-var galleryImageDefinitionSku = replace(imageDefinitionSku, ' ', '')
+var galleryImageDefinitionPublisher = !empty(imageDefinitionPublisher) ? replace(imageDefinitionPublisher, ' ', '') : publisher
+var galleryImageDefinitionOffer = !empty(imageDefinitionOffer) ? replace(imageDefinitionOffer, ' ', '') : offer
+var galleryImageDefinitionSku = !empty(imageDefinitionSku) ? replace(imageDefinitionSku, ' ', '') : sku
 var galleryImageDefinitionHyperVGeneration = endsWith(sku, 'g2') || startsWith(sku, 'win11') ? 'V2' : 'V1'
 var galleryImageDefinitionSecurityType = empty(imageDefinitionResourceId) ? imageDefinitionSecurityType : imageDefinitionValidation.outputs.value.securityType
 var galleryImageDefinitionName = empty(imageDefinitionResourceId) ? (empty(customImageDefinitionName) ? '${replace('${resourceAbbreviations.imageDefinitions}-${replace(galleryImageDefinitionPublisher, '-', '')}-${replace(galleryImageDefinitionOffer, '-', '')}-${replace(galleryImageDefinitionSku, '-', '')}', ' ', '')}' : customImageDefinitionName) : last(split(imageDefinitionResourceId, '/'))
@@ -353,6 +359,7 @@ module managementVm 'modules/resources/compute/virtual-machine/main.bicep' = {
     name: managementVmName
     adminPassword: adminPw
     adminUsername: adminUserName
+    encryptionAtHost: encryptionAtHost
     extensionCustomScriptConfig: {
       enabled: true
       fileData: [
@@ -436,6 +443,7 @@ module logsStorageAccount 'modules/resources/storage/storage-account/main.bicep'
     location: computeLocation
     allowCrossTenantReplication: false
     allowSharedKeyAccess: true
+    requireInfrastructureEncryption: true
     blobServices: {
       containers: [
         {
@@ -506,11 +514,14 @@ module imageVm 'modules/resources/compute/virtual-machine/main.bicep' = {
     adminPassword: adminPw
     adminUsername: adminUserName
     bootDiagnostics: false
-    imageReference: {
+    encryptionAtHost: encryptionAtHost
+    imageReference: empty(customSourceImageResourceId) ? {
       publisher: publisher
       offer: offer
       sku: sku
       version: 'latest'
+    } : {
+      id: customSourceImageResourceId
     }
     nicConfigurations: [
       {

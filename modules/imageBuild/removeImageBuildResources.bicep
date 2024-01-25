@@ -18,7 +18,7 @@ resource removeVm 'Microsoft.Compute/virtualMachines/runCommands@2023-03-01' = {
     asyncExecution: true
     parameters: [
       {
-        name: 'miId'
+        name: 'UserAssignedIdentityClientId'
         value: userAssignedIdentityClientId
       }
       {
@@ -46,14 +46,14 @@ resource removeVm 'Microsoft.Compute/virtualMachines/runCommands@2023-03-01' = {
       script: '''
         param(
           [string]$Environment,
-          [string]$miId,
+          [string]$UserAssignedIdentityClientId,
           [string]$imageName,
           [string]$imageVmName,
           [string]$managementVmName,
           [string]$ResourceGroupName
         )
         # Connect to Azure
-        Connect-AzAccount -Identity -AccountId $miId -Environment $Environment # Run on the virtual machine
+        Connect-AzAccount -Identity -AccountId $UserAssignedIdentityClientId -Environment $Environment # Run on the virtual machine
         # Remove Image VM and Management VM
         If ($imageName -ne '') {
           Remove-AzImage -Name $imageName -ResourceGroupName $ResourceGroupName -Force

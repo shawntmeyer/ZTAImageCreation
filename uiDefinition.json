@@ -314,14 +314,27 @@
 							"type": "Microsoft.Common.Section",
 							"label": "Virtual Machine Properties",
 							"elements": [
+								{
+                                    "name": "vmSizesApi",
+                                    "type": "Microsoft.Solutions.ArmApiControl",
+                                    "request": {
+                                        "method": "GET",
+                                        "path": "[concat(steps('basics').scope.subscription.id, '/providers/Microsoft.Compute/locations/', steps('basics').scope.location.name, '/vmSizes?api-version=2023-03-01')]"
+                                    }
+                                },
                         		{
 									"name": "vmSize",
 									"type": "Microsoft.Compute.SizeSelector",
 									"label": "Virtual Machine Size",
-									"toolTip": "",
-									"recommendedSizes": [
-										"Standard_D4ads_v5"
-									],
+									"toolTip": "Select the size of the virtual machines. Multi-session hosts should have 4 - 24 vCPUs. Single session host should have 2 or more vCPUs.",
+                                    "recommendedSizes": [
+                                        "Standard_D4ads_v5",
+                                        "Standard_D8ads_v5",
+                                        "Standard_D16ads_v5"
+                                    ],
+									"constraints": {
+                                        "allowedSizes": "[map(steps('imageVm').vmProps.vmSizesApi.value, (item) => parse(concat('\"', item.name, '\"')))]"
+                                    },
 									"options": {
 										"hideDiskTypeFilter": false
 									},
@@ -329,65 +342,127 @@
 									"visible": true
 								},
 								{
-                                    "name": "osVersion",
+                                    "name": "encryptionAtHost",
+                                    "type": "Microsoft.Common.CheckBox",
+                                    "visible": true,
+                                    "label": "EncryptionAtHost",
+                                    "defaultValue": true,
+                                    "toolTip": "Check to enable 'EncryptionAtHost' for Disk Encryption."
+                                }
+							]
+						},
+						{
+							"name": "imageSource",
+							"type": "Microsoft.Common.Section",
+							"label": "Image Source Properties",
+							"elements": [
+								{
+                                    "name": "source",
                                     "type": "Microsoft.Common.DropDown",
-                                    "label": "Operating System Version",
+                                    "label": "Image Source",
                                     "filter": true,
-                                    "defaultValue": "Windows 11 22H2 (Gen2)",
-                                    "toolTip": "Select the operating system version for the source image.",
+                                    "defaultValue": "Marketplace",
+                                    "toolTip": "Select the type of image to deploy on the session hosts.",
                                     "constraints": {
                                         "required": true,
                                         "allowedValues": [
-											{
-                                                "label": "Windows 10 22H2 Enterprise (Gen1)",
-                                                "value": "MicrosoftWindowsDesktop_windows-10_win10-22h2-ent"
-                                            },                                            
-											{
-                                                "label": "Windows 10 22H2 Multi-Session (Gen1)",
-                                                "value": "MicrosoftWindowsDesktop_windows-10_win10-22h2-avd"
+                                            {
+                                                "label": "Marketplace",
+                                                "value": "marketplace"
                                             },
                                             {
-                                                "label": "Windows 10 22H2 Multi-Session with M365 Apps (Gen1)",
-                                                "value": "MicrosoftWindowsDesktop_office-365_win10-22h2-avd-m365"
-                                            },
-											{
-                                                "label": "Windows 10 22H2 Enterprise (Gen2)",
-                                                "value": "MicrosoftWindowsDesktop_windows-10_win10-22h2-ent-g2"
-                                            },                                            
-											{
-                                                "label": "Windows 10 22H2 Multi-Session (Gen2)",
-                                                "value": "MicrosoftWindowsDesktop_windows-10_win10-22h2-avd-g2"
-                                            },
-                                            {
-                                                "label": "Windows 10 22H2 Multi-Session with M365 Apps (Gen2)",
-                                                "value": "MicrosoftWindowsDesktop_office-365_win10-22h2-avd-m365-g2"
-                                            },
-											{
-                                                "label": "Windows 11 21H2 Enterprise (Gen2)",
-                                                "value": "MicrosoftWindowsDesktop_windows-11_win11-21h2-ent"
-                                            },                                            
-											{
-                                                "label": "Windows 11 21H2 Multi-Session (Gen2)",
-                                                "value": "MicrosoftWindowsDesktop_windows-11_win11-21h2-avd"
-                                            },
-                                            {
-                                                "label": "Windows 11 21H2 Multi-Session with M365 Apps (Gen2)",
-                                                "value": "MicrosoftWindowsDesktop_office-365_win11-21h2-avd-m365"
-                                            },
-																						{
-                                                "label": "Windows 11 22H2 Enterprise (Gen2)",
-                                                "value": "MicrosoftWindowsDesktop_windows-11_win11-22h2-ent"
-                                            },                                            
-											{
-                                                "label": "Windows 11 22H2 Multi-Session (Gen2)",
-                                                "value": "MicrosoftWindowsDesktop_windows-11_win11-22h2-avd"
-                                            },
-                                            {
-                                                "label": "Windows 11 22H2 Multi-Session with M365 Apps (Gen2)",
-                                                "value": "MicrosoftWindowsDesktop_office-365_win11-22h2-avd-m365"
+                                                "label": "Compute Gallery",
+                                                "value": "gallery"
                                             }
                                         ]
                                     }
+                                },
+								{
+                                    "name": "publisher",
+                                    "type": "Microsoft.Common.DropDown",
+                                    "label": "Publisher",
+                                    "defaultValue": "Microsoft Windows Desktop",
+                                    "constraints": {
+                                        "allowedValues": [
+                                            {
+                                                "label": "Microsoft Windows Desktop",
+                                                "value": "MicrosoftWindowsDesktop"
+                                            },
+											{
+												"label": "Microsoft Windows Server",
+												"value": "MicrosoftWindowsServer"
+											}
+                                        ],
+                                        "required": false
+                                    },
+                                    "visible": "[equals(steps('imageVm').imageSource.source, 'marketplace')]"
+                                },
+								{
+                                    "name": "offersApi",
+                                    "type": "Microsoft.Solutions.ArmApiControl",
+                                    "request": {
+                                        "method": "GET",
+                                        "path": "[concat(steps('basics').scope.subscription.id, '/providers/Microsoft.Compute/locations/', steps('basics').scope.location.name, '/publishers/', steps('imageVm').imageSource.publisher, '/artifacttypes/vmimage/offers?api-version=2023-07-01')]"
+                                    }
+                                },
+                                {
+                                    "name": "offer",
+                                    "type": "Microsoft.Common.DropDown",
+                                    "label": "Offer",
+                                    "defaultValue": "windows-11",
+                                    "toolTip": "Select the desired marketplace image offer.",
+                                    "constraints": {
+                                        "allowedValues": "[map(steps('imageVm').imageSource.offersApi, (item) => parse(concat('{\"label\":\"', item.name, '\",\"value\":\"', item.name, '\"}')))]",
+                                        "required": true
+                                    },
+									"visible": "[equals(steps('imageVm').imageSource.source, 'marketplace')]"
+                                },
+                                {
+                                    "name": "skusApi",
+                                    "type": "Microsoft.Solutions.ArmApiControl",
+                                    "request": {
+                                        "method": "GET",
+                                        "path": "[concat(steps('basics').scope.subscription.id, '/providers/Microsoft.Compute/locations/', steps('basics').scope.location.name, '/publishers/', steps('imageVm').imageSource.publisher, '/artifacttypes/vmimage/offers/', steps('imageVm').imageSource.offer, '/skus?api-version=2023-07-01')]"
+                                    }
+                                },
+                                {
+                                    "name": "sku",
+                                    "type": "Microsoft.Common.DropDown",
+                                    "label": "SKU",
+                                    "defaultValue": "win11-23h2-avd",
+                                    "toolTip": "Select the desired marketplace image SKU.",
+                                    "constraints": {
+                                        "allowedValues": "[map(steps('imageVm').imageSource.skusApi, (item) => parse(concat('{\"label\":\"', item.name, '\",\"value\":\"', item.name, '\"}')))]",
+                                        "required": true
+                                    },
+									"visible": "[equals(steps('imageVm').imageSource.source, 'marketplace')]"
+                                },
+                                {
+                                    "name": "gallery",
+                                    "type": "Microsoft.Solutions.ResourceSelector",
+                                    "label": "Compute gallery",
+                                    "resourceType": "Microsoft.Compute/galleries",
+                                    "visible": "[equals(steps('imageVm').imageSource.source, 'gallery')]"
+                                },
+                                {
+                                    "name": "imageDefinitionApi",
+                                    "type": "Microsoft.Solutions.ArmApiControl",
+                                    "request": {
+                                        "method": "GET",
+                                        "path": "[concat(steps('imageVm').imageSource.gallery.id, '/images?api-version=2022-03-03')]"
+                                    }
+                                },
+                                {
+                                    "name": "imageDefinition",
+                                    "type": "Microsoft.Common.DropDown",
+                                    "label": "Image Definition",
+                                    "defaultValue": "",
+                                    "toolTip": "Select the desired image definition.",
+                                    "constraints": {
+                                        "allowedValues": "[map(steps('imageVm').imageSource.imageDefinitionApi.value, (item) => parse(concat('{\"label\":\"', item.name, '\",\"value\":\"', item.id, '\"}')))]",
+                                        "required": true
+                                    },
+									"visible": "[equals(steps('imageVm').imageSource.source, 'gallery')]"
                                 }
 							]							
 						}						
@@ -1078,24 +1153,26 @@
 										"allowedValues": "[map(steps('imageCustomizations').logging.subnetsApi.value, (item) => parse(concat('{\"label\":\"', item.name, '\",\"value\":\"', item.id, '\"}')))]"
 									}
 								},
-								                                {
-                                    "name": "infoAzureDNSzones",
-                                    "type": "Microsoft.Common.InfoBox",
-                                    "visible": "[if(equals(steps('imageCustomizations').logging.collectLogs, true),true, false)]",
-                                    "options": {
-                                        "text": "Private DNS zone name spaces: <br/> Azure Blobs <br/> - Azure commercial: privatelink.blob.core.windows.net <br/> - Azure government: privatelink.blob.core.usgovcloudapi.net",
-                                        "style": "info"
+								{
+                                    "name": "privateDNSZonesApi",
+                                    "type": "Microsoft.Solutions.ArmApiControl",
+                                    "request": {
+                                        "method": "GET",
+                                        "path": "[concat(steps('basics').scope.subscription.id, '/providers/Microsoft.Network/privateDnsZones?api-version=2018-09-01')]"
                                     }
                                 },
-								{
-                                    "name": "privateDnsZoneBlobStorageSelector",
-                                    "type": "Microsoft.Solutions.ResourceSelector",
-                                    "label": "Blob Storage Private Dns Zone",
-                                    "resourceType": "Microsoft.Network/privateDnsZones",
+                                {
+                                    "name": "blobPrivateDnsZone",
+                                    "type": "Microsoft.Common.DropDown",
+                                    "visible": "[if(equals(steps('imageCustomizations').logging.collectLogs, true),true, false)]",
+                                    "label": "Blob Storage Private DNS Zone",
+                                    "defaultValue": "",
+                                    "multiLine": true,
+                                    "toolTip": "Select the Azure Blob Storage Private Link Private DNS Zone.",
                                     "constraints": {
-                                        "required": true
-                                    },
-									"visible": "[if(equals(steps('imageCustomizations').logging.collectLogs, true),true, false)]"
+                                        "required": true,
+                                        "allowedValues": "[map(filter(steps('imageCustomizations').logging.privateDNSZonesApi.value, (item) => contains(item.name, 'privatelink.blob.')), (item) => parse(concat('{\"label\":\"', item.name, '\",\"value\":\"', item.id, '\"}')))]"
+                                    }
                                 }
 							]
 						}
@@ -1202,7 +1279,7 @@
 									"type": "Microsoft.Common.TextBox",
 									"label": "Image Definition Publisher",
 									"subLabel": "",     
-									"defaultValue": "[first(split(steps('imageVm').vmProps.osVersion, '_'))]",
+									"defaultValue": "[steps('imageVm').imageSource.publisher]",
 									"toolTip": "The compute gallery image definition Publisher.",
 									"constraints": {
 										"required": true,
@@ -1216,7 +1293,7 @@
 									"type": "Microsoft.Common.TextBox",
 									"label": "Image Definition Offer",
 									"subLabel": "",
-									"defaultValue": "[last(take(split(steps('imageVm').vmProps.osVersion, '_'), 2))]",
+									"defaultValue": "[steps('imageVm').imageSource.offer]",
 									"toolTip": "The compute gallery image definition Offer.",
 									"constraints": {
 										"required": true,
@@ -1230,7 +1307,7 @@
 									"type": "Microsoft.Common.TextBox",
 									"label": "Image Definition Sku",
 									"subLabel": "",
-									"defaultValue": "[last(split(steps('imageVm').vmProps.osVersion, '_'))]",
+									"defaultValue": "[steps('imageVm').imageSource.sku]",
 									"toolTip": "The compute gallery image definition Sku.",
 									"constraints": {
 										"required": true,
@@ -1631,9 +1708,11 @@
 				"userAssignedIdentityResourceId": "[steps('prereqs').storage.managedIdentity.id]",
 				"subnetResourceId": "[steps('prereqs').network.subnet]",				
 				"vmSize": "[steps('imageVm').vmProps.vmSize]",
-                "publisher": "[first(split(steps('imageVm').vmProps.osVersion, '_'))]",
-                "offer": "[last(take(split(steps('imageVm').vmProps.osVersion, '_'), 2))]",
-                "sku": "[last(split(steps('imageVm').vmProps.osVersion, '_'))]",
+				"encryptionAtHost": "[steps('imageVm').vmProps.encryptionAtHost]",
+				"customSourceImageResourceId": "[if(equals(steps('imageVm').imageSource.source, 'gallery'), steps('imageVm').imageSource.imageDefinition.id, '')]",
+                "publisher": "[steps('imageVm').imageSource.publisher]",
+                "offer": "[steps('imageVm').imageSource.offer]",
+                "sku": "[steps('imageVm').imageSource.sku]",
 				"customizations": "[if(equals(steps('imageCustomizations').customSoftware.addCustomSoftware, true), steps('imageCustomizations').customSoftware.customizations, '')]",
 				"installFsLogix": "[if(equals(steps('imageCustomizations').fslogix.installFsLogix, true), steps('imageCustomizations').fslogix.installFsLogix,'false')]",
 				"fslogixBlobName": "[if(equals(steps('imageCustomizations').fslogix.installFsLogix, true), steps('imageCustomizations').fslogix.fslogixBlob.blobName,'')]",
@@ -1659,7 +1738,7 @@
 				"wsusServer": "[if(equals(steps('imageCustomizations').updates.updateService, 'WSUS'), steps('imageCustomizations').updates.wsusServer, '')]",
 				"collectCustomizationLogs": "[steps('imageCustomizations').logging.collectLogs]",
 				"privateEndpointSubnetResourceId": "[if(equals(steps('imageCustomizations').logging.collectLogs, true), steps('imageCustomizations').logging.subnet, '')]",
-				"blobPrivateDnsZoneResourceId": "[if(equals(steps('imageCustomizations').logging.collectLogs, true), steps('imageCustomizations').logging.privateDnsZoneBlobStorageSelector.id, '')]",	
+				"blobPrivateDnsZoneResourceId": "[if(equals(steps('imageCustomizations').logging.collectLogs, true), steps('imageCustomizations').logging.blobPrivateDnsZone, '')]",	
 				"imageDefinitionResourceId": "[if(equals(steps('imageDest').imageDefinition.useExImageDef, true), concat(steps('prereqs').gallery.gallery.id, '/images/', steps('imageDest').imageDefinition.imageDefinition), '')]",
 				"customImageDefinitionName": "[if(equals(steps('imageDest').imageDefinition.useExImageDef, false), steps('imageDest').imageDefinition.customImageDefinitionName, '')]",
 				"imageDefinitionPublisher": "[if(equals(steps('imageDest').imageDefinition.useExImageDef, false), steps('imageDest').imageDefinition.imageDefinitionPublisher, '')]",
