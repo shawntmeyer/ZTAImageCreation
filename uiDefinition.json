@@ -1503,9 +1503,9 @@
 								{
 									"name": "storageAccountType",
 									"type": "Microsoft.Common.DropDown",
-									"label": "Default Storage Account Type",
+									"label": "Storage Account Type",
 									"defaultValue": "Standard LRS",
-									"toolTip": "Select the default storage account type for this image version. If you don't specify additional replication regions, then this value will be used with the deployment location.",
+									"toolTip": "Select the storage account type for this image version for every region. If you select 'Standard_ZRS' then all regions will not be available.",
 									"constraints": {
 										"allowedValues": [
 											{
@@ -1524,7 +1524,7 @@
 								{
 									"name": "replicaCount",
 									"type": "Microsoft.Common.Slider",
-									"label": "Default Replica Count",
+									"label": "Replica Count",
 									"subLabel": "",
 									"defaultValue": 1,
 									"min": 1,
@@ -1541,7 +1541,7 @@
 									"type": "Microsoft.Common.DropDown",
 									"label": "Exclude from Latest",
 									"defaultValue": "No",
-									"toolTip": "Select the default value for Exclude from Latest which determines whether this image version will be used when a image resource id uses 'latest' for the version. If you don't specify additional replication regions, then this value will be used with the deployment location.",
+									"toolTip": "Select the value for Exclude from Latest which determines whether this image version will be used when a image resource id uses 'latest' for the version. If you don't specify additional replication regions, then this value will be used with the deployment location.",
 									"constraints": {
 										"allowedValues": [
 											{
@@ -1619,7 +1619,7 @@
 												"element": {
 													"type": "Microsoft.Common.DropDown",
 													"constraints": {
-														"required": true,
+														"required": false,
 														"allowedValues": [
 															{
 																"label": "Standard LRS",
@@ -1640,7 +1640,7 @@
 												"element": {
 													"type": "Microsoft.Common.DropDown",
 													"constraints": {
-														"allowedValues": "[if(equals(last(take(steps('imageDest').imageVersion.replicationRegions, $rowIndex)).storageAccountType, 'Standard_LRS'), map(first(map(filter(steps('basics').computeApi.value, (resourceTypes) => equals(resourceTypes.resourceType, 'galleries/images/versions')), (item) => item.locations)), (item) => parse(concat('{\"label\":\"', item, '\",\"value\":\"', toLower(replace(item, ' ', '')), '\"}'))), map(filter(first(map(filter(steps('basics').storageApi.value, (resourceTypes) => equals(resourceTypes.resourceType, 'storageAccounts')), (item) => item.zoneMappings)), (item) => equals(length(item.zones), 3)), (item) => parse(concat('{\"label\":\"', item.location, '\",\"value\":\"', toLower(replace(item.location, ' ', '')), '\"}'))))]",
+														"allowedValues": "[if(equals(steps('imageDest').imageVersion.storageAccountType, 'Standard_LRS'), map(first(map(filter(steps('basics').computeApi.value, (resourceTypes) => equals(resourceTypes.resourceType, 'galleries/images/versions')), (item) => item.locations)), (item) => parse(concat('{\"label\":\"', item, '\",\"value\":\"', toLower(replace(item, ' ', '')), '\"}'))), map(filter(first(map(filter(steps('basics').storageApi.value, (resourceTypes) => equals(resourceTypes.resourceType, 'storageAccounts')), (item) => item.zoneMappings)), (item) => equals(length(item.zones), 3)), (item) => parse(concat('{\"label\":\"', item.location, '\",\"value\":\"', toLower(replace(item.location, ' ', '')), '\"}'))))]",
 														"required": true
 													}
 												}
@@ -1649,6 +1649,7 @@
 												"id": "regionalReplicaCount",
 												"header": "Replica Count",
 												"width": "1fr",
+												"defaultValue": "1",
 												"element": {
 													"type": "Microsoft.Common.TextBox",
 													"constraints": {
@@ -1658,28 +1659,7 @@
 																"message": "Only integers are allowed from 1-100"
 															}
 														],
-														"required": true
-													}
-												}
-											},
-											{
-												"id": "excludeFromLatest",
-												"header": "Exclude from Latest",
-												"width": "2fr",
-												"element": {
-													"type": "Microsoft.Common.DropDown",
-													"constraints": {
-														"allowedValues": [
-															{
-																"label": "No",
-																"value": false
-															},
-															{
-																"label": "Yes",
-																"value": true
-															}															
-														],
-														"required": true
+														"required": false
 													}
 												}
 											}
