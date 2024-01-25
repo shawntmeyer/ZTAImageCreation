@@ -1,5 +1,10 @@
 targetScope = 'subscription'
 
+metadata name = 'Zero Trust Architecture Custom Windows Image Builder'
+metadata description = 'This solution allows you to create a custom image much like Azure VM Image Builder, but utilizes zero trust architecture and does not require that service.'
+metadata author = 'shawn.meyer@microsoft.com'
+metadata version = '1.0.0'
+
 @description('Deployment location. Note that the compute resources will be deployed to the region where the subnet is location.')
 param deploymentLocation string = deployment().location
 

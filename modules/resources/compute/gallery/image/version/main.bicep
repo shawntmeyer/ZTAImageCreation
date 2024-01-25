@@ -107,9 +107,7 @@ var targetRegionDefault = [
         }
       }
     } : null
-    excludeFromLatest: excludeFromLatest
     name: location
-    regionalReplicaCount: replicaCount
     storageAccountType: storageAccountType
   }
 ]
