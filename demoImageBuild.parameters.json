@@ -1,0 +1,208 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentParameters.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "deploymentLocation": {
+            "value": "eastus"
+        },
+        "deploymentPrefix": {
+            "value": "avdimg"
+        },
+        "envClassification": {
+            "value": ""
+        },
+        "computeGalleryResourceId": {
+            "value": "/subscriptions/6dc4ed51-16b9-4494-a406-4fb7a8330d95/resourceGroups/rg-avd-imagemanagement-use/providers/Microsoft.Compute/galleries/acg_avd_use"
+        },
+        "storageAccountResourceId": {
+            "value": "/subscriptions/6dc4ed51-16b9-4494-a406-4fb7a8330d95/resourceGroups/rg-avd-imagemanagement-use/providers/Microsoft.Storage/storageAccounts/saavdimagemgmtuse"
+        },
+        "containerName": {
+            "value": "artifacts"
+        },
+        "userAssignedIdentityResourceId": {
+            "value": "/subscriptions/6dc4ed51-16b9-4494-a406-4fb7a8330d95/resourceGroups/rg-avd-imagemanagement-use/providers/Microsoft.ManagedIdentity/userAssignedIdentities/uai-avd-imagemanagement-use"
+        },
+        "subnetResourceId": {
+            "value": "/subscriptions/6dc4ed51-16b9-4494-a406-4fb7a8330d95/resourceGroups/rg-avd-networking-eastus/providers/Microsoft.Network/virtualNetworks/vnet-avd-eastus/subnets/default"
+        },
+        "imageBuildResourceGroupId": {
+            "value": "/subscriptions/6dc4ed51-16b9-4494-a406-4fb7a8330d95/resourceGroups/rg-image-builder-use"
+        },
+        "customBuildResourceGroupName": {
+            "value": ""
+        },
+        "customSourceImageResourceId": {
+            "value": ""
+        },
+        "publisher": {
+            "value": "MicrosoftWindowsDesktop"
+        },
+        "offer": {
+            "value": "office-365"
+        },
+        "sku": {
+            "value": "win11-23h2-avd-m365"
+        },
+        "encryptionAtHost": {
+            "value": true
+        },
+        "vmSize": {
+            "value": "Standard_D4ads_v5"
+        },
+        "installFsLogix": {
+            "value": false
+        },
+        "fslogixBlobName": {
+            "value": ""
+        },
+        "installAccess": {
+            "value": false
+        },
+        "installExcel": {
+            "value": false
+        },
+        "installOneDrive": {
+            "value": false
+        },
+        "onedriveBlobName": {
+            "value": ""
+        },
+        "installOneNote": {
+            "value": false
+        },
+        "installOutlook": {
+            "value": false
+        },
+        "installPowerPoint": {
+            "value": false
+        },
+        "installProject": {
+            "value": false
+        },
+        "installpublisher": {
+            "value": false
+        },
+        "installSkypeForBusiness": {
+            "value": false
+        },
+        "installVisio": {
+            "value": false
+        },
+        "installWord": {
+            "value": false
+        },
+        "officeBlobName": {
+            "value": ""
+        },
+        "installTeams": {
+            "value": false
+        },
+        "teamsBlobName": {
+            "value": ""
+        },
+        "installVirtualDesktopOptimizationTool": {
+            "value": false
+        },
+        "vDotBlobName": {
+            "value": ""
+        },
+        "customizations": {
+            "value": [
+                {
+                    "name": "NX",
+                    "blobname": "NX.zip"
+                }
+            ]
+        },
+        "collectCustomizationLogs": {
+            "value": false
+        },
+        "installUpdates": {
+            "value": true
+        },
+        "updateService": {
+            "value": "MU"
+        },
+        "wsusServer": {
+            "value": ""
+        },
+        "blobPrivateDnsZoneResourceId": {
+            "value": ""
+        },
+        "privateEndpointSubnetResourceId": {
+            "value": ""
+        },
+        "imageDefinitionResourceId": {
+            "value": ""
+        },
+        "customImageDefinitionName": {
+            "value": ""
+        },
+        "imageDefinitionPublisher": {
+            "value": "MyOrg"
+        },
+        "imageDefinitionOffer": {
+            "value": "office-365"
+        },
+        "imageDefinitionSku": {
+            "value": "win11-23h2-avd-m365"
+        },
+        "imageDefinitionIsAcceleratedNetworkSupported": {
+            "value": true
+        },
+        "imageDefinitionIsHibernateSupported": {
+            "value": false
+        },
+        "imageDefinitionIsHigherStoragePerformanceSupported": {
+            "value": false
+        },
+        "imageDefinitionSecurityType": {
+            "value": "TrustedLaunchSupported"
+        },
+        "autoImageVersionName": {
+            "value": "24.0220.0948"
+        },
+        "imageMajorVersion": {
+            "value": -1
+        },
+        "imageMinorVersion": {
+            "value": -1
+        },
+        "imagePatch": {
+            "value": -1
+        },
+        "imageVersionEOLinDays": {
+            "value": 0
+        },
+        "imageVersionDefaultReplicaCount": {
+            "value": 1
+        },
+        "imageVersionDefaultStorageAccountType": {
+            "value": "Standard_LRS"
+        },
+        "imageVersionDefaultRegion": {
+            "value": ""
+        },
+        "imageVersionExcludeFromLatest": {
+            "value": false
+        },
+        "imageVersionTargetRegions": {
+            "value": [
+                {
+                    "storageAccountType": "Standard_LRS",
+                    "name": "southcentralus",
+                    "regionalReplicaCount": "10"
+                },
+                {
+                    "storageAccountType": "Standard_LRS",
+                    "name": "westcentralus",
+                    "regionalReplicaCount": "20"
+                }
+            ]
+        },
+        "tags": {
+            "value": {}
+        }
+    }
+}

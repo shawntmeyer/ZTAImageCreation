@@ -16,6 +16,6 @@ New-AzTemplateSpec `
     -Version '1.0' `
     -Location $Location `
     -DisplayName "$TemplateSpecName" `
-    -TemplateFile '.\solution.json' `
+    -TemplateFile '.\imagebuild.bicep' `
     -UIFormDefinitionFile '.\uiDefinition.json' `
     -Force
