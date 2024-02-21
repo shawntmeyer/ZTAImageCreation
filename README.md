@@ -12,51 +12,56 @@ graph TD;
 
 ### Software
 
-* [Azure Bicep](https://learn.microsoft.com/en-us/azure/azure-resource-manager/bicep/overview?tabs=bicep)
-* [Azure PowerShell Modules](https://learn.microsoft.com/en-us/powershell/azure/install-azure-powershell?view=azps-10.2.0)
+You must install Azure Bicep on your deployment workstation: [Azure Bicep](https://learn.microsoft.com/en-us/azure/azure-resource-manager/bicep/overview?tabs=bicep)
 
-### Upload the following scripts and files to your storage account container
+### Azure Resources and Supporting Scripts and Software
 
-* [Scripts](https://github.com/mikedzikowski/ZTAImage/tree/main/ImageCustomizationScripts)
-* [Az Modules Installers](https://github.com/Azure/azure-powershell/releases/download/v10.2.0-August2023/Az-Cmdlets-10.2.0.37547-x64.msi)
-* [vDot Installers](https://github.com/The-Virtual-Desktop-Team/Virtual-Desktop-Optimization-Tool/archive/refs/heads/main.zip)
-* [Teams Installer - Commercial](https://teams.microsoft.com/downloads/desktopurl?env=production&plat=windows&arch=x64&managedInstaller=true&download=true)
-* [Teams Installer - DoD](https://dod.teams.microsoft.us/downloads/desktopurl?env=production&plat=windows&arch=x64&managedInstaller=true&download=true)
-* [Teams Installer - GCC](https://teams.microsoft.com/downloads/desktopurl?env=production&plat=windows&arch=x64&managedInstaller=true&ring=general_gcc&download=true)
-* [Teams Installer - GCCH](https://gov.teams.microsoft.us/downloads/desktopurl?env=production&plat=windows&arch=x64&managedInstaller=true&download=true)
-* [Microsoft Visual C++ Redistributable](https://aka.ms/vs/16/release/vc_redist.x64.exe)
-* [Remote Desktop WebRTC Redirector Service](https://aka.ms/msrdcwebrtcsvc/msi)
+You have two options of preparing your environment - Either manually or by using a script
 
-If the above installer Az Modules version is not used, please update the following lines in managementVM.Bicep to match the MSI installer version used in your environment:
+In either case, you must have the following prerequisites in place:
 
-```bicep
-var installers = [
-  {
-    name: 'AzModules'
-    blobName: 'Az-Cmdlets-10.2.0.37547-x64.msi'
-    arguments: '/i Az-Cmdlets-10.2.0.37547-x64.msi /qn /norestart'
-    enabled: true
-  }
-]
-```
+1. You must have a Virtual Network with at least one subnet.
+2. You must have the Azure Private DNS Zone for [storage blobs](https://learn.microsoft.com/en-us/azure/private-link/private-endpoint-dns#storage) specific to your environment configured and linked to the VNet.
+
+#### Manual
+
+1. Create a new resource group and call it something that represents the purpose such as 'rg-imagemanagement-use' where the rg is the abbreviation for resource group and 'use' is the abbreviation for the location.
+2. Create a new general purpose v2 [storage account](https://learn.microsoft.com/en-us/azure/storage/common/storage-account-create?tabs=azure-portal) and a blob container in the resource group. Be sure to add a private endpoint and configure the Azure Private DNS zone for blobs 'privatelink.blob.core._environmentSuffix_'.
+3. Create an [Azure Compute Gallery](https://learn.microsoft.com/en-us/azure/virtual-machines/create-gallery?tabs=portal%2Cportaldirect%2Ccli2).
+4. Upload the following files from the artifacts folder to your blob container via the portal:
+
+    * cse_master_script.ps1
+    * Get-ImageBuildValidations.ps1
+    * Get-ImageVersionSource.ps1
+
+5. Download the PowerShell Az Module by navigating to [releases](https://github.com/Azure/azure-powershell/releases) and scrolling down to 'Assets' under the latest release. Download the 'Az-Cmdlets-_version_-x64.msi' and place it in the PowerShell-Az-Module folder in the artifacts directory. Then zip up the directory contents (go in to the directory and select all files, then 'Send to Compressed file'.). Then upload this zip to the artifacts container.
+6. Optionally, gather the following installers and upload them to their respective folders:
+
+    * Download the [FSLogix Installer Zip File](https://aka.ms/fslogix_download) and save it to an empty temporary folder. Zip the folder contents up and upload it to the storage account blob container.
+    * Download the [OneDrive Installer](https://go.microsoft.com/fwlink/p/?linkid=2121808) and save it to and empty temporary folder. Zip the folder contents and upload the zip to the storage account blob container.
+    * Download the [Office Deployment Tool](https://www.microsoft.com/en-us/download/confirmation.aspx?id=49117) and save it to and empty temporary folder and zip the folder contents and upload the zip to the storage account blob container.
+    * For Teams, download the following files to an empty temporary folder and then zip up the folder contents and upload the zip to the storage account:
+      * [Visual Studio Redistributables](https://aka.ms/vs/17/release/vc_redist.x64.exe)
+      * Remote Desktop WebRTC Redirector Service from the link on this [website](https://docs.microsoft.com/en-us/azure/virtual-desktop/teams-on-wvd)
+      * Correct version of teams based on tenant type:
+        * [Commercial](https://teams.microsoft.com/downloads/desktopurl?env=production&plat=windows&arch=x64&managedInstaller=true&download=true)
+        * [Government Community Cloud (GCC)](https://teams.microsoft.com/downloads/desktopurl?env=production&plat=windows&arch=x64&managedInstaller=true&ring=general_gcc&download=true)
+        * [Government Community Cloud High (GCCH)](https://gov.teams.microsoft.us/downloads/desktopurl?env=production&plat=windows&arch=x64&managedInstaller=true&download=true)
+        * [Department of Defense](https://dod.teams.microsoft.us/downloads/desktopurl?env=production&plat=windows&arch=x64&managedInstaller=true&download=true)
+
+#### Scripted
+
+The script [Upload-ArtifactsToStorage.ps1](https://github.com/shawntmeyer/ZTAImageCreation/blob/master/Upload-ArtifactsToStorage.ps1) included at the root of this repo is parameterized and documented. It is designed to do the following (as needed):
+
+1. Optionally, deploy an image artifacts storage account with blob container, user assigned identity for blob access, and a compute gallery for storing your images. This deployment is idempotent, so could be selected on each run of the script. Parameters for the image build resources are configured in the [imageManagement.parameters.json](https://github.com/shawntmeyer/ZTAImageCreation/blob/master/imageManagementResources/imageManagement.parameters.json) file. You control this option via the '-DeployRequisites' switch of PowerShell script.
+2. Optionally, download new source files from public Internet sources based on the parameters set in the [downloads.parameters.json](https://github.com/shawntmeyer/ZTAImageCreation/blob/master/artifacts/downloads.parameters.json) file. You control this option via the '-DownloadNewSources' boolean parameter. For the first run of the script, you will most likely want to use this option to download at least the required PowerShell Az Module. If you want to download teams, you'll want to include the '-TeamsTenantType' parameter with possible string values = 'Commercial', 'DepartmentOfDefense', 'GovernmentCommunityCloud', or 'GovernmentCommunityCloudHigh'.
+3. Compress all folders located inside the artifacts directory into the temp directory as zip files. Additionally, copy all files in the root of the artifacts directory into the temp directory.
+4. Upload all files located in the temp directory to the artifacts container in the storage account.
+5. Optionally, update the imageBuild parameters file with the artifacts storage account resource Id, user assigned identity resource Id, and compute gallery resource Id.
 
 ### Example Custom Installers
 
 ![Alt text](images/image.png)
-
-### Existing Azure Resources
-
-The following resources must exist in your Azure environment before deployment:
-
-* Virtual Network
-* Storage Account
-  * Private Endpoint
-  * Private DNS Zone
-  * Blob container with executables, scripts, etc. that are required for the imaging deployment
-* Azure Compute Gallery
-* User Assigned Identity
-  * Role Assignment - "Storage Blob Data Owner" scoped at the storage account or parent resource group
-  * Role Assignment - "Virtual Machine Contributor" scoped at the resource group where the image and management vms will be deployed (or the following action must be allowed for the UAMI - Microsoft.Compute/virtualMachines/generalize/action)
 
 ## Creating Template Spec
 
@@ -65,275 +70,16 @@ The following resources must exist in your Azure environment before deployment:
 ```powershell
 New-AzTemplateSpec `
     -Name 'ZeroTrustImaging' `
-    -ResourceGroupName rg-image-usgovvirginia-01 `
+    -ResourceGroupName rg-imagemanagement-locationabbreviation `
     -Version '1.0' `
-    -Location usgovvirginia `
+    -Location location `
     -DisplayName "Zero Trust Image Template" `
-    -TemplateFile '.\solution.json' `
+    -TemplateFile '.\imagebuild.bicep' `
     -UIFormDefinitionFile '.\uiDefinition.json'  `
     -Force
 ```
 
-### Parameters
-
-#### -AdminUsername
-
-Specifies the local administrator user name of the virtual machine that will be captured.
-
-```yaml
-Type: String
-```
-
-#### -ContainerName
-
-Specifies the container name where files, and scripts will be uploaded and consumed during the image process.
-
-```yaml
-Type: String
-```
-
-#### -GalleryName
-
-Specifies the existing Azure Image Gallery where the image will be created.
-
-```yaml
-Type: String
-```
-
-#### -ImageName
-
-Specifies the name of the image that will created.
-
-```yaml
-Type: String
-```
-
-#### -ImageOffer
-
-Specifies the name of the image offer of the image that will be created.
-
-```yaml
-Type: String
-```
-
-#### -ImagePublisher
-
-Specifies the name of the image publisher of the image that will be created.
-
-```yaml
-Type: String
-```
-
-#### -ImageSku
-
-Specifies the name of the image SKU of the image that will be created.
-
-```yaml
-Type: String
-```
-
-#### -ImageVersion
-
-Specifies the name of the image version of the image that will be created.
-
-```yaml
-Type: String
-```
-
-#### -InstallAccess
-
-Specifies if Access will be installed on the image created.
-
-```yaml
-Type: Boolean
-```
-
-#### -InstallExcel
-
-Specifies if Excel will be installed on the image created.
-
-```yaml
-Type: Boolean
-```
-
-#### -InstallFsLogix
-
-Specifies if FsLogix will be installed on the image created.
-
-```yaml
-Type: Boolean
-```
-
-#### -InstallOneDriveForBusiness
-
-Specifies if OneDrive For Business will be installed on the image created.
-
-```yaml
-Type: Boolean
-```
-
-#### -InstallOneNote
-
-Specifies if OneNote will be installed on the image created.
-
-```yaml
-Type: Boolean
-```
-
-#### -InstallPowerPoint
-
-Specifies if PowerPoint will be installed on the image created.
-
-```yaml
-Type: Boolean
-```
-
-#### -InstallPublisher
-
-Specifies if Publisher will be installed on the image created.
-
-```yaml
-Type: Boolean
-```
-
-#### -InstallTeams
-
-Specifies if Teams will be installed on the image created.
-
-```yaml
-Type: Boolean
-```
-
-#### -InstallVirtualDesktopOptimizationTool
-
-Specifies if Virtual Desktop Optimization Tool (VDOT) will be installed on the image created.
-
-```yaml
-Type: Boolean
-```
-
-#### -InstallVisio
-
-Specifies if Visio will be installed on the image created.
-
-```yaml
-Type: Boolean
-```
-
-#### -InstallWord
-
-Specifies if Word will be installed on the image created.
-
-```yaml
-Type: Boolean
-```
-
-#### -Location
-
-Specifies a location for the resources of the solution to be deployed.
-
-```yaml
-Type: String
-```
-
-#### -MiName
-
-Specifies the name of an existing managed identity to be used during deployment of the solution.
-
-```yaml
-Type: String
-```
-
-#### -OSVersion
-
-Specifies the OS Version of the image to be captured.
-
-```yaml
-Type: String
-```
-
-#### -ResourceGroupName
-
-Specifies the name of the resource group to create resources.
-
-```yaml
-Type: String
-```
-
-#### -SecurityType
-
-Specifies the security type of the image to be captured.
-
-```yaml
-Type: String
-```
-
-#### -StorageAccountName
-
-Specifies the name of the storage account where assets will be downloaded from and used during the image process.
-
-```yaml
-Type: String
-```
-
-#### -StorageEndpoint
-
-Specifies the storage endpoint of the target storage account.
-
-```yaml
-Type: String
-```
-
-#### -SubnetName
-
-Specifies the subnet of the virtual network to be used during the image process.
-
-```yaml
-Type: String
-```
-
-#### -TenantType
-
-Specifies the tenant type used in the target environment.
-
-```yaml
-Type: String
-AllowedValues: 'Commercial', 'DepartmentOfDefense','GovernmentCommunityCloud','GovernmentCommunityCloudHigh'
-```
-
-#### -UserAssignedIdentityObjectId
-
-Specifies the object ID of the managed identity used during deployment.
-
-```yaml
-Type: String
-```
-
-#### -VirtualNetworkName
-
-Specifies the virtual network name of the vNet used during the image process.
-
-```yaml
-Type: String
-```
-
-#### -VmName
-
-Specifies the name of the virtual machine to be captuired.
-
-```yaml
-Type: String
-```
-
-#### -VmSize
-
-Specifies the  size of the the virtual machine to be captuired.
-
-```yaml
-Type: String
-```
-
-### Adding Applications
+## Adding Applications
 
 * Add additional applications by adding addtional blocks of installers in module image.bicep
 * Any blob called will have to be uploaded to the storage account and container that are defined in the parameter set

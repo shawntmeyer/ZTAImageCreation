@@ -65,7 +65,7 @@ param priority string = 'Regular'
 param enableEvictionPolicy bool = false
 
 @description('Optional. Specifies the maximum price you are willing to pay for a low priority VM/VMSS. This price is in US Dollars.')
-param maxPriceForLowPriorityVm string = ''
+param maxPriceForLowPriorityVm int = -1
 
 @description('Optional. Specifies resource ID about the dedicated host that the virtual machine resides in.')
 param dedicatedHostId string = ''
@@ -284,7 +284,7 @@ param timeZone string = ''
 param additionalUnattendContent array = []
 
 @description('Optional. Specifies the Windows Remote Management listeners. This enables remote Windows PowerShell. - WinRMConfiguration object.')
-param winRM object = {}
+param winRM array = []
 
 @description('Required. The configuration profile of automanage.')
 @allowed([
@@ -339,12 +339,12 @@ var accountSasProperties = {
     If the AADJoin Extension is not enabled then we add SystemAssigned to the identityType only if the value of the systemAssignedIdentity parameter is true.
   Second, we determine if User Assigned Identities are assigned to the VM via the userAssignedIdentities parameter.
   Third, we take the outcome of these two values and determine the identityType
-    If the System Identity and User Identities are assigned then the identityType is 'SystemAssigned,UserAssigned'
+    If the System Identity and User Identities are assigned then the identityType is 'SystemAssigned, UserAssigned'
     If only the system Identity is assigned then the identityType is 'SystemAssigned'
     If only user managed Identities are assigned, then the identityType is 'UserAssigned'
     Finally, if no identities are assigned, then the identityType is 'none'.
 */
-var identityType = (extensionAadJoinConfig.enabled ? true : systemAssignedIdentity) ? (!empty(userAssignedIdentities) ? 'SystemAssigned,UserAssigned' : 'SystemAssigned') : (!empty(userAssignedIdentities) ? 'UserAssigned' : 'None')
+var identityType = (extensionAadJoinConfig.enabled ? true : systemAssignedIdentity) ? (!empty(userAssignedIdentities) ? 'SystemAssigned, UserAssigned' : 'SystemAssigned') : (!empty(userAssignedIdentities) ? 'UserAssigned' : 'None')
 
 var identity = identityType != 'None' ? {
   type: identityType
@@ -460,7 +460,7 @@ resource vm 'Microsoft.Compute/virtualMachines@2022-11-01' = {
     } : null
     priority: priority
     evictionPolicy: enableEvictionPolicy ? 'Deallocate' : null
-    billingProfile: !empty(priority) && !empty(maxPriceForLowPriorityVm) ? {
+    billingProfile: !empty(priority) && maxPriceForLowPriorityVm != -1 ? {
       maxPrice: maxPriceForLowPriorityVm
     } : null
     host: !empty(dedicatedHostId) ? {
