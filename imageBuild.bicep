@@ -269,6 +269,10 @@ param tags object = {}
 
 // * VARIABLE DECLARATIONS * //
 
+var installers = []
+
+var customizers = union(customizations, installers)
+
 var cloud = environment().name
 var subscriptionId = subscription().subscriptionId
 var tenantId = tenant().tenantId
@@ -572,7 +576,7 @@ module customizeImage 'modules/imageBuild/customizeImage.bicep' = {
     cloud: cloud
     location: computeLocation
     containerName: containerName
-    customizations: customizations
+    customizations: customizers
     installFsLogix: installFsLogix
     fslogixBlobName: fslogixBlobName
     installAccess:  installAccess

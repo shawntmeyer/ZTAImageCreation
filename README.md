@@ -59,10 +59,6 @@ The script [Upload-ArtifactsToStorage.ps1](https://github.com/shawntmeyer/ZTAIma
 4. Upload all files located in the temp directory to the artifacts container in the storage account.
 5. Optionally, update the imageBuild parameters file with the artifacts storage account resource Id, user assigned identity resource Id, and compute gallery resource Id.
 
-### Example Custom Installers
-
-![Alt text](images/image.png)
-
 ## Creating Template Spec
 
 ### Example
@@ -81,9 +77,35 @@ New-AzTemplateSpec `
 
 ## Adding Applications
 
-* Add additional applications by adding addtional blocks of installers in module image.bicep
+You can add application to any image using the UI, parameters, or hard code them in via variables. Each option is spelled out below:
+
+### UI Custom Installers
+
+![Alt text](images/image.png)
+
+### parameters file
+
+```json
+"customizations": {
+      "value": [
+        {
+          "name": "NotePad++",
+          "blobName": "Notepad++.msi",
+          "arguments": "/quiet /norestart"
+        },
+        {
+          "name": "VSCode",
+          "blobName": "VSCode.zip",
+          "arguments": ""
+        }
+      ]
+    },
+```
+
+### Hard Code them via variables
+
+* Add additional applications by adding additional blocks of installers in the 'imageBuild.bicep' via the 'installers' variable.
 * Any blob called will have to be uploaded to the storage account and container that are defined in the parameter set
-* Using the enabled argument will allow the installer to be modular and flexible during image creation
 
 ```bicep
 var installers = [
@@ -91,16 +113,16 @@ var installers = [
         name: 'myapp1'
         blobName: 'software1.exe'
         arguments: '/S'
-        enabled: true
     }
     {
         name: 'myapp2'
         blobName: 'software2.exe'
         arguments: '/S'
-        enabled: false
     }
 ]
 ```
+
+## Troubleshooting
 
 ### View Run Command Status
 
