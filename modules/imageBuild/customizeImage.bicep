@@ -83,11 +83,11 @@ resource applications 'Microsoft.Compute/virtualMachines/runCommands@2023-03-01'
     errorBlobManagedIdentity: empty(logBlobContainerUri) ? null : {
       clientId: userAssignedIdentityClientId
     }
-    errorBlobUri: empty(logBlobContainerUri) ? null : '${logBlobContainerUri}${customizer.name}-error-${timeStamp}.log' 
+    errorBlobUri: empty(logBlobContainerUri) ? null : '${logBlobContainerUri}${imageVmName}-${customizer.name}-error-${timeStamp}.log' 
     outputBlobManagedIdentity: empty(logBlobContainerUri) ? null : {
       clientId: userAssignedIdentityClientId
     }
-    outputBlobUri: empty(logBlobContainerUri) ? null : '${logBlobContainerUri}${customizer.name}-output-${timeStamp}.log'
+    outputBlobUri: empty(logBlobContainerUri) ? null : '${logBlobContainerUri}${imageVmName}-${customizer.name}-output-${timeStamp}.log'
     parameters: [
       {
         name: 'BuildDir'
@@ -207,11 +207,11 @@ resource fslogix 'Microsoft.Compute/virtualMachines/runCommands@2023-07-01' = if
     errorBlobManagedIdentity: empty(logBlobContainerUri) ? null : {
       clientId: userAssignedIdentityClientId
     }
-    errorBlobUri: empty(logBlobContainerUri) ? null : '${logBlobContainerUri}FSLogix-error-${timeStamp}.log' 
+    errorBlobUri: empty(logBlobContainerUri) ? null : '${logBlobContainerUri}${imageVmName}-FSLogix-error-${timeStamp}.log' 
     outputBlobManagedIdentity: empty(logBlobContainerUri) ? null : {
       clientId: userAssignedIdentityClientId
     }
-    outputBlobUri: empty(logBlobContainerUri) ? null : '${logBlobContainerUri}FSLogix-output-${timeStamp}.log'
+    outputBlobUri: empty(logBlobContainerUri) ? null : '${logBlobContainerUri}${imageVmName}-FSLogix-output-${timeStamp}.log'
     parameters: [
       {
         name: 'BuildDir'
@@ -292,11 +292,11 @@ resource office 'Microsoft.Compute/virtualMachines/runCommands@2023-03-01' = if(
     errorBlobManagedIdentity: empty(logBlobContainerUri) ? null : {
       clientId: userAssignedIdentityClientId
     }
-    errorBlobUri: empty(logBlobContainerUri) ? null : '${logBlobContainerUri}Office-error-${timeStamp}.log' 
+    errorBlobUri: empty(logBlobContainerUri) ? null : '${logBlobContainerUri}${imageVmName}-Office-error-${timeStamp}.log' 
     outputBlobManagedIdentity: empty(logBlobContainerUri) ? null : {
       clientId: userAssignedIdentityClientId
     }
-    outputBlobUri: empty(logBlobContainerUri) ? null : '${logBlobContainerUri}Office-output-${timeStamp}.log'
+    outputBlobUri: empty(logBlobContainerUri) ? null : '${logBlobContainerUri}${imageVmName}-Office-output-${timeStamp}.log'
     parameters: [
       {
         name: 'BuildDir'
@@ -473,11 +473,11 @@ resource onedrive 'Microsoft.Compute/virtualMachines/runCommands@2023-07-01' = i
     errorBlobManagedIdentity: empty(logBlobContainerUri) ? null : {
       clientId: userAssignedIdentityClientId
     }
-    errorBlobUri: empty(logBlobContainerUri) ? null : '${logBlobContainerUri}OneDrive-error-${timeStamp}.log' 
+    errorBlobUri: empty(logBlobContainerUri) ? null : '${logBlobContainerUri}${imageVmName}-OneDrive-error-${timeStamp}.log' 
     outputBlobManagedIdentity: empty(logBlobContainerUri) ? null : {
       clientId: userAssignedIdentityClientId
     }
-    outputBlobUri: empty(logBlobContainerUri) ? null : '${logBlobContainerUri}OneDrive-output-${timeStamp}.log'
+    outputBlobUri: empty(logBlobContainerUri) ? null : '${logBlobContainerUri}${imageVmName}-OneDrive-output-${timeStamp}.log'
     parameters: [
       {
         name: 'BuildDir'
@@ -584,11 +584,11 @@ resource teams 'Microsoft.Compute/virtualMachines/runCommands@2023-03-01' = if (
     errorBlobManagedIdentity: empty(logBlobContainerUri) ? null : {
       clientId: userAssignedIdentityClientId
     }
-    errorBlobUri: empty(logBlobContainerUri) ? null : '${logBlobContainerUri}Teams-error-${timeStamp}.log' 
+    errorBlobUri: empty(logBlobContainerUri) ? null : '${logBlobContainerUri}${imageVmName}-Teams-error-${timeStamp}.log' 
     outputBlobManagedIdentity: empty(logBlobContainerUri) ? null : {
       clientId: userAssignedIdentityClientId
     }
-    outputBlobUri: empty(logBlobContainerUri) ? null : '${logBlobContainerUri}Teams-output-${timeStamp}.log'
+    outputBlobUri: empty(logBlobContainerUri) ? null : '${logBlobContainerUri}${imageVmName}-Teams-output-${timeStamp}.log'
     parameters: [
       {
         name: 'BuildDir'
@@ -731,11 +731,11 @@ resource microsoftUpdates 'Microsoft.Compute/virtualMachines/runCommands@2023-03
     errorBlobManagedIdentity: empty(logBlobContainerUri) ? null : {
       clientId: userAssignedIdentityClientId
     }
-    errorBlobUri: empty(logBlobContainerUri) ? null : '${logBlobContainerUri}Install-Updates-error-${timeStamp}.log' 
+    errorBlobUri: empty(logBlobContainerUri) ? null : '${logBlobContainerUri}${imageVmName}-Install-Updates-error-${timeStamp}.log' 
     outputBlobManagedIdentity: empty(logBlobContainerUri) ? null : {
       clientId: userAssignedIdentityClientId
     }
-    outputBlobUri: empty(logBlobContainerUri) ? null : '${logBlobContainerUri}Install-Updates-output-${timeStamp}.log'
+    outputBlobUri: empty(logBlobContainerUri) ? null : '${logBlobContainerUri}${imageVmName}-Install-Updates-output-${timeStamp}.log'
     parameters: updateService == 'WSUS' ? [
       {
         name: 'Service'
@@ -972,11 +972,11 @@ resource vdot 'Microsoft.Compute/virtualMachines/runCommands@2023-03-01' = if (i
     errorBlobManagedIdentity: empty(logBlobContainerUri) ? null : {
       clientId: userAssignedIdentityClientId
     }
-    errorBlobUri: empty(logBlobContainerUri) ? null : '${logBlobContainerUri}vdot-error-${timeStamp}.log' 
+    errorBlobUri: empty(logBlobContainerUri) ? null : '${logBlobContainerUri}${imageVmName}-vdot-error-${timeStamp}.log' 
     outputBlobManagedIdentity: empty(logBlobContainerUri) ? null : {
       clientId: userAssignedIdentityClientId
     }
-    outputBlobUri: empty(logBlobContainerUri) ? null : '${logBlobContainerUri}vdot-output-${timeStamp}.log'
+    outputBlobUri: empty(logBlobContainerUri) ? null : '${logBlobContainerUri}${imageVmName}-vdot-output-${timeStamp}.log'
     parameters: [
       {
         name: 'UserAssignedIdentityClientId'
@@ -1126,11 +1126,11 @@ resource sysprep 'Microsoft.Compute/virtualMachines/runCommands@2023-03-01' = {
     errorBlobManagedIdentity: empty(logBlobContainerUri) ? null : {
         clientId: userAssignedIdentityClientId
     }
-    errorBlobUri: empty(logBlobContainerUri) ? null : '${logBlobContainerUri}Sysprep-error-${timeStamp}.log' 
+    errorBlobUri: empty(logBlobContainerUri) ? null : '${logBlobContainerUri}${imageVmName}-Sysprep-error-${timeStamp}.log' 
     outputBlobManagedIdentity: empty(logBlobContainerUri) ? null : {
         clientId: userAssignedIdentityClientId
     }
-    outputBlobUri: empty(logBlobContainerUri) ? null : '${logBlobContainerUri}Sysprep-output-${timeStamp}.log'
+    outputBlobUri: empty(logBlobContainerUri) ? null : '${logBlobContainerUri}${imageVmName}-Sysprep-output-${timeStamp}.log'
     source: {
       script: '''
         $Services = 'RdAgent', 'WindowsTelemetryService', 'WindowsAzureGuestAgent'        
