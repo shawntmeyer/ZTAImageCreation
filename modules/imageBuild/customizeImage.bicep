@@ -135,7 +135,13 @@ resource applications 'Microsoft.Compute/virtualMachines/runCommands@2023-03-01'
         $AccessToken = ((Invoke-WebRequest -Headers @{Metadata=$true} -Uri $TokenUri -UseBasicParsing).Content | ConvertFrom-Json).access_token
         $InstallDir = Join-Path $BuildDir -ChildPath $Installer
         New-Item -Path $InstallDir -ItemType Directory -Force | Out-Null
-        Invoke-WebRequest -Headers @{"x-ms-version"="2017-11-09"; Authorization ="Bearer $AccessToken"} -Uri "$StorageEndpoint$ContainerName/$BlobName" -OutFile $InstallDir\$Blobname
+        Write-Output "Downloading $BlobName from $ContainerName with to $InstallDir"
+        $WebClient = New-Object System.Net.WebClient
+        $WebClient.Headers.Add('x-ms-version', '2017-11-09')
+        $webClient.Headers.Add("Authorization", "Bearer $AccessToken")
+        $webClient.DownloadFile("$StorageEndpoint$ContainerName/$BlobName", "$InstallDir\$BlobName")
+        Write-Output 'Finished downloading'
+      
         Start-Sleep -Seconds 10        
         Set-Location -Path $InstallDir
         if($Blobname -like '*.exe') {
