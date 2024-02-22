@@ -960,12 +960,7 @@
 													"placeholder": "Example: vscode",
 													"constraints": {
 														"required": true,
-														"validations": [
-															{
-																"regex": "^[^_\\W][\\w-._]{0,79}(?<![-.])$",
-																"message": "The string must have a length of 80 characters or less, start with a letter or digit, contain only letters, digits, hyphens, dots, and underscores, and not end with a hyphen or dot."
-															}
-														]
+														"validations": []
 													}
 												}
 											},
