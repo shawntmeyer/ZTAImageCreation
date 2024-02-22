@@ -289,7 +289,6 @@ resource fslogix 'Microsoft.Compute/virtualMachines/runCommands@2023-07-01' = if
   ]
 }
 
-
 resource office 'Microsoft.Compute/virtualMachines/runCommands@2023-03-01' = if(installAccess || installExcel || installOneNote || installOutlook || installPowerPoint || installProject || installPublisher || installSkypeForBusiness || installVisio || installWord) {
   name: 'install-office'
   location: location
