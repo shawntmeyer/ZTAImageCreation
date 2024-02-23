@@ -960,12 +960,7 @@
 													"placeholder": "Example: vscode",
 													"constraints": {
 														"required": true,
-														"validations": [
-															{
-																"regex": "^[^_\\W][\\w-._]{0,79}(?<![-.])$",
-																"message": "The string must have a length of 80 characters or less, start with a letter or digit, contain only letters, digits, hyphens, dots, and underscores, and not end with a hyphen or dot."
-															}
-														]
+														"validations": []
 													}
 												}
 											},
@@ -1260,13 +1255,11 @@
 									"name": "imageDefinition",
 									"type": "Microsoft.Common.DropDown",
 									"label": "Image Definition",
-									"multiselect": false,
-									"defaultValue": "",
+									"multiLine": true,
 									"toolTip": "Select the existing image definition for which a new image version will be selected. If the desired image definition is not available, check your Compute Gallery selection on the 'Prerequisites' page or select to create a new one above.",
 									"filterPlaceholder": "",
-									"defaultDescription": "",
 									"constraints": {
-										"allowedValues": "[map(steps('imageDest').imageDefinition.imagesApi.value, (item) => parse(concat('{\"label\":\"', item.name, '\",\"value\":\"', item.name, '\"}')))]",
+										"allowedValues": "[map(steps('imageDest').imageDefinition.imagesApi.value, (item) => parse(concat('{\"label\":\"', item.name, '\",\"description\":\"', first(map(item.properties.features, (feat) => feat.SecurityType)), '\",\"value\":\"', item.name, '\"}')))]",
 										"required": true
 									},
 									"visible": "[equals(steps('imageDest').imageDefinition.useExImageDef, true)]"
@@ -1374,7 +1367,7 @@
 											}
 										]
 									},
-									"visible": "[and(equals(steps('imageDest').imageDefinition.useExImageDef, false),or(contains(steps('imageVm').vmProps.osVersion, 'g2'), contains(steps('imageVm').vmProps.osVersion, 'win11')))]"
+									"visible": "[and(equals(steps('imageDest').imageDefinition.useExImageDef, false), or(contains(steps('imageVm').imageSource.sku, 'g2'), contains(steps('imageVm').imageSource.sku, 'win11'), contains(steps('imageVm').imageSource.sku, '2022')) )]"
 								},
 								{
 									"name": "securityType",
@@ -1411,7 +1404,7 @@
 											}
 										]
 									},
-									"visible": "[and(equals(steps('imageDest').imageDefinition.useExImageDef, false),or(contains(steps('imageVm').vmProps.osVersion, 'g2'), contains(steps('imageVm').vmProps.osVersion, 'win11')))]"
+									"visible": "[and(equals(steps('imageDest').imageDefinition.useExImageDef, false), or(contains(steps('imageVm').imageSource.sku, 'g2'), contains(steps('imageVm').imageSource.sku, 'win11'), contains(steps('imageVm').imageSource.sku, '2022')))]"
 								},
 								{
 									"name": "isNVMeSupported",
@@ -1432,7 +1425,7 @@
 											}
 										]
 									},
-									"visible": "[and(equals(steps('imageDest').imageDefinition.useExImageDef, false),or(contains(steps('imageVm').vmProps.osVersion, 'g2'), contains(steps('imageVm').vmProps.osVersion, 'win11')))]"
+									"visible": "[and(equals(steps('imageDest').imageDefinition.useExImageDef, false), or(contains(steps('imageVm').imageSource.sku, 'g2'), contains(steps('imageVm').imageSource.sku, 'win11'), contains(steps('imageVm').imageSource.sku, '2022')))]"
 								}
 							]
 						},
