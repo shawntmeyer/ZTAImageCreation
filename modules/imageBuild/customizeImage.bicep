@@ -35,6 +35,8 @@ param wsusServer string
 
 var buildDir = 'c:\\BuildDir'
 
+var apiVersion = environment().name == 'USNat' ? '2017-08-01' : '2018-02-01'
+
 var customizers = [for customization in customizations: {
   name: customization.name
   blobName: customization.blobName
@@ -90,6 +92,10 @@ resource applications 'Microsoft.Compute/virtualMachines/runCommands@2023-03-01'
     outputBlobUri: empty(logBlobContainerUri) ? null : '${logBlobContainerUri}${imageVmName}-${customizer.name}-output-${timeStamp}.log'
     parameters: [
       {
+        name: 'APIVersion'
+        value: apiVersion
+      }
+      {
         name: 'BuildDir'
         value: buildDir
       }
@@ -121,6 +127,7 @@ resource applications 'Microsoft.Compute/virtualMachines/runCommands@2023-03-01'
     source: {
       script: '''
         param(
+          [string]$APIVersion,
           [string]$BuildDir,
           [string]$UserAssignedIdentityClientId,
           [string]$ContainerName,
@@ -131,7 +138,7 @@ resource applications 'Microsoft.Compute/virtualMachines/runCommands@2023-03-01'
         )
         Start-Transcript -Path "$env:SystemRoot\Logs\ImageBuild\$Installer.log" -Force
         If ($Arguments -eq '') {$Arguments = $null}
-        $TokenUri = "http://169.254.169.254/metadata/identity/oauth2/token?api-version=2018-02-01&resource=$StorageEndpoint&client_id=$UserAssignedIdentityClientId"
+        $TokenUri = "http://169.254.169.254/metadata/identity/oauth2/token?api-version=$APIVersion&resource=$StorageEndpoint&client_id=$UserAssignedIdentityClientId"
         $AccessToken = ((Invoke-WebRequest -Headers @{Metadata=$true} -Uri $TokenUri -UseBasicParsing).Content | ConvertFrom-Json).access_token
         $InstallDir = Join-Path $BuildDir -ChildPath $Installer
         New-Item -Path $InstallDir -ItemType Directory -Force | Out-Null
@@ -220,6 +227,10 @@ resource fslogix 'Microsoft.Compute/virtualMachines/runCommands@2023-07-01' = if
     outputBlobUri: empty(logBlobContainerUri) ? null : '${logBlobContainerUri}${imageVmName}-FSLogix-output-${timeStamp}.log'
     parameters: [
       {
+        name: 'APIVersion'
+        value: apiVersion
+      }
+      {
         name: 'BuildDir'
         value: buildDir
       }
@@ -243,6 +254,7 @@ resource fslogix 'Microsoft.Compute/virtualMachines/runCommands@2023-07-01' = if
     source: {
       script: '''
         param(
+          [string]$APIVersion,
           [string]$BuildDir,
           [string]$UserAssignedIdentityClientId,
           [string]$ContainerName,
@@ -253,7 +265,7 @@ resource fslogix 'Microsoft.Compute/virtualMachines/runCommands@2023-07-01' = if
         Start-Transcript -Path "$env:SystemRoot\Logs\ImageBuild\$SoftwareName.log" -Force
         Write-Output "Starting '$SoftwareName' install."
         Write-Output "Obtaining bearer token for download from Azure Storage Account."
-        $TokenUri = "http://169.254.169.254/metadata/identity/oauth2/token?api-version=2018-02-01&resource=$StorageEndpoint&client_id=$UserAssignedIdentityClientId"
+        $TokenUri = "http://169.254.169.254/metadata/identity/oauth2/token?api-version=$APIVersion&resource=$StorageEndpoint&client_id=$UserAssignedIdentityClientId"
         $AccessToken = ((Invoke-WebRequest -Headers @{Metadata=$true} -Uri $TokenUri -UseBasicParsing).Content | ConvertFrom-Json).access_token
         $appDir = Join-Path -Path $BuildDir -ChildPath $SoftwareName
         New-Item -Path $appDir -ItemType Directory -Force | Out-Null
@@ -303,6 +315,10 @@ resource office 'Microsoft.Compute/virtualMachines/runCommands@2023-03-01' = if(
     }
     outputBlobUri: empty(logBlobContainerUri) ? null : '${logBlobContainerUri}${imageVmName}-Office-output-${timeStamp}.log'
     parameters: [
+      {
+        name: 'APIVersion'
+        value: apiVersion
+      }
       {
         name: 'BuildDir'
         value: buildDir
@@ -367,6 +383,7 @@ resource office 'Microsoft.Compute/virtualMachines/runCommands@2023-03-01' = if(
     source: {
       script: '''      
         param(
+          [string]$APIVersion,
           [string]$BuildDir,
           [string]$InstallAccess,
           [string]$InstallExcel,
@@ -386,7 +403,7 @@ resource office 'Microsoft.Compute/virtualMachines/runCommands@2023-03-01' = if(
         $SoftwareName = 'Office-365'
         Start-Transcript -Path "$env:SystemRoot\Logs\ImageBuild\$SoftwareName.log" -Force
         Write-Output "Installing '$SoftwareName'."
-        $TokenUri = "http://169.254.169.254/metadata/identity/oauth2/token?api-version=2018-02-01&resource=$StorageEndpoint&client_id=$UserAssignedIdentityClientId"
+        $TokenUri = "http://169.254.169.254/metadata/identity/oauth2/token?api-version=$APIVersion&resource=$StorageEndpoint&client_id=$UserAssignedIdentityClientId"
         $AccessToken = ((Invoke-WebRequest -Headers @{Metadata = $true } -Uri $TokenUri -UseBasicParsing).Content | ConvertFrom-Json).access_token
         $sku = (Get-ComputerInfo).OsName
         $appDir = Join-Path -Path $BuildDir -ChildPath $SoftwareName
@@ -485,6 +502,10 @@ resource onedrive 'Microsoft.Compute/virtualMachines/runCommands@2023-07-01' = i
     outputBlobUri: empty(logBlobContainerUri) ? null : '${logBlobContainerUri}${imageVmName}-OneDrive-output-${timeStamp}.log'
     parameters: [
       {
+        name: 'APIVersion'
+        value: apiVersion
+      }
+      {
         name: 'BuildDir'
         value: buildDir
       }
@@ -508,6 +529,7 @@ resource onedrive 'Microsoft.Compute/virtualMachines/runCommands@2023-07-01' = i
     source: {
       script: '''
         param(
+          [string]$APIVersion,
           [string]$BuildDir,
           [string]$UserAssignedIdentityClientId,
           [string]$ContainerName,
@@ -526,7 +548,7 @@ resource onedrive 'Microsoft.Compute/virtualMachines/runCommands@2023-07-01' = i
           Write-Output "$SoftwareName is already setup per-machine. Quiting."
         } Else {
           Write-Output "Obtaining bearer token for download from Azure Storage Account."
-          $TokenUri = "http://169.254.169.254/metadata/identity/oauth2/token?api-version=2018-02-01&resource=$StorageEndpoint&client_id=$UserAssignedIdentityClientId"
+          $TokenUri = "http://169.254.169.254/metadata/identity/oauth2/token?api-version=$APIVersion&resource=$StorageEndpoint&client_id=$UserAssignedIdentityClientId"
           $AccessToken = ((Invoke-WebRequest -Headers @{Metadata=$true} -Uri $TokenUri -UseBasicParsing).Content | ConvertFrom-Json).access_token
           $appDir = Join-Path -Path $BuildDir -ChildPath 'OneDrive'
           New-Item -Path $appDir -ItemType Directory -Force | Out-Null
@@ -596,6 +618,10 @@ resource teams 'Microsoft.Compute/virtualMachines/runCommands@2023-03-01' = if (
     outputBlobUri: empty(logBlobContainerUri) ? null : '${logBlobContainerUri}${imageVmName}-Teams-output-${timeStamp}.log'
     parameters: [
       {
+        name: 'APIVersion'
+        value: apiVersion
+      }
+      {
         name: 'BuildDir'
         value: buildDir
       }
@@ -619,6 +645,7 @@ resource teams 'Microsoft.Compute/virtualMachines/runCommands@2023-03-01' = if (
     source: {
       script: '''
         param(
+          [string]$APIVersion,
           [string]$BuildDir,
           [string]$UserAssignedIdentityClientId,
           [string]$ContainerName,
@@ -627,7 +654,7 @@ resource teams 'Microsoft.Compute/virtualMachines/runCommands@2023-03-01' = if (
         )
         $SoftwareName = 'Teams'
         Start-Transcript -Path "$env:SystemRoot\Logs\ImageBuild\$SoftwareName.log" -Force
-        $TokenUri = "http://169.254.169.254/metadata/identity/oauth2/token?api-version=2018-02-01&resource=$StorageEndpoint&client_id=$UserAssignedIdentityClientId"
+        $TokenUri = "http://169.254.169.254/metadata/identity/oauth2/token?api-version=$APIVersion&resource=$StorageEndpoint&client_id=$UserAssignedIdentityClientId"
         $AccessToken = ((Invoke-WebRequest -Headers @{Metadata=$true} -Uri $TokenUri -UseBasicParsing).Content | ConvertFrom-Json).access_token
         $sku = (Get-ComputerInfo).OsName
         $appDir = Join-Path -Path $BuildDir -ChildPath $SoftwareName
@@ -984,6 +1011,10 @@ resource vdot 'Microsoft.Compute/virtualMachines/runCommands@2023-03-01' = if (i
     outputBlobUri: empty(logBlobContainerUri) ? null : '${logBlobContainerUri}${imageVmName}-vdot-output-${timeStamp}.log'
     parameters: [
       {
+        name: 'APIVersion'
+        value: apiVersion
+      }
+      {
         name: 'UserAssignedIdentityClientId'
         value: userAssignedIdentityClientId
       }
@@ -1008,6 +1039,7 @@ resource vdot 'Microsoft.Compute/virtualMachines/runCommands@2023-03-01' = if (i
     source: {
       script: '''
         param(
+          [string]$APIVersion,
           [string]$UserAssignedIdentityClientId,
           [string]$ContainerName,
           [string]$StorageEndpoint,
@@ -1015,7 +1047,7 @@ resource vdot 'Microsoft.Compute/virtualMachines/runCommands@2023-03-01' = if (i
           [string]$BuildDir    
         )
         Start-Transcript -Path "$env:SystemRoot\Logs\ImageBuild\VDOT.log" -Force
-        $TokenUri = "http://169.254.169.254/metadata/identity/oauth2/token?api-version=2018-02-01&resource=$StorageEndpoint&client_id=$UserAssignedIdentityClientId"
+        $TokenUri = "http://169.254.169.254/metadata/identity/oauth2/token?api-version=$APIVersion&resource=$StorageEndpoint&client_id=$UserAssignedIdentityClientId"
         $AccessToken = ((Invoke-WebRequest -Headers @{Metadata=$true} -Uri $TokenUri -UseBasicParsing).Content | ConvertFrom-Json).access_token
         $ZIP = Join-Path -Path $BuildDir -ChildPath $BlobName
         Invoke-WebRequest -Headers @{"x-ms-version"="2017-11-09"; Authorization ="Bearer $AccessToken"} -Uri "$StorageEndpoint$ContainerName/$BlobName" -OutFile $ZIP

@@ -159,6 +159,16 @@
             "GitHubRepo": "",
             "GitHubFileNamePattern": "",
             "DestinationFilePath": "STIGs_Client/STIGs.zip"
-        }        
+        },
+        {
+            "Name": "Virtual Desktop Optimization Tool (VDOT)",
+            "DownloadUrl": "https://github.com/The-Virtual-Desktop-Team/Virtual-Desktop-Optimization-Tool/archive/refs/heads/main.zip",
+            "WebsiteUrl": "",
+            "SearchString": "",
+            "APIUrl": "",
+            "GitHubRepo": "",
+            "GitHubFileNamePattern": "",
+            "DestinationFilePath": "VDOT.zip"
+        }    
     ]
 }

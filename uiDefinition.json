@@ -958,10 +958,12 @@
 												"element": {
 													"type": "Microsoft.Common.TextBox",
 													"placeholder": "Example: vscode",
-													"constraints": {
-														"required": true,
-														"validations": []
-													}
+													"validations": [
+														{
+															"regex": "^[A-Za-z0-9-]{1,24}$",
+															"message": "Only alphanumerics and dashes (-) are allowed up to 24 characters"
+														}
+													]
 												}
 											},
 											{
